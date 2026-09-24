@@ -1,6 +1,6 @@
 import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound } from "lucide-react";
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
-import { SubmitButton } from "@/components/admin/ui-client";
+import { SubmitButton, ImageUploadField } from "@/components/admin/ui-client";
 import { PaymentTest } from "@/components/admin/PaymentTest";
 import { getPrivateSetting, mask, type PaymentSettings, type TtsSettings } from "@/lib/server/private-settings";
 import { savePayment, saveTts, testPayment } from "./actions";
@@ -94,6 +94,26 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 data-lpignore="true"
                 hint="The account the Bakong ID is linked to. It's added to the KHQR so the payer's bank shows where the money goes."
               />
+              <div className="rounded-2xl bg-cream p-4 md:col-span-2">
+                <p className="mb-3 text-sm font-bold text-forest">Logo in the middle of the QR</p>
+                <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">
+                  <SelectField label="Show" name="qr_logo_mode" defaultValue={pay.qr_logo_mode ?? "site"}>
+                    <option value="site">The website logo (Green Wild Zoo)</option>
+                    <option value="khqr">Standard KHQR mark (red circle with ៛ / $)</option>
+                    <option value="custom">My own logo (upload below)</option>
+                  </SelectField>
+                  <ImageUploadField
+                    name="qr_logo"
+                    label="Own logo (square PNG works best)"
+                    hint="Used when “My own logo” is chosen. Change it any time; new QR codes use it straight away."
+                    current={pay.qr_logo_url}
+                    uploadLabel="Upload logo"
+                    urlLabel="…or paste an image link"
+                    aspect="aspect-square"
+                    transparent
+                  />
+                </div>
+              </div>
               <Field label="Bank name (optional)" name="bank_name" defaultValue={pay.bank_name} placeholder="e.g. ACLEDA Bank" autoComplete="off" data-1p-ignore data-lpignore="true" />
               <Field label="Merchant name (on the QR)" name="merchant_name" defaultValue={pay.merchant_name ?? "Green Wild Zoo"} maxLength={25} />
               <Field label="City" name="merchant_city" defaultValue={pay.merchant_city ?? "Phnom Penh"} maxLength={15} />

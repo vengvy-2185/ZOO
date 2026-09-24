@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
+import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
 import { CheckCircle2, Download, Loader2, RefreshCw, Smartphone, TimerOff, Store } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 
@@ -14,10 +14,7 @@ export interface KhqrView {
   expiresAt?: string;
   merchantName?: string;
   canVerify?: boolean;
-}
-
-function money(amount: number, currency: string) {
-  return currency === "KHR" ? `${amount.toLocaleString("en-US")} ៛` : `$${amount.toFixed(2)}`;
+  logo?: string;
 }
 
 // KHQR payment card (styled after the official KHQR layout: red header,
@@ -60,8 +57,8 @@ export function KhqrPayment({
 
   // QR image
   useEffect(() => {
-    if (view.qr) QRCode.toDataURL(view.qr, { margin: 1, width: 520, errorCorrectionLevel: "M" }).then(setImg);
-  }, [view.qr]);
+    if (view.qr) drawKhqr(view.qr, view.logo, view.currency).then(setImg);
+  }, [view.qr, view.logo, view.currency]);
 
   // Countdown
   useEffect(() => {
@@ -129,27 +126,11 @@ export function KhqrPayment({
   return (
     <div className="mx-auto grid max-w-3xl items-start gap-6 md:grid-cols-[340px_1fr]">
       {/* KHQR card */}
-      <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-lift ring-1 ring-black/5">
-        <div className="relative flex h-14 items-center justify-center bg-[#E1232E]">
-          <span className="font-display text-2xl font-extrabold tracking-wider text-white">KHQR</span>
-          <span className="absolute -bottom-3 right-0 h-6 w-10 bg-white [clip-path:polygon(100%_0,0_100%,100%_100%)]" />
-        </div>
-        <div className="px-6 pb-2 pt-4">
-          <div className="text-sm font-semibold text-ink/70">{view.merchantName ?? "Green Wild Zoo"}</div>
-          <div className="font-display text-3xl font-extrabold text-ink">{view.amount != null && view.currency ? money(view.amount, view.currency) : "—"}</div>
-        </div>
-        <div className="mx-6 border-t-2 border-dashed border-black/10" />
-        <div className="relative p-6">
-          {img && !expired ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={img} alt="KHQR" className="mx-auto w-full max-w-[260px]" />
-          ) : (
-            <div className="mx-auto flex aspect-square w-full max-w-[260px] flex-col items-center justify-center gap-3 rounded-2xl bg-black/[0.04] text-center text-ink/55">
-              {expired ? <TimerOff size={40} /> : <Loader2 size={32} className="animate-spin" />}
-              {expired && <span className="px-6 text-sm font-semibold">{t.pay.expired}</span>}
-            </div>
-          )}
-        </div>
+      <KhqrCard
+        merchant={view.merchantName ?? "Green Wild Zoo"}
+        amount={view.amount}
+        currency={view.currency}
+        footer={
         <div className="border-t border-black/5 bg-cream px-6 py-3 text-center text-sm font-bold">
           {expired ? (
             <button
@@ -167,7 +148,21 @@ export function KhqrPayment({
             <span className={left < 60 ? "text-red-600" : "text-forest"}>{t.pay.expiresIn(`${mm}:${ss}`)}</span>
           )}
         </div>
-      </div>
+        }
+      >
+        <div className="relative">
+          {img && !expired ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={img} alt="KHQR" className="mx-auto w-full max-w-[260px]" />
+          ) : (
+            <div className="mx-auto flex aspect-square w-full max-w-[260px] flex-col items-center justify-center gap-3 rounded-2xl bg-black/[0.04] text-center text-ink/55">
+              {expired ? <TimerOff size={40} /> : <Loader2 size={32} className="animate-spin" />}
+              {expired && <span className="px-6 text-sm font-semibold">{t.pay.expired}</span>}
+            </div>
+          )}
+        </div>
+
+      </KhqrCard>
 
       {/* Instructions + live status */}
       <div className="space-y-4">

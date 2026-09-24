@@ -2,7 +2,7 @@ import "server-only";
 import { revalidateTag } from "next/cache";
 import { serviceClient } from "./private-settings";
 import { awardForPaidBooking } from "./points";
-import { checkTransaction, createKhqr, getPaymentConfig } from "./bakong";
+import { checkTransaction, createKhqr, getPaymentConfig, khqrLogo } from "./bakong";
 
 // One payment flow for both ticket bookings and animal adoptions:
 //   start → a fresh dynamic KHQR (10 min) is stored with its md5
@@ -22,6 +22,7 @@ export interface PaymentView {
   expiresAt?: string;
   merchantName?: string;
   canVerify?: boolean;
+  logo?: string;
 }
 
 async function loadTarget(kind: PayKind, code: string, key: string) {
@@ -95,11 +96,11 @@ export async function pollKhqr(kind: PayKind, code: string, key: string, opts: {
     if (!opts.regenerate) return { status: "expired" };
     const fresh = await startKhqr(kind, target.id, target.amountUsd, target.bill);
     if (!fresh) return { status: "unavailable" };
-    return { status: "pending", qr: fresh.qr, amount: fresh.amount, currency: fresh.currency, expiresAt: fresh.expiresAt.toISOString(), merchantName: fresh.merchantName, canVerify };
+    return { status: "pending", qr: fresh.qr, amount: fresh.amount, currency: fresh.currency, expiresAt: fresh.expiresAt.toISOString(), merchantName: fresh.merchantName, canVerify, logo: khqrLogo(settings) };
   }
 
   const amount = settings.currency === "KHR" ? Math.round(target.amountUsd * (settings.usd_to_khr || 4100)) : target.amountUsd;
-  return { status: "pending", qr: qr.khqr!, amount, currency: qr.currency ?? "USD", expiresAt: qr.expires_at!, merchantName: settings.merchant_name, canVerify };
+  return { status: "pending", qr: qr.khqr!, amount, currency: qr.currency ?? "USD", expiresAt: qr.expires_at!, merchantName: settings.merchant_name, canVerify, logo: khqrLogo(settings) };
 }
 
 async function markPaid(kind: PayKind, targetId: string, paymentId: string | undefined, hash?: string, from?: string) {

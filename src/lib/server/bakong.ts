@@ -15,6 +15,13 @@ import { getPrivateSetting, type PaymentSettings } from "./private-settings";
 
 export const QR_MINUTES = 10;
 
+/** The logo drawn in the middle of the QR: "khqr" (standard red mark) or an image URL. */
+export function khqrLogo(s: PaymentSettings): string {
+  if (s.qr_logo_mode === "khqr") return "khqr";
+  if (s.qr_logo_mode === "custom" && s.qr_logo_url) return s.qr_logo_url;
+  return "/icon.svg";
+}
+
 export async function getPaymentConfig() {
   const s = await getPrivateSetting<PaymentSettings>("payment");
   // Only offer KHQR when payments can be confirmed automatically (API token

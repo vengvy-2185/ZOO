@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
 import { getPrivateSetting, type PaymentSettings } from "@/lib/server/private-settings";
-import { checkTransaction, createKhqrIn } from "@/lib/server/bakong";
+import { checkTransaction, createKhqrIn, khqrLogo } from "@/lib/server/bakong";
 
 // Admin-only "send 100៛ to yourself" test: makes a real KHQR with the saved
 // settings, then (polled by the page) asks Bakong from THIS server whether it
@@ -21,7 +21,7 @@ export async function POST() {
   if (!s.bakong_account_id) return NextResponse.json({ error: "Save a Bakong account ID first." }, { status: 400 });
   try {
     const k = createKhqrIn(s, "KHR", 100, `TEST-${Date.now().toString(36).toUpperCase()}`);
-    return NextResponse.json({ qr: k.qr, md5: k.md5, amount: k.amount, currency: k.currency, expiresAt: k.expiresAt.toISOString(), account: s.bakong_account_id, hasToken: Boolean(s.api_token) });
+    return NextResponse.json({ qr: k.qr, md5: k.md5, amount: k.amount, currency: k.currency, expiresAt: k.expiresAt.toISOString(), account: s.bakong_account_id, hasToken: Boolean(s.api_token), merchant: s.merchant_name || "Green Wild Zoo", logo: khqrLogo(s) });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Could not create the KHQR." }, { status: 400 });
   }

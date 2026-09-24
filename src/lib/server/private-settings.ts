@@ -11,6 +11,8 @@ export interface PaymentSettings {
   bakong_account_id?: string; // e.g. "greenwildzoo@aba"
   bank_account?: string; // optional: the bank account number the Bakong ID is linked to (put in the KHQR)
   bank_name?: string; // optional: that bank's name, e.g. "ABA Bank"
+  qr_logo_mode?: "site" | "khqr" | "custom"; // what sits in the middle of the KHQR (default: the website logo)
+  qr_logo_url?: string; // the uploaded logo for "custom"
   merchant_name?: string;
   merchant_city?: string;
   currency?: "USD" | "KHR";

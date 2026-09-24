@@ -5,6 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
 import { getPrivateSetting, serviceClient, type PaymentSettings, type TtsSettings } from "@/lib/server/private-settings";
 import { checkAccount } from "@/lib/server/bakong";
+import { resolveImage } from "@/lib/admin/upload";
 
 // Server actions run as POST requests to the admin page, so they re-check
 // the admin role themselves before touching secrets with the service role.
@@ -33,6 +34,8 @@ export async function savePayment(formData: FormData) {
     bakong_account_id: account || undefined,
     bank_account: bankAccount || undefined,
     bank_name: str(formData, "bank_name") || undefined,
+    qr_logo_mode: (["site", "khqr", "custom"] as const).find((m) => m === str(formData, "qr_logo_mode")) ?? "site",
+    qr_logo_url: (await resolveImage(formData, "qr_logo", "khqr")) ?? undefined,
     merchant_name: str(formData, "merchant_name") || undefined,
     merchant_city: str(formData, "merchant_city") || undefined,
     currency: str(formData, "currency") === "KHR" ? "KHR" : "USD",

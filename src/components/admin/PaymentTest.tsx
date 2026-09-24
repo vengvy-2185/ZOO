@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
 import { CheckCircle2, AlertTriangle, Loader2, QrCode, RotateCcw } from "lucide-react";
 
-type Test = { qr: string; md5: string; amount: number; currency: string; expiresAt: string; account: string; hasToken: boolean };
+type Test = { qr: string; md5: string; amount: number; currency: string; expiresAt: string; account: string; hasToken: boolean; merchant: string; logo: string };
 type State =
   | { step: "idle" }
   | { step: "making" }
@@ -33,7 +33,7 @@ export function PaymentTest() {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return setS({ step: "error", message: data.error ?? `HTTP ${r.status}` });
     const test = data as Test;
-    const img = await QRCode.toDataURL(test.qr, { width: 520, margin: 1, errorCorrectionLevel: "M" });
+    const img = await drawKhqr(test.qr, test.logo, test.currency);
     setS({ step: "waiting", test, img, problem: test.hasToken ? undefined : PROBLEM["no-token"] });
     if (!test.hasToken) return;
     timer.current = setInterval(async () => {
@@ -77,11 +77,11 @@ export function PaymentTest() {
 
       {s.step === "waiting" && (
         <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-          <div className="w-56 flex-shrink-0 overflow-hidden rounded-2xl bg-white shadow-soft">
-            <div className="bg-[#E1232E] py-2 text-center text-sm font-extrabold tracking-widest text-white">KHQR</div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={s.img} alt="Test KHQR" className="w-full p-3" />
-            <p className="pb-3 text-center font-display text-xl font-extrabold text-forest">100 ៛</p>
+          <div className="w-64 flex-shrink-0">
+            <KhqrCard merchant={s.test.merchant} amount={s.test.amount} currency={s.test.currency}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s.img} alt="Test KHQR" className="w-full" />
+            </KhqrCard>
           </div>
           <div className="space-y-2 text-sm">
             <p>
