@@ -1,4 +1,4 @@
-import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, type LucideIcon } from "lucide-react";
+import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, Gift, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Single source of truth for the visitor site's menu — the desktop header,
@@ -17,6 +17,7 @@ export const NAV_LINKS: { href: string; key: keyof Dictionary["nav"]; icon: Luci
 /** Extra pages: the desktop "More" dropdown, the mobile menu and the footer.
  *  (My tickets and Favourites are NOT here — they have their own header icons.) */
 export const MORE_LINKS: { href: string; key: keyof Dictionary["nav"]; icon: LucideIcon }[] = [
+  { href: "/rewards", key: "rewards", icon: Gift },
   { href: "/planner", key: "planner", icon: Route },
   { href: "/match", key: "match", icon: Sparkles },
   { href: "/photo-booth", key: "booth", icon: Camera },

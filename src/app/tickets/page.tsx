@@ -7,12 +7,13 @@ import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { TicketSelector } from "@/components/visitor/TicketSelector";
 import type { TicketType } from "@/types/domain";
 import { getI18n } from "@/lib/i18n/server";
+import { InviteBanner } from "@/components/visitor/InviteBanner";
 
 export const revalidate = 60;
 
 export default async function TicketsPage({ searchParams }: { searchParams: { date?: string } }) {
   const ticketTypes = await getTicketTypes();
-  const { t } = getI18n();
+  const { locale, t } = getI18n();
 
   return (
     <div className="pb-20 md:pb-0">
@@ -24,6 +25,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: { da
         subtitle={t.tickets.subtitle}
       />
       <main className="mx-auto max-w-6xl px-4 md:px-6">
+        <InviteBanner km={locale === "km"} />
         <TicketSelector ticketTypes={(ticketTypes ?? []) as TicketType[]} initialDate={searchParams.date} />
       </main>
       <SiteFooter />

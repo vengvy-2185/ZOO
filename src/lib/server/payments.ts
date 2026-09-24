@@ -1,6 +1,7 @@
 import "server-only";
 import { revalidateTag } from "next/cache";
 import { serviceClient } from "./private-settings";
+import { awardForPaidBooking } from "./points";
 import { checkTransaction, createKhqr, getPaymentConfig } from "./bakong";
 
 // One payment flow for both ticket bookings and animal adoptions:
@@ -107,6 +108,8 @@ async function markPaid(kind: PayKind, targetId: string, paymentId: string | und
   if (kind === "booking") {
     if (paymentId) await db.from("payments").update({ status: "paid", paid_at: now, provider_reference: hash ?? null, payer_account: from ?? null }).eq("id", paymentId);
     await db.from("bookings").update({ status: "confirmed" }).eq("id", targetId);
+    // Points for the buyer, and for the friend who invited them (never blocks the payment).
+    await awardForPaidBooking(targetId).catch(() => {});
   } else {
     await db.from("adoptions").update({ status: "paid", paid_at: now }).eq("id", targetId);
     revalidateTag("adoptions");

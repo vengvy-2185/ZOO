@@ -4,7 +4,7 @@ import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { ProfileEditor } from "@/components/visitor/ProfileEditor";
 import { ClaimQuestSession } from "@/components/visitor/ClaimQuestSession";
 import { IconBadge } from "@/components/visitor/IconBadge";
-import { Medal, Search, Trophy, Star, PawPrint, Ticket, QrCode, ArrowRight, Download, Wallet, Receipt, CheckCircle2, Clock, HeartHandshake, Users } from "lucide-react";
+import { Medal, Search, Trophy, Star, PawPrint, Ticket, QrCode, ArrowRight, Download, Wallet, Receipt, CheckCircle2, Clock, HeartHandshake, Users, Gift } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { zooToday } from "@/lib/data/gate";
 import { formatFullDate, num } from "@/lib/utils/age";
@@ -47,7 +47,9 @@ async function getAccountData() {
   const discoveredIds = new Set(
     (questSessions ?? []).flatMap((s: any) => (s.quest_discoveries ?? []).map((d: any) => d.animal_id))
   );
-  const totalPoints = (questSessions ?? []).reduce((sum: number, s: any) => sum + (s.points ?? 0), 0);
+  // Spendable points (quest animals, purchases, invites, minus rewards): see lib/server/points.
+  const { data: balance } = await createServiceRoleClient().rpc("points_balance", { p_user: user.id });
+  const totalPoints = Number(balance ?? 0);
 
   return {
     user,
@@ -263,6 +265,18 @@ export default async function AccountPage() {
         </section>
 
         <div className="min-w-0 space-y-6">
+          <Link href="/rewards" className="flex items-center gap-4 rounded-3xl bg-gradient-to-r from-accent to-leaf p-5 text-forest shadow-soft transition hover:-translate-y-0.5">
+            <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/70">
+              <Gift size={24} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-lg font-extrabold leading-tight">{locale === "km" ? "ពិន្ទុ និងរង្វាន់" : "Points & Rewards"}</span>
+              <span className="block text-sm text-forest/80">
+                {locale === "km" ? `អ្នកមាន ${num(totalPoints, locale)} ពិន្ទុ។ ប្តូរជាការបញ្ចុះតម្លៃ ឬអញ្ជើញមិត្ត។` : `You have ${num(totalPoints, locale)} points. Swap them for discounts or invite friends.`}
+              </span>
+            </span>
+            <ArrowRight size={20} className="flex-shrink-0" />
+          </Link>
           <section className="card p-5">
             <h2 className="flex items-center gap-2 font-display text-xl font-bold text-forest">
               <Star size={20} className="text-primary" /> {t.account.myQuest}

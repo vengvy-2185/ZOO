@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { startKhqr } from "@/lib/server/payments";
 import { checkDiscount, redeemDiscount, subtotalFor } from "@/lib/server/discounts";
+import { cookies } from "next/headers";
+import { REF_COOKIE, isReferralCode } from "@/lib/server/points";
 
 const CheckoutSchema = z.object({
   visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
@@ -66,6 +68,8 @@ export async function POST(req: Request) {
       visitor_email: visitorEmail,
       visitor_id: user?.id ?? null,
       status: "pending",
+      // Came through a friend's invite link? (checked again when the booking is paid)
+      referral_code: isReferralCode(cookies().get(REF_COOKIE)?.value) ? cookies().get(REF_COOKIE)!.value : null,
     })
     .select()
     .single();

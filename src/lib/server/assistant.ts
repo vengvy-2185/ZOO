@@ -42,6 +42,7 @@ const WORDS = {
   myTickets: ["my ticket", "lost ticket", "find my ticket", "where is my ticket", "show qr", "សំបុត្ររបស់ខ្ញុំ", "បាត់សំបុត្រ", "រកសំបុត្រ"],
   account: ["login", "log in", "sign in", "sign up", "register", "account", "profile", "password", "change my name", "change name", "avatar", "គណនី", "ចូលគណនី", "ចុះឈ្មោះ", "ពាក្យសម្ងាត់", "ប្តូរឈ្មោះ", "ប្តូររូប", "ប្រវត្តិរូប"],
   adopt: ["adopt", "sponsor", "donate", "support an animal", "ឧបត្ថម្ភ", "បរិច្ចាគ", "ជួយសត្វ"],
+  rewards: ["points", "point", "reward", "rewards", "redeem", "invite", "referral", "refer a friend", "ពិន្ទុ", "រង្វាន់", "អញ្ជើញមិត្ត", "ណែនាំមិត្ត", "ប្តូរពិន្ទុ"],
   booth: ["postcard", "post card", "កាតប៉ុស្តាល់", "photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
   games: ["quiz", "game", "games", "for kids", "children", "kids", "which animal am i", "ល្បែង", "ហ្គេម", "សម្រាប់កុមារ", "ក្មេង", "កូនតូច"],
   food: ["food", "eat", "restaurant", "cafe", "coffee", "hungry", "drink", "snack", "អាហារ", "ញ៉ាំ", "ឃ្លាន", "ហាងកាហ្វេ", "ភេសជ្ជៈ", "ភោជនីយដ្ឋាន"],
@@ -240,6 +241,15 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
         `អ្នកអាចឧបត្ថម្ភសត្វជានិមិត្តរូប៖ មិត្ត $${ADOPTION_TIERS.friend}, អាណាព្យាបាល $${ADOPTION_TIERS.guardian} ឬវីរបុរស $${ADOPTION_TIERS.hero}។ ការគាំទ្ររបស់អ្នកជួយចំណាយលើអាហារ និងការថែទាំ ហើយអ្នកនឹងទទួលបានវិញ្ញាបនបត្រផ្ទាល់ខ្លួន។`
       ),
       links: [{ label: L("Adopt an animal", "ឧបត្ថម្ភសត្វ"), href: animal ? `/adopt?animal=${animal.animal_code}` : "/adopt" }],
+    };
+  }
+  if (has(q, WORDS.rewards)) {
+    return {
+      text: L(
+        "You collect points by finding animals in the Animal Quest (10 each, plus 100 for all of them), buying tickets while signed in (1 point per $1) and inviting friends (50 points when a friend buys tickets with your link, with extra bonuses at 3, 5 and 10 friends). Swap them for discount codes on the Points & Rewards page.",
+        "អ្នកប្រមូលពិន្ទុបានដោយរកសត្វក្នុងបេសកកម្មសត្វ (10 ពិន្ទុក្នុងមួយក្បាល និងបន្ថែម 100 ពេលរកឃើញទាំងអស់) ទិញសំបុត្រពេលបានចូលគណនី (1 ពិន្ទុក្នុង $1) និងអញ្ជើញមិត្ត (50 ពិន្ទុពេលមិត្តទិញសំបុត្រតាម link របស់អ្នក និងរង្វាន់បន្ថែមពេលមានមិត្ត 3, 5 និង 10 នាក់)។ ប្តូរពិន្ទុជាលេខកូដបញ្ចុះតម្លៃនៅទំព័រពិន្ទុ និងរង្វាន់។"
+      ),
+      links: [{ label: L("Points & Rewards", "ពិន្ទុ និងរង្វាន់"), href: "/rewards" }, { label: L("Animal Quest", "បេសកកម្មសត្វ"), href: "/quest" }],
     };
   }
   if (has(q, WORDS.booth)) {

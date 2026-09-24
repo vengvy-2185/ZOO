@@ -151,6 +151,14 @@ export default function QuestPage() {
             </div>
           )}
 
+          <Link href="/rewards" className="mt-4 flex items-center gap-3 rounded-3xl bg-gradient-to-r from-accent to-leaf p-4 font-bold text-forest shadow-soft transition hover:-translate-y-0.5">
+            <Star size={22} className="flex-shrink-0" />
+            <span className="min-w-0 flex-1 text-sm sm:text-base">
+              {locale === "km" ? "ប្តូរពិន្ទុរបស់អ្នកជាការបញ្ចុះតម្លៃ និងអញ្ជើញមិត្តដើម្បីបានពិន្ទុបន្ថែម" : "Swap your points for discounts, and invite friends for more"}
+            </span>
+            <ArrowRight size={18} className="flex-shrink-0" />
+          </Link>
+
           <QuestRank found={discovered} total={total} images={animals.filter((a) => discoveredIds.has(a.id) && a.main_image_url).map((a) => a.main_image_url!)} />
 
           <div className="mt-6 flex items-center gap-3 rounded-3xl bg-cream p-4 ring-1 ring-primary/10">
