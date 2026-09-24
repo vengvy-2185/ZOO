@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getCategoryIcon } from "@/lib/icons/categoryIcons";
 import { Star, Trophy, PartyPopper, Check, Lock, QrCode, Target, ScanLine, MapPin, ArrowRight, XCircle } from "lucide-react";
 import { QuestScanner } from "@/components/visitor/QuestScanner";
+import { QuestRank, RANKS, rankFor } from "@/components/visitor/QuestRank";
 import { cn } from "@/lib/utils/cn";
 import { useI18n } from "@/lib/i18n/client";
 import { num } from "@/lib/utils/age";
@@ -150,6 +151,8 @@ export default function QuestPage() {
             </div>
           )}
 
+          <QuestRank found={discovered} total={total} images={animals.filter((a) => discoveredIds.has(a.id) && a.main_image_url).map((a) => a.main_image_url!)} />
+
           <div className="mt-6 flex items-center gap-3 rounded-3xl bg-cream p-4 ring-1 ring-primary/10">
             <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary text-white">
               <QrCode size={22} />
@@ -271,6 +274,11 @@ function FoundCard({ r, locale, t, onScan }: { r: Found; locale: "en" | "km"; t:
         <span className={cn("mt-3 inline-block rounded-full px-4 py-1.5 text-sm font-extrabold", r.awarded ? "bg-leaf text-forest" : "bg-white/15 text-white")}>
           {r.awarded ? q.plus(r.points) : q.already}
         </span>
+        {r.awarded && rankFor(r.found, r.total) > rankFor(r.found - 1, r.total) && (
+          <p className="mt-3 rounded-2xl bg-white/15 px-4 py-2 text-sm font-bold ring-1 ring-white/25">
+            {locale === "km" ? "ឋានៈថ្មី៖ " + RANKS[rankFor(r.found, r.total)].km : "New rank: " + RANKS[rankFor(r.found, r.total)].en}
+          </p>
+        )}
       </div>
       <div className="space-y-4 p-5">
         <div>

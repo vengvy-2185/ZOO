@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { generateQrDataUrl, animalQrUrl } from "@/lib/utils/qr";
 import { getSiteUrl } from "@/lib/server/site-url";
+import { QrSignDownload } from "@/components/admin/QrSignDownload";
 import { getI18n } from "@/lib/i18n/server";
 import { num } from "@/lib/utils/age";
 
@@ -12,11 +13,11 @@ export default async function AdminQrPage() {
   const { locale, t } = getI18n();
   const { data: qrs } = await supabase
     .from("animal_qr_codes")
-    .select("*, animals(id, name, khmer_name, animal_code)")
+    .select("*, animals(id, name, khmer_name, animal_code, main_image_url, species:species_id(common_name, khmer_name))")
     .order("scan_count", { ascending: false });
   const siteUrl = getSiteUrl();
   const rows = await Promise.all(
-    (qrs ?? []).map(async (q: any) => ({ ...q, img: q.animals ? await generateQrDataUrl(animalQrUrl(siteUrl, q.qr_token)) : null }))
+    (qrs ?? []).map(async (q: any) => ({ ...q, url: animalQrUrl(siteUrl, q.qr_token), img: q.animals ? await generateQrDataUrl(animalQrUrl(siteUrl, q.qr_token)) : null }))
   );
   const p = t.admin.qrPage;
 
@@ -42,6 +43,19 @@ export default async function AdminQrPage() {
                 </a>
               )}
             </div>
+            {q.animals && (
+              <QrSignDownload
+                url={q.url}
+                code={q.animals.animal_code}
+                name={q.animals.name}
+                nameKm={q.animals.khmer_name}
+                species={q.animals.species?.common_name ?? null}
+                speciesKm={q.animals.species?.khmer_name ?? null}
+                image={q.animals.main_image_url}
+                label={locale === "km" ? "ទាញយកផ្លាកសម្រាប់បោះពុម្ព" : "Download printable sign"}
+                className="btn-primary mt-3 w-full py-2 text-xs"
+              />
+            )}
           </div>
         ))}
       </div>

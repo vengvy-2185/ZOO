@@ -20,8 +20,10 @@ export function ticketUrl(siteUrl: string, bookingCode: string) {
   return `${siteUrl}/ticket/${bookingCode}`;
 }
 
-export async function generateQrDataUrl(content: string): Promise<string> {
+/** `withLogo`: use the highest error correction so a logo can sit in the middle and it still scans. */
+export async function generateQrDataUrl(content: string, withLogo = false): Promise<string> {
   return QRCode.toDataURL(content, {
+    errorCorrectionLevel: withLogo ? "H" : "M",
     margin: 1,
     width: 512,
     color: { dark: "#17231A", light: "#FFFFFF" },

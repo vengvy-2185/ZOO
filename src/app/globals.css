@@ -99,6 +99,16 @@
   }
 }
 
+/* Phones zoom the whole page in when you tap a text box whose text is smaller
+   than 16px, which throws the layout off. Keep every box at 16px on phones. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* ── Scroll reveal (see components/ScrollReveal.tsx) ─────────────────────
    Only active once the script has run (html.reveal-on), so without JS
    everything is simply visible. */

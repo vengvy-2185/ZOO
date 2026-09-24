@@ -4,6 +4,7 @@ import { PawPrint, QrCode, Download, ExternalLink, Images, Trash2, CheckCircle2 
 import { createClient } from "@/lib/supabase/server";
 import { generateQrDataUrl, animalQrUrl } from "@/lib/utils/qr";
 import { getSiteUrl } from "@/lib/server/site-url";
+import { QrSignDownload } from "@/components/admin/QrSignDownload";
 import { AdminPageHeader, FormSection, BilingualField, Thumb } from "@/components/admin/ui";
 import { ImageUploadField, SubmitButton } from "@/components/admin/ui-client";
 import { getI18n } from "@/lib/i18n/server";
@@ -75,6 +76,19 @@ export default async function EditAnimalPage({ params, searchParams }: { params:
               <a href={qrDataUrl} download={`${animal.animal_code}-qr.png`} className="btn-outline mt-3 w-full py-2 text-xs">
                 <Download size={14} /> {f.downloadQr}
               </a>
+            )}
+            {qr?.qr_token && (
+              <QrSignDownload
+                url={animalQrUrl(siteUrl, qr.qr_token)}
+                code={animal.animal_code}
+                name={animal.name}
+                nameKm={animal.khmer_name}
+                species={(species ?? []).find((x: any) => x.id === animal.species_id)?.common_name ?? null}
+                speciesKm={(species ?? []).find((x: any) => x.id === animal.species_id)?.khmer_name ?? null}
+                image={animal.main_image_url}
+                label={locale === "km" ? "ទាញយកផ្លាកសម្រាប់បោះពុម្ព" : "Download printable sign"}
+                className="btn-primary mt-2 w-full py-2 text-xs"
+              />
             )}
           </div>
         </aside>

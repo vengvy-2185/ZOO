@@ -14,6 +14,10 @@ import { RememberTicket } from "@/components/visitor/MyTickets";
 import { ScratchCard } from "@/components/visitor/ScratchCard";
 import { getSiteUrl } from "@/lib/server/site-url";
 import { AddToCalendar } from "@/components/visitor/AddToCalendar";
+import { GateVerdict, VisitorScanNote } from "@/components/visitor/GateVerdict";
+import { checkInTicket, type ScanOutcome } from "@/lib/server/checkin";
+import { getSessionUser } from "@/lib/auth/session";
+import { getCachedRole } from "@/lib/auth/role";
 import { existingPrize } from "@/lib/server/scratch";
 
 // Signed-in owners (and staff/admin) can read their booking through RLS.
@@ -43,8 +47,18 @@ export default async function TicketPage({
   searchParams,
 }: {
   params: { bookingCode: string };
-  searchParams: { success?: string; k?: string };
+  searchParams: { success?: string; k?: string; s?: string; force?: string };
 }) {
+  // s=1 means this page was opened by scanning the ticket's QR code. If the
+  // person scanning is zoo staff (or an admin), that scan checks the ticket in,
+  // just like the staff scanner. Anyone else only sees the ticket.
+  const scanned = searchParams.s === "1" && !!searchParams.k;
+  let gate: ScanOutcome | null = null;
+  if (scanned) {
+    const user = await getSessionUser();
+    const role = user ? (await getCachedRole(user.id)).role : null;
+    if (user && (role === "staff" || role === "admin")) gate = await checkInTicket(searchParams.k!, user.id, searchParams.force === "1");
+  }
   const booking = await getBooking(params.bookingCode, searchParams.k);
   if (!booking) notFound();
 
@@ -55,7 +69,8 @@ export default async function TicketPage({
   // visitor's own phone camera simply opens this page.
   const siteUrl = getSiteUrl();
   const shareableUrl = `/ticket/${booking.booking_code}?k=${booking.qr_token}`;
-  const [qrDataUrl, { heroImageUrl }, prize] = await Promise.all([generateQrDataUrl(siteUrl ? `${siteUrl}${shareableUrl}` : booking.qr_token), getBranding(), existingPrize(booking.scratch_code_id)]);
+  const scanUrl = `${shareableUrl}&s=1`;
+  const [qrDataUrl, { heroImageUrl }, prize] = await Promise.all([generateQrDataUrl(siteUrl ? `${siteUrl}${scanUrl}` : booking.qr_token, true), getBranding(), existingPrize(booking.scratch_code_id)]);
   const items = (booking.booking_items ?? []) as any[];
   const totalVisitors = items.reduce((s: number, i: any) => s + i.quantity, 0);
   // One-to-one since each booking can be checked in once (object, or array on older schemas).
@@ -72,7 +87,12 @@ export default async function TicketPage({
     <div className="min-h-screen bg-gradient-to-b from-light-green to-background pb-24 md:pb-10">
       <Navbar />
       <main className="mx-auto max-w-md px-4 py-8">
-        <RememberTicket code={booking.booking_code} k={booking.qr_token} />
+        {gate ? (
+          <GateVerdict out={gate} km={km} time={time} forceHref={`${scanUrl}&force=1`} />
+        ) : (
+          <RememberTicket code={booking.booking_code} k={booking.qr_token} />
+        )}
+        {scanned && !gate && paid && <VisitorScanNote km={km} />}
         {searchParams.success && paid && (
           <div className="mb-5 flex items-center gap-3 rounded-3xl bg-primary p-4 text-white shadow-lift">
             <CheckCircle2 size={28} className="flex-shrink-0 text-leaf" />
@@ -137,6 +157,9 @@ export default async function TicketPage({
             <div className="relative mx-auto w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrDataUrl} alt="Ticket QR code" className={`h-60 w-60 rounded-3xl p-3 ring-4 ${paid && !usedAt ? "ring-leaf" : "ring-black/10"} ${usedAt || !paid ? "opacity-35 grayscale" : ""}`} />
+              <span className={`pointer-events-none absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white shadow-soft ${usedAt || !paid ? "opacity-35 grayscale" : ""}`}>
+                <LogoMark className="h-11 w-11" />
+              </span>
               {usedAt && (
                 <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-xl border-4 border-primary bg-white/90 px-4 py-1.5 font-display text-2xl font-extrabold uppercase text-primary">
                   {T.usedAt} ✓
