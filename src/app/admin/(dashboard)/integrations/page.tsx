@@ -1,6 +1,7 @@
 import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound } from "lucide-react";
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/ui-client";
+import { PaymentTest } from "@/components/admin/PaymentTest";
 import { getPrivateSetting, mask, type PaymentSettings, type TtsSettings } from "@/lib/server/private-settings";
 import { savePayment, saveTts, testPayment } from "./actions";
 
@@ -135,6 +136,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         <form action={testPayment} className="-mt-3 flex justify-end">
           <button className="btn-outline bg-white px-4 py-2 text-xs">Test KHQR & Bakong connection</button>
         </form>
+        <PaymentTest />
 
         {/* ── Text to speech ─────────────────────────────── */}
         <form action={saveTts}>

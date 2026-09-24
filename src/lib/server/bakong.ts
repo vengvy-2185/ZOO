@@ -27,6 +27,11 @@ export async function getPaymentConfig() {
 export function createKhqr(s: PaymentSettings, amountUsd: number, billNumber: string) {
   const currency = s.currency === "KHR" ? "KHR" : "USD";
   const amount = currency === "KHR" ? Math.round(amountUsd * (s.usd_to_khr || 4100)) : Math.round(amountUsd * 100) / 100;
+  return createKhqrIn(s, currency, amount, billNumber);
+}
+
+/** Same, with the amount already in the given currency (used by the admin "test 100៛" payment). */
+export function createKhqrIn(s: PaymentSettings, currency: "USD" | "KHR", amount: number, billNumber: string) {
   const expiresAt = Date.now() + QR_MINUTES * 60 * 1000;
   const info = new IndividualInfo(s.bakong_account_id, (s.merchant_name || "Green Wild Zoo").slice(0, 25), (s.merchant_city || "Phnom Penh").slice(0, 15), {
     // The bank account the Bakong ID is linked to (optional; shown to the payer's bank app).
