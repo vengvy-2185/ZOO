@@ -2,6 +2,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { ProfileEditor } from "@/components/visitor/ProfileEditor";
+import { MemberCardSection } from "@/components/visitor/MemberCardSection";
+import { getMembers } from "@/lib/server/members";
+import { getSiteUrl } from "@/lib/server/site-url";
 import { ClaimQuestSession } from "@/components/visitor/ClaimQuestSession";
 import { IconBadge } from "@/components/visitor/IconBadge";
 import { Medal, Search, Trophy, Star, PawPrint, Ticket, QrCode, ArrowRight, Download, Wallet, Receipt, CheckCircle2, Clock, HeartHandshake, Users, Gift } from "lucide-react";
@@ -50,6 +53,7 @@ async function getAccountData() {
   // Spendable points (quest animals, purchases, invites, minus rewards): see lib/server/points.
   const { data: balance } = await createServiceRoleClient().rpc("points_balance", { p_user: user.id });
   const totalPoints = Number(balance ?? 0);
+  const [member] = await getMembers(user.id);
 
   return {
     user,
@@ -58,6 +62,7 @@ async function getAccountData() {
     adoptions: (adoptions ?? []) as any[],
     discoveredCount: discoveredIds.size,
     totalPoints,
+    member,
     totalAnimals: totalAnimals ?? 0,
   };
 }
@@ -65,7 +70,7 @@ async function getAccountData() {
 export default async function AccountPage() {
   const data = await getAccountData();
   if (!data) return null;
-  const { user, profile, bookings, adoptions, discoveredCount, totalPoints, totalAnimals } = data;
+  const { user, profile, bookings, adoptions, discoveredCount, totalPoints, totalAnimals, member } = data;
   const { locale, t } = getI18n();
   const A = t.account;
   const km = locale === "km";
@@ -265,6 +270,7 @@ export default async function AccountPage() {
         </section>
 
         <div className="min-w-0 space-y-6">
+          {member && <MemberCardSection m={member} km={locale === "km"} site={getSiteUrl()} />}
           <Link href="/rewards" className="flex items-center gap-4 rounded-3xl bg-gradient-to-r from-accent to-leaf p-5 text-forest shadow-soft transition hover:-translate-y-0.5">
             <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/70">
               <Gift size={24} />

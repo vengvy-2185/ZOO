@@ -6,6 +6,7 @@ import { startKhqr } from "@/lib/server/payments";
 import { checkDiscount, redeemDiscount, subtotalFor } from "@/lib/server/discounts";
 import { cookies } from "next/headers";
 import { REF_COOKIE, isReferralCode } from "@/lib/server/points";
+import { pointsFor } from "@/lib/server/quote";
 
 const CheckoutSchema = z.object({
   visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
@@ -21,6 +22,8 @@ const CheckoutSchema = z.object({
     .min(1),
   /** Optional discount code typed at checkout (validated and priced on the server). */
   discountCode: z.string().trim().max(40).optional(),
+  /** Spend the signed-in visitor's points on this booking (worked out on the server). */
+  usePoints: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -29,7 +32,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid checkout payload", details: parsed.error.flatten() }, { status: 400 });
   }
-  const { visitDate, visitorName, visitorEmail, items, discountCode } = parsed.data;
+  const { visitDate, visitorName, visitorEmail, items, discountCode, usePoints } = parsed.data;
 
   // If the person is signed in (visitor account), attach the booking to
   // their profile so it shows up under My Tickets — read from their own
@@ -102,6 +105,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "discount", reason: res.reason }, { status: 409 });
     }
     discountUsd = res.amount;
+  }
+
+  // Points: held against this booking under a lock, so they can't be spent twice.
+  if (usePoints && user) {
+    const subtotal = bookingItems.reduce((s, i) => s + i.line_total_usd, 0);
+    const { data: balance } = await supabase.rpc("points_balance", { p_user: user.id });
+    const p = pointsFor(Number(balance ?? 0), subtotal - discountUsd);
+    if (p.used > 0) {
+      const { data: ok } = await supabase.rpc("spend_points_for_booking", { p_user: user.id, p_booking: booking.id, p_points: p.used });
+      if (!ok) {
+        await supabase.from("bookings").delete().eq("id", booking.id);
+        return NextResponse.json({ error: "points" }, { status: 409 });
+      }
+      discountUsd = Math.round((discountUsd + p.discount) * 100) / 100;
+    }
   }
 
   const { data: total } = await supabase.rpc("calculate_booking_total", {

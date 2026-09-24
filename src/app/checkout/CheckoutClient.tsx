@@ -3,7 +3,52 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, User, Mail, CalendarDays, Lock, ArrowRight, Ticket, TicketPercent, Loader2, X, CheckCircle2 } from "lucide-react";
+import { ShoppingBag, User, Mail, CalendarDays, Lock, ArrowRight, Ticket, TicketPercent, Loader2, X, CheckCircle2, Star, BadgePercent } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+
+type Quote = {
+  subtotal: number;
+  code: { ok: true; code: string; amount: number; name: string; nameKm: string | null } | { ok: false; reason: string; min?: number } | null;
+  pointsBalance: number | null;
+  pointsUsed: number;
+  pointsDiscount: number;
+  totalDiscount: number;
+  total: number;
+};
+
+const PTS = {
+  en: {
+    discounts: "Discounts",
+    usePoints: "Use my points",
+    have: (n: number) => `You have ${n} points`,
+    uses: (n: number, d: string) => `Uses ${n} points to take off ${d}`,
+    rule: "200 points = $1. Points can pay up to half the price.",
+    none: "No points yet. Earn them in the Animal Quest or by inviting friends.",
+    signIn: "Sign in to use your points",
+    codeLine: "Code discount",
+    pointsLine: "Points discount",
+    totalOff: "Total discount",
+    toPay: "Amount to pay",
+    saved: (d: string) => `You save ${d}`,
+    pointsError: "Your points changed. Please check the total and try again.",
+  },
+  km: {
+    discounts: "ការបញ្ចុះតម្លៃ",
+    usePoints: "ប្រើពិន្ទុរបស់ខ្ញុំ",
+    have: (n: number) => `អ្នកមាន ${n} ពិន្ទុ`,
+    uses: (n: number, d: string) => `ប្រើ ${n} ពិន្ទុ ដើម្បីបញ្ចុះ ${d}`,
+    rule: "200 ពិន្ទុ = $1។ ពិន្ទុអាចបង់បានរហូតដល់ពាក់កណ្តាលតម្លៃ។",
+    none: "មិនទាន់មានពិន្ទុទេ។ ប្រមូលបានពីបេសកកម្មសត្វ ឬអញ្ជើញមិត្ត។",
+    signIn: "ចូលគណនីដើម្បីប្រើពិន្ទុ",
+    codeLine: "បញ្ចុះតាមកូដ",
+    pointsLine: "បញ្ចុះតាមពិន្ទុ",
+    totalOff: "បញ្ចុះសរុប",
+    toPay: "ប្រាក់ត្រូវបង់",
+    saved: (d: string) => `អ្នកសន្សំបាន ${d}`,
+    pointsError: "ពិន្ទុរបស់អ្នកបានប្រែប្រួល។ សូមពិនិត្យតម្លៃ ហើយព្យាយាមម្តងទៀត។",
+  },
+};
+const usd = (n: number) => `$${n.toFixed(2)}`;
 import { useI18n } from "@/lib/i18n/client";
 import { formatFullDate, num } from "@/lib/utils/age";
 
@@ -24,6 +69,26 @@ export function CheckoutClient() {
   const [applied, setApplied] = useState<{ code: string; amount: number; name: string } | null>(null);
   const [codeMsg, setCodeMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [usePoints, setUsePoints] = useState(false);
+  const [q, setQ] = useState<Quote | null>(null);
+  const P = PTS[locale === "km" ? "km" : "en"];
+
+  // Ask the server for the real prices whenever the code or the points switch changes.
+  async function fetchQuote(code: string | null, pts: boolean) {
+    if (!cart) return null;
+    const res = await fetch("/api/checkout/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: cart.items.map((i) => ({ ticket_type_id: i.ticket_type_id, quantity: i.quantity })), code, usePoints: pts }),
+    });
+    if (!res.ok) return null;
+    const data: Quote = await res.json();
+    setQ(data);
+    return data;
+  }
+  useEffect(() => {
+    if (cart) fetchQuote(applied?.code ?? null, usePoints).catch(() => {});
+  }, [cart, applied?.code, usePoints]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reasonText = (r: any) => {
     const e = t.checkout.discountErrors;
@@ -36,16 +101,11 @@ export function CheckoutClient() {
     setChecking(true);
     setCodeMsg(null);
     try {
-      const res = await fetch("/api/discounts/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: codeInput.trim(), items: cart.items.map((i) => ({ ticket_type_id: i.ticket_type_id, quantity: i.quantity })) }),
-      });
-      const r = await res.json();
-      if (r.ok) setApplied({ code: codeInput.trim().toUpperCase(), amount: r.amount, name: (locale === "km" && r.nameKm) || r.name });
+      const r = await fetchQuote(codeInput.trim(), usePoints);
+      if (r?.code?.ok) setApplied({ code: r.code.code, amount: r.code.amount, name: (locale === "km" && r.code.nameKm) || r.code.name });
       else {
         setApplied(null);
-        setCodeMsg(reasonText(r));
+        setCodeMsg(reasonText(r?.code ?? { reason: "invalid" }));
       }
     } catch {
       setCodeMsg(t.checkout.failed);
@@ -75,6 +135,7 @@ export function CheckoutClient() {
           visitorEmail: email,
           items: cart.items.map((i) => ({ ticket_type_id: i.ticket_type_id, quantity: i.quantity })),
           discountCode: applied?.code,
+          usePoints,
         }),
       });
       const data = await res.json();
@@ -82,6 +143,10 @@ export function CheckoutClient() {
         setApplied(null);
         setCodeMsg(reasonText(data));
         throw new Error(reasonText(data));
+      }
+      if (res.status === 409 && data.error === "points") {
+        setUsePoints(false);
+        throw new Error(P.pointsError);
       }
       if (!res.ok) throw new Error(data.error ?? t.checkout.failed);
       sessionStorage.removeItem("gwz_cart");
@@ -131,7 +196,10 @@ export function CheckoutClient() {
                   <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input pl-11" />
                 </div>
               </label>
-              <div>
+              <div className="space-y-3 rounded-3xl bg-cream p-4 ring-1 ring-primary/10">
+                <p className="flex items-center gap-2 font-display text-lg font-bold text-forest">
+                  <BadgePercent size={20} className="text-primary" /> {P.discounts}
+                </p>
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink/45">{t.checkout.discountLabel}</span>
                 {applied ? (
                   <div className="flex items-center gap-3 rounded-2xl bg-light-green px-4 py-3 text-sm font-bold text-primary animate-[gwzPop_.3s_ease]">
@@ -166,6 +234,33 @@ export function CheckoutClient() {
                   </div>
                 )}
                 {codeMsg && <p className="mt-2 text-xs font-semibold text-red-600">{codeMsg}</p>}
+
+                {/* Points */}
+                <div className="border-t border-dashed border-black/10 pt-3">
+                  {q?.pointsBalance == null ? (
+                    <Link href="/account/login?next=/checkout" className="inline-flex items-center gap-2 text-sm font-bold text-primary">
+                      <Star size={16} /> {P.signIn}
+                    </Link>
+                  ) : q.pointsBalance <= 0 ? (
+                    <p className="flex items-start gap-2 text-sm text-ink/55">
+                      <Star size={16} className="mt-0.5 flex-shrink-0 text-accent" /> {P.none}
+                    </p>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2 font-bold text-forest">
+                          <Star size={16} className="text-accent" /> {P.usePoints}
+                        </span>
+                        <span className="block text-xs text-ink/55">
+                          {usePoints && q.pointsUsed > 0 ? P.uses(q.pointsUsed, usd(q.pointsDiscount)) : P.have(q.pointsBalance)}
+                        </span>
+                        <span className="block text-[11px] text-ink/40">{P.rule}</span>
+                      </span>
+                      <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} className="peer sr-only" />
+                      <span className="relative h-7 w-12 flex-shrink-0 rounded-full bg-black/15 transition peer-checked:bg-primary after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5" />
+                    </label>
+                  )}
+                </div>
               </div>
               {error && <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
               <button disabled={loading || !name || !email} className="btn-primary w-full py-3.5 text-base hover:translate-y-0">
@@ -189,22 +284,39 @@ export function CheckoutClient() {
                   </li>
                 ))}
               </ul>
-              {applied && (
-                <div className="mt-4 space-y-1 border-t border-dashed border-black/10 pt-4 text-sm">
-                  <div className="flex justify-between text-ink/60">
-                    <span>{t.checkout.subtotal}</span>
-                    <span>${cart.subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-primary">
-                    <span>{t.checkout.discount}</span>
-                    <span>-${applied.amount.toFixed(2)}</span>
-                  </div>
+              <div className="mt-4 space-y-1.5 border-t border-dashed border-black/10 pt-4 text-sm">
+                <div className="flex justify-between text-ink/60">
+                  <span>{t.checkout.subtotal}</span>
+                  <span>{usd(q?.subtotal ?? cart.subtotal)}</span>
                 </div>
-              )}
-              <div className="mt-4 flex items-end justify-between border-t border-dashed border-black/10 pt-4">
-                <span className="text-sm text-ink/55">{t.common.total}</span>
-                <span className="font-display text-3xl font-extrabold text-primary">${Math.max(0, cart.subtotal - (applied?.amount ?? 0)).toFixed(2)}</span>
+                {q?.code?.ok && (
+                  <div className="flex justify-between text-primary">
+                    <span>
+                      {P.codeLine} <span className="font-mono text-xs">({q.code.code})</span>
+                    </span>
+                    <span>-{usd(q.code.amount)}</span>
+                  </div>
+                )}
+                {!!q?.pointsDiscount && (
+                  <div className="flex justify-between text-primary">
+                    <span>
+                      {P.pointsLine} <span className="text-xs">({q.pointsUsed})</span>
+                    </span>
+                    <span>-{usd(q.pointsDiscount)}</span>
+                  </div>
+                )}
+                <div className={cn("flex justify-between font-bold", q?.totalDiscount ? "text-primary" : "text-ink/40")}>
+                  <span>{P.totalOff}</span>
+                  <span>-{usd(q?.totalDiscount ?? 0)}</span>
+                </div>
               </div>
+              <div className="mt-4 flex items-end justify-between border-t border-dashed border-black/10 pt-4">
+                <span className="text-sm font-semibold text-ink/60">{P.toPay}</span>
+                <span className="font-display text-3xl font-extrabold text-primary">{usd(q?.total ?? cart.subtotal)}</span>
+              </div>
+              {!!q?.totalDiscount && (
+                <p className="mt-3 rounded-2xl bg-light-green px-3 py-2 text-center text-sm font-bold text-primary">{P.saved(usd(q.totalDiscount))}</p>
+              )}
             </aside>
           </div>
         ) : null}
