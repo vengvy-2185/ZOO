@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Dna, MapPinned, Trees, Fence, Ticket, Store, BookOpen, FileText, Headphones, Sticker, Star, Newspaper, TicketPercent } from "lucide-react";
+import { Dna, MapPinned, Trees, Fence, Ticket, Store, BookOpen, FileText, Headphones, Sticker, Star, Newspaper, TicketPercent, MessageCircle } from "lucide-react";
 
 /**
  * Config for the generic admin "Manage" editor (/admin/manage/[entity]).
@@ -277,6 +277,28 @@ export const ENTITIES = {
       },
       { name: "sort_order", label: { en: "Order", km: "លំដាប់" }, type: "number" },
       active,
+    ],
+  },
+  messages: {
+    table: "contact_messages",
+    noCreate: true,
+    title: { en: "Messages", km: "សារពីភ្ញៀវ" },
+    subtitle: { en: "Questions and feedback sent from the Contact us page. Tick \"Answered\" once you have replied.", km: "សំណួរ និងមតិដែលភ្ញៀវផ្ញើពីទំព័រទាក់ទងយើង។ ធីក \"បានឆ្លើយ\" ពេលអ្នកឆ្លើយរួច។" },
+    icon: MessageCircle,
+    order: { column: "created_at", ascending: false },
+    titleField: "name",
+    columns: [
+      { name: "contact", label: { en: "Phone or email", km: "ទូរស័ព្ទ ឬអ៊ីមែល" } },
+      { name: "topic", label: { en: "Topic", km: "ប្រធានបទ" } },
+      { name: "message", label: { en: "Message", km: "សារ" } },
+      { name: "handled", label: { en: "Answered", km: "បានឆ្លើយ" } },
+    ],
+    fields: [
+      { name: "name", label: { en: "Name", km: "ឈ្មោះ" }, type: "text", required: true },
+      { name: "contact", label: { en: "Phone or email", km: "ទូរស័ព្ទ ឬអ៊ីមែល" }, type: "text", required: true },
+      { name: "topic", label: { en: "Topic", km: "ប្រធានបទ" }, type: "text" },
+      { name: "message", label: { en: "Message", km: "សារ" }, type: "textarea", required: true, wide: true },
+      { name: "handled", label: { en: "Answered", km: "បានឆ្លើយ" }, type: "bool" },
     ],
   },
   reviews: {

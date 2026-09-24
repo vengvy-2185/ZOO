@@ -33,8 +33,7 @@ import {
   Star,
   Newspaper,
   TicketPercent,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
@@ -87,6 +86,7 @@ const GROUPS: { title: GroupKey; items: { key: ItemKey; href: string; icon: Luci
       { key: "discounts", href: "/admin/discounts", icon: TicketPercent },
       { key: "adoptions", href: "/admin/adoptions", icon: HeartHandshake },
       { key: "reviews", href: "/admin/manage/reviews", icon: Star },
+      { key: "messages", href: "/admin/manage/messages", icon: MessageCircle },
     ],
   },
   {

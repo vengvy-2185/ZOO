@@ -81,50 +81,54 @@ export function PostcardMaker({ animals }: { animals: QuizAnimal[] }) {
   // Keep the message in the visitor's language when they switch.
   useEffect(() => setMessage(c.presets[0]), [locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Phones get a tall card (photo on top, message below) so nothing is tiny or cut off.
+  const [portrait, setPortrait] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const on = () => setPortrait(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const CW = portrait ? 1080 : W;
+  const CH = portrait ? 1500 : H;
+
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv || !current) return;
-    cv.width = W;
-    cv.height = H;
+    cv.width = CW;
+    cv.height = CH;
     const ctx = cv.getContext("2d")!;
     const d = DESIGNS[design];
     const font = locale === "km" ? FONT_KM : FONT_EN;
+    const lineGap = locale === "km" ? 66 : 58;
 
-    // paper
-    const g = ctx.createLinearGradient(0, 0, W, H);
+    // paper with a clean double border (no torn or zig-zag edges)
+    const g = ctx.createLinearGradient(0, 0, CW, CH);
     g.addColorStop(0, d.paper[0]);
     g.addColorStop(1, d.paper[1]);
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-    // air-mail stripes along the edge
-    ctx.save();
-    for (let i = -40; i < W + H; i += 60) {
-      ctx.fillStyle = (i / 60) % 2 ? d.accent : "#E63946";
-      ctx.globalAlpha = design === "jungle" ? 0.55 : 0.8;
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + 30, 0);
-      ctx.lineTo(i + 30 - 18, 18);
-      ctx.lineTo(i - 18, 18);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(i, H - 18);
-      ctx.lineTo(i + 30, H - 18);
-      ctx.lineTo(i + 30 - 18, H);
-      ctx.lineTo(i - 18, H);
-      ctx.fill();
-    }
-    ctx.restore();
+    ctx.fillRect(0, 0, CW, CH);
+    ctx.strokeStyle = d.accent;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.roundRect(22, 22, CW - 44, CH - 44, 34);
+    ctx.stroke();
+    ctx.strokeStyle = d.line;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(36, 36, CW - 72, CH - 72, 26);
+    ctx.stroke();
 
-    // photo (left)
-    const P = { x: 60, y: 70, w: 760, h: 860 };
+    // photo
+    const P = portrait ? { x: 64, y: 64, w: CW - 128, h: 700 } : { x: 64, y: 64, w: 760, h: CH - 128 };
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.25)";
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 12;
+    ctx.shadowColor = "rgba(0,0,0,0.22)";
+    ctx.shadowBlur = 26;
+    ctx.shadowOffsetY = 10;
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.roundRect(P.x - 14, P.y - 14, P.w + 28, P.h + 28, 30);
+    ctx.roundRect(P.x - 12, P.y - 12, P.w + 24, P.h + 24, 30);
     ctx.fill();
     ctx.restore();
     ctx.save();
@@ -134,104 +138,99 @@ export function PostcardMaker({ animals }: { animals: QuizAnimal[] }) {
     ctx.fillStyle = "#cfe3d4";
     ctx.fillRect(P.x, P.y, P.w, P.h);
     if (img) coverImage(ctx, img, P.x, P.y, P.w, P.h);
-    // soft shade for the caption
-    const sh = ctx.createLinearGradient(0, P.y + P.h - 220, 0, P.y + P.h);
+    const sh = ctx.createLinearGradient(0, P.y + P.h - 230, 0, P.y + P.h);
     sh.addColorStop(0, "rgba(0,0,0,0)");
-    sh.addColorStop(1, "rgba(0,0,0,0.6)");
+    sh.addColorStop(1, "rgba(0,0,0,0.62)");
     ctx.fillStyle = sh;
-    ctx.fillRect(P.x, P.y + P.h - 220, P.w, 220);
+    ctx.fillRect(P.x, P.y + P.h - 230, P.w, 230);
     ctx.restore();
     ctx.fillStyle = "#fff";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.font = `800 64px ${FONT_EN}`;
-    ctx.fillText(c.greetings, P.x + 40, P.y + P.h - 95);
+    ctx.fillText(c.greetings, P.x + 36, P.y + P.h - 92);
     ctx.font = `600 34px ${font}`;
-    ctx.fillText(`${animalName(current)}  |  Green Wild Zoo`, P.x + 42, P.y + P.h - 45);
+    ctx.fillText(`${animalName(current)}  |  Green Wild Zoo`, P.x + 38, P.y + P.h - 42);
 
-    // divider
-    ctx.strokeStyle = d.line;
+    // message area
+    const M = portrait ? { x: 72, top: P.y + P.h + 70, right: CW - 72, bottom: CH - 70 } : { x: 900, top: 64, right: CW - 72, bottom: CH - 70 };
+    if (!portrait) {
+      ctx.strokeStyle = d.line;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(860, 120);
+      ctx.lineTo(860, CH - 120);
+      ctx.stroke();
+    }
+
+    // stamp: rounded, with a small photo and the year
+    const S = { w: 170, h: 200, x: M.right - 170, y: M.top };
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.16)";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.roundRect(S.x, S.y, S.w, S.h, 16);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = d.accent;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(900, 120);
-    ctx.lineTo(900, H - 120);
+    ctx.roundRect(S.x + 8, S.y + 8, S.w - 16, S.h - 16, 12);
     ctx.stroke();
-
-    // stamp (top right) with scalloped edge
-    const S = { x: 1230, y: 70, w: 200, h: 240 };
-    ctx.save();
-    ctx.fillStyle = "#fff";
-    ctx.shadowColor = "rgba(0,0,0,0.18)";
-    ctx.shadowBlur = 12;
-    ctx.fillRect(S.x, S.y, S.w, S.h);
-    ctx.restore();
-    ctx.fillStyle = d.paper[0];
-    for (let x = S.x; x <= S.x + S.w; x += 20) {
-      ctx.beginPath(); ctx.arc(x, S.y, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x, S.y + S.h, 7, 0, Math.PI * 2); ctx.fill();
-    }
-    for (let y = S.y; y <= S.y + S.h; y += 20) {
-      ctx.beginPath(); ctx.arc(S.x, y, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(S.x + S.w, y, 7, 0, Math.PI * 2); ctx.fill();
-    }
     ctx.save();
     ctx.beginPath();
-    ctx.rect(S.x + 18, S.y + 18, S.w - 36, S.h - 70);
+    ctx.roundRect(S.x + 18, S.y + 18, S.w - 36, S.h - 72, 8);
     ctx.clip();
-    if (img) coverImage(ctx, img, S.x + 18, S.y + 18, S.w - 36, S.h - 70);
+    if (img) coverImage(ctx, img, S.x + 18, S.y + 18, S.w - 36, S.h - 72);
     ctx.restore();
     ctx.fillStyle = d.accent === "#A3E635" ? "#2E8B57" : d.accent;
     ctx.textAlign = "center";
-    ctx.font = `800 26px ${FONT_EN}`;
-    ctx.fillText(`GWZ  ${new Date().getFullYear()}`, S.x + S.w / 2, S.y + S.h - 20);
+    ctx.font = `800 24px ${FONT_EN}`;
+    ctx.fillText(`GWZ  ${new Date().getFullYear()}`, S.x + S.w / 2, S.y + S.h - 22);
 
-    // postmark over the stamp
+    // round postmark beside the stamp
     ctx.save();
-    ctx.translate(S.x - 20, S.y + 170);
-    ctx.rotate(-0.25);
-    ctx.globalAlpha = 0.75;
+    ctx.translate(S.x - 70, S.y + 120);
+    ctx.rotate(-0.22);
+    ctx.globalAlpha = 0.7;
     ctx.strokeStyle = d.ink;
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(0, 0, 78, 0, Math.PI * 2); ctx.stroke();
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, 64, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = d.ink;
-    ctx.font = `800 17px ${FONT_EN}`;
-    ctx.fillText("GREEN WILD ZOO", 0, -24);
-    ctx.font = `700 20px ${FONT_EN}`;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 0, 70, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 57, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = `800 15px ${FONT_EN}`;
+    ctx.fillText("GREEN WILD ZOO", 0, -20);
+    ctx.font = `700 19px ${FONT_EN}`;
     const date = new Date();
     ctx.fillText(`${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`, 0, 8);
-    ctx.font = `700 15px ${FONT_EN}`;
-    ctx.fillText("PHNOM PENH", 0, 36);
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath();
-      ctx.moveTo(90, -30 + i * 20);
-      for (let x = 90; x < 330; x += 20) ctx.quadraticCurveTo(x + 5, -38 + i * 20, x + 10, -30 + i * 20), ctx.quadraticCurveTo(x + 15, -22 + i * 20, x + 20, -30 + i * 20);
-      ctx.stroke();
-    }
+    ctx.font = `700 14px ${FONT_EN}`;
+    ctx.fillText("PHNOM PENH", 0, 34);
     ctx.restore();
 
-    // message
+    // greeting, message on ruled lines, and signature
     ctx.textAlign = "left";
     ctx.fillStyle = d.ink;
-    const X = 950;
-    ctx.font = `700 40px ${font}`;
-    ctx.fillText(to.trim() ? c.toLine(to.trim()) : c.toDefault, X, 400);
+    const textTop = portrait ? M.top + 40 : 380;
+    ctx.font = `700 42px ${font}`;
+    ctx.fillText(to.trim() ? c.toLine(to.trim()) : c.toDefault, M.x, textTop);
     ctx.font = `500 38px ${font}`;
-    const lines = wrap(ctx, message.trim() || c.presets[0], 480, 6);
-    lines.forEach((l, i) => ctx.fillText(l, X, 480 + i * (locale === "km" ? 66 : 58)));
-    // writing lines
+    const firstTop = portrait ? S.y + S.h + 70 : textTop + 80;
+    const maxLines = portrait ? 4 : 6;
+    const lines = wrap(ctx, message.trim() || c.presets[0], M.right - M.x, maxLines);
     ctx.strokeStyle = d.line;
     ctx.lineWidth = 2;
-    for (let i = 0; i < 6; i++) {
-      const y = 496 + i * (locale === "km" ? 66 : 58);
-      ctx.beginPath(); ctx.moveTo(X, y); ctx.lineTo(W - 70, y); ctx.stroke();
+    for (let i = 0; i < maxLines; i++) {
+      const y = firstTop + i * lineGap;
+      if (lines[i]) ctx.fillText(lines[i], M.x, y);
+      ctx.beginPath(); ctx.moveTo(M.x, y + 16); ctx.lineTo(M.right, y + 16); ctx.stroke();
     }
-    ctx.font = `700 38px ${font}`;
+    ctx.font = `700 40px ${font}`;
     ctx.textAlign = "right";
-    ctx.fillText(from.trim() ? c.fromLine(from.trim()) : c.fromDefault, W - 70, H - 80);
+    ctx.fillText(from.trim() ? c.fromLine(from.trim()) : c.fromDefault, M.right, M.bottom);
     setSaved(false);
-  }, [img, design, to, from, message, locale, current, c]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [img, design, to, from, message, locale, current, c, portrait]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function toFile() {
     const blob: Blob = await new Promise((r) => canvasRef.current!.toBlob((b) => r(b!), "image/jpeg", 0.92));
@@ -256,8 +255,8 @@ export function PostcardMaker({ animals }: { animals: QuizAnimal[] }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="min-w-0">
-        <div className="overflow-hidden rounded-[1.5rem] shadow-lift ring-4 ring-white">
-          <canvas ref={canvasRef} className="block h-auto w-full" style={{ aspectRatio: `${W} / ${H}` }} />
+        <div className="mx-auto max-w-[30rem] overflow-hidden rounded-[1.5rem] shadow-lift sm:max-w-none">
+          <canvas ref={canvasRef} className="block h-auto w-full" style={{ aspectRatio: `${CW} / ${CH}` }} />
         </div>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <button onClick={download} className="btn-primary hover:translate-y-0">

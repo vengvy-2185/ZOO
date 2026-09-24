@@ -37,7 +37,7 @@ import {
   Utensils,
   Mic,
   Camera,
-  Sparkles,
+  Sparkles, Gamepad2,
   Brain,
   Ruler,
   Route,
@@ -96,7 +96,7 @@ const experiences = (t: Dictionary) => [
   { icon: Trophy, label: t.home.expQuest, desc: t.home.expQuestText, href: "/quest" },
   { icon: Brain, label: t.extra.quiz, desc: t.extra.quizEyebrow, href: "/quiz" },
   { icon: Route, label: t.nav.planner, desc: t.planner.eyebrow, href: "/planner" },
-  { icon: Sparkles, label: t.nav.match, desc: t.match.eyebrow, href: "/match" },
+  { icon: Gamepad2, label: t.nav.games, desc: t.nav.gamesHint, href: "/games" },
   { icon: Ruler, label: t.nav.compare, desc: t.compare.eyebrow, href: "/compare" },
   { icon: Camera, label: t.nav.booth, desc: t.booth.eyebrow, href: "/photo-booth" },
 ];
