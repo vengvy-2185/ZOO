@@ -18,7 +18,7 @@ export function SiteFooter() {
       </svg>
       <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-leaf/10 blur-3xl" />
 
-      <div className="relative mx-auto grid max-w-7xl gap-10 px-6 pb-28 pt-20 md:grid-cols-4 md:pb-12" data-reveal-stagger>
+      <div className="relative mx-auto grid max-w-7xl gap-10 px-6 pb-28 pt-20 md:grid-cols-2 md:pb-12 lg:grid-cols-4" data-reveal-stagger>
         <div className="md:col-span-1">
           <Logo tone="light" subtitle={t.nav.tagline} />
           <p className="mt-4 max-w-xs text-sm text-white/65">

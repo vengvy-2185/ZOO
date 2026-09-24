@@ -2,7 +2,8 @@ import Link from "next/link";
 import { QrCode, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/ui";
-import { generateQrDataUrl, animalProfileUrl } from "@/lib/utils/qr";
+import { generateQrDataUrl, animalQrUrl } from "@/lib/utils/qr";
+import { getSiteUrl } from "@/lib/server/site-url";
 import { getI18n } from "@/lib/i18n/server";
 import { num } from "@/lib/utils/age";
 
@@ -13,9 +14,9 @@ export default async function AdminQrPage() {
     .from("animal_qr_codes")
     .select("*, animals(id, name, khmer_name, animal_code)")
     .order("scan_count", { ascending: false });
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteUrl = getSiteUrl();
   const rows = await Promise.all(
-    (qrs ?? []).map(async (q: any) => ({ ...q, img: q.animals ? await generateQrDataUrl(animalProfileUrl(siteUrl, q.animals.animal_code)) : null }))
+    (qrs ?? []).map(async (q: any) => ({ ...q, img: q.animals ? await generateQrDataUrl(animalQrUrl(siteUrl, q.qr_token)) : null }))
   );
   const p = t.admin.qrPage;
 

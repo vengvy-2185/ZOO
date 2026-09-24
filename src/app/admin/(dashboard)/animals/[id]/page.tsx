@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PawPrint, QrCode, Download, ExternalLink, Images, Trash2, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { generateQrDataUrl, animalProfileUrl } from "@/lib/utils/qr";
+import { generateQrDataUrl, animalQrUrl } from "@/lib/utils/qr";
+import { getSiteUrl } from "@/lib/server/site-url";
 import { AdminPageHeader, FormSection, BilingualField, Thumb } from "@/components/admin/ui";
 import { ImageUploadField, SubmitButton } from "@/components/admin/ui-client";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,8 +25,9 @@ export default async function EditAnimalPage({ params, searchParams }: { params:
     supabase.from("animal_categories").select("id, name, khmer_name").order("sort_order"),
     supabase.from("species").select("id, common_name, khmer_name").order("common_name"),
   ]);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const qrDataUrl = await generateQrDataUrl(animalProfileUrl(siteUrl, animal.animal_code));
+  const siteUrl = getSiteUrl();
+  // Printed beside the enclosure: holds the secret token that proves a real visit (Animal Quest).
+  const qrDataUrl = qr?.qr_token ? await generateQrDataUrl(animalQrUrl(siteUrl, qr.qr_token)) : null;
   const displayName = (locale === "km" && animal.khmer_name) || animal.name;
 
   return (
@@ -64,12 +66,16 @@ export default async function EditAnimalPage({ params, searchParams }: { params:
             <h2 className="flex items-center justify-center gap-2 font-display text-lg font-bold text-forest">
               <QrCode size={18} className="text-primary" /> {f.qr}
             </h2>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt="QR" className="mx-auto mt-3 h-44 w-44 rounded-2xl ring-1 ring-black/5" />
+            {qrDataUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qrDataUrl} alt="QR" className="mx-auto mt-3 h-44 w-44 rounded-2xl ring-1 ring-black/5" />
+            )}
             <p className="mt-2 text-xs font-semibold text-ink/50">{f.scans(num(qr?.scan_count ?? 0, locale))}</p>
-            <a href={qrDataUrl} download={`${animal.animal_code}-qr.png`} className="btn-outline mt-3 w-full py-2 text-xs">
-              <Download size={14} /> {f.downloadQr}
-            </a>
+            {qrDataUrl && (
+              <a href={qrDataUrl} download={`${animal.animal_code}-qr.png`} className="btn-outline mt-3 w-full py-2 text-xs">
+                <Download size={14} /> {f.downloadQr}
+              </a>
+            )}
           </div>
         </aside>
       </div>

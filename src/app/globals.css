@@ -42,6 +42,11 @@
     /* A little larger than the 16px default so text and menus read easily. */
     font-size: 106.25%;
   }
+  /* A grid with no column template gets one implicit column; keep it the width
+     of the screen instead of growing to fit long unbreakable text. */
+  .grid {
+    grid-auto-columns: minmax(0, 1fr);
+  }
   body {
     @apply bg-background text-ink antialiased;
     /* Never scroll sideways (clip, not hidden, so sticky headers keep working). */

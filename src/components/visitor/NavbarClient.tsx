@@ -102,7 +102,7 @@ export function NavbarClient({
         )}
       >
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:h-[72px] md:px-6">
-          <Logo subtitle={t.nav.tagline} />
+          <Logo subtitle={t.nav.tagline} className="sm:flex-shrink-0" />
 
           {/* Desktop menu */}
           <nav className="hidden min-w-0 items-center gap-0.5 xl:flex" aria-label="Main">
@@ -115,7 +115,7 @@ export function NavbarClient({
                   prefetch
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex items-center whitespace-nowrap rounded-full px-2.5 py-2 text-[15px] font-semibold transition-colors 2xl:px-3.5",
+                    "relative flex items-center whitespace-nowrap rounded-full px-2 py-2 text-sm font-semibold 2xl:text-[15px] transition-colors 2xl:px-3.5",
                     active ? "text-primary" : "text-ink/65 hover:bg-light-green hover:text-primary"
                   )}
                 >
@@ -131,7 +131,7 @@ export function NavbarClient({
                 onMouseEnter={() => setMoreOpen(true)}
                 aria-expanded={moreOpen}
                 className={cn(
-                  "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-2 text-[15px] font-semibold transition-colors 2xl:px-3.5",
+                  "flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-2 text-sm font-semibold 2xl:text-[15px] transition-colors 2xl:px-3.5",
                   MORE_LINKS.some((l) => isActivePath(pathname, l.href)) || moreOpen ? "text-primary" : "text-ink/65 hover:bg-light-green hover:text-primary"
                 )}
               >
@@ -163,7 +163,7 @@ export function NavbarClient({
             <button
               onClick={() => setSearchOpen((s) => !s)}
               aria-label={t.nav.searchAnimals}
-              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-forest transition hover:bg-light-green"
+              className="flex h-8 w-8 min-[360px]:h-9 min-[360px]:w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-forest transition hover:bg-light-green"
             >
               <Search size={19} strokeWidth={2.4} />
             </button>
@@ -175,7 +175,7 @@ export function NavbarClient({
             <LanguageSwitcher className="hidden sm:flex" />
 
             {/* Desktop account buttons */}
-            <div className="hidden items-center gap-2 md:flex">
+            <div className="hidden items-center gap-2 lg:flex">
               {dashboard && (
                 <Link
                   href={dashboard.href}
@@ -198,7 +198,7 @@ export function NavbarClient({
                   <Link href="/account/login" className="btn-outline whitespace-nowrap px-4 py-2">
                     {t.nav.login}
                   </Link>
-                  <Link href="/account/login?mode=signup" className="btn-primary whitespace-nowrap px-4 py-2">
+                  <Link href="/account/login?mode=signup" className="btn-primary hidden whitespace-nowrap px-4 py-2 2xl:inline-flex">
                     {t.nav.signUp}
                   </Link>
                 </>
@@ -208,7 +208,7 @@ export function NavbarClient({
             <button
               onClick={() => setMenuOpen(true)}
               aria-label={t.nav.openMenu}
-              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-light-green text-forest transition hover:bg-primary hover:text-white xl:hidden"
+              className="flex h-8 w-8 min-[360px]:h-9 min-[360px]:w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-light-green text-forest transition hover:bg-primary hover:text-white xl:hidden"
             >
               <Menu size={21} strokeWidth={2.4} />
             </button>

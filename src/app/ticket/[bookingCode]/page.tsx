@@ -12,6 +12,8 @@ import { getBranding } from "@/lib/branding";
 import { OPENING } from "@/lib/data/events";
 import { RememberTicket } from "@/components/visitor/MyTickets";
 import { ScratchCard } from "@/components/visitor/ScratchCard";
+import { getSiteUrl } from "@/lib/server/site-url";
+import { AddToCalendar } from "@/components/visitor/AddToCalendar";
 import { existingPrize } from "@/lib/server/scratch";
 
 // Signed-in owners (and staff/admin) can read their booking through RLS.
@@ -51,7 +53,7 @@ export default async function TicketPage({
   const km = locale === "km";
   // The QR holds the ticket link: staff scanners read the key from it, and a
   // visitor's own phone camera simply opens this page.
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+  const siteUrl = getSiteUrl();
   const shareableUrl = `/ticket/${booking.booking_code}?k=${booking.qr_token}`;
   const [qrDataUrl, { heroImageUrl }, prize] = await Promise.all([generateQrDataUrl(siteUrl ? `${siteUrl}${shareableUrl}` : booking.qr_token), getBranding(), existingPrize(booking.scratch_code_id)]);
   const items = (booking.booking_items ?? []) as any[];
@@ -177,6 +179,9 @@ export default async function TicketPage({
               <Row icon={Clock} label={t.visit.openingHours} value={`${OPENING.open} – ${OPENING.close}`} />
               <Row icon={CalendarDays} label={T.visitors} value={num(totalVisitors, locale)} />
             </dl>
+            {!usedAt && booking.status !== "cancelled" && (
+              <AddToCalendar date={booking.visit_date} code={booking.booking_code} url={`${siteUrl}${shareableUrl}`} km={km} />
+            )}
             {paid && !usedAt && (
               <p className="flex items-start gap-2 text-xs text-ink/55">
                 <Sun size={14} className="mt-0.5 flex-shrink-0 text-accent" /> {T.scanHint}

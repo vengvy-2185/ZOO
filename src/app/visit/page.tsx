@@ -49,13 +49,13 @@ export default async function VisitPage() {
           {(facilities ?? []).map((f) => {
             const s = facilityStyle(f.type);
             return (
-              <div key={f.id} className="card flex items-center gap-3 p-4">
-                <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: s.color }}>
+              <div key={f.id} className="card flex min-w-0 items-center gap-3 p-3 sm:p-4">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl text-white sm:h-11 sm:w-11" style={{ backgroundColor: s.color }}>
                   <s.icon size={20} />
                 </span>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-bold text-forest">{(locale === "km" && f.khmer_name) || f.name}</div>
-                  <div className="text-xs text-ink/50">{(t.facility as Record<string, string>)[f.type] ?? t.facility.other}</div>
+                  <div className="text-sm font-bold leading-snug text-forest [overflow-wrap:anywhere]">{(locale === "km" && f.khmer_name) || f.name}</div>
+                  <div className="truncate text-xs text-ink/50">{(t.facility as Record<string, string>)[f.type] ?? t.facility.other}</div>
                 </div>
               </div>
             );

@@ -42,7 +42,7 @@ const WORDS = {
   myTickets: ["my ticket", "lost ticket", "find my ticket", "where is my ticket", "show qr", "សំបុត្ររបស់ខ្ញុំ", "បាត់សំបុត្រ", "រកសំបុត្រ"],
   account: ["login", "log in", "sign in", "sign up", "register", "account", "profile", "password", "change my name", "change name", "avatar", "គណនី", "ចូលគណនី", "ចុះឈ្មោះ", "ពាក្យសម្ងាត់", "ប្តូរឈ្មោះ", "ប្តូររូប", "ប្រវត្តិរូប"],
   adopt: ["adopt", "sponsor", "donate", "support an animal", "ឧបត្ថម្ភ", "បរិច្ចាគ", "ជួយសត្វ"],
-  booth: ["photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
+  booth: ["postcard", "post card", "កាតប៉ុស្តាល់", "photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
   games: ["quiz", "game", "games", "for kids", "children", "kids", "which animal am i", "ល្បែង", "ហ្គេម", "សម្រាប់កុមារ", "ក្មេង", "កូនតូច"],
   food: ["food", "eat", "restaurant", "cafe", "coffee", "hungry", "drink", "snack", "អាហារ", "ញ៉ាំ", "ឃ្លាន", "ហាងកាហ្វេ", "ភេសជ្ជៈ", "ភោជនីយដ្ឋាន"],
   toilet: ["toilet", "restroom", "bathroom", "wc", "washroom", "បង្គន់", "បន្ទប់ទឹក"],
@@ -243,7 +243,7 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
     };
   }
   if (has(q, WORDS.booth)) {
-    return { text: L("Try our Photo Booth! Take a selfie, add real animal stickers and a jungle frame, then save or share it.", "សាកផ្ទាំងថតរូបរបស់យើង! ថតសែលហ្វី បន្ថែមស្ទីគ័រសត្វពិតៗ និងស៊ុមព្រៃ រួចរក្សាទុក ឬចែករំលែក។"), links: [{ label: L("Photo booth", "ថតរូបជាមួយសត្វ"), href: "/photo-booth" }] };
+    return { text: L("Try our Photo Booth! Take a selfie, add real animal stickers and a jungle frame, then save or share it.", "សាកផ្ទាំងថតរូបរបស់យើង! ថតសែលហ្វី បន្ថែមស្ទីគ័រសត្វពិតៗ និងស៊ុមព្រៃ រួចរក្សាទុក ឬចែករំលែក។"), links: [{ label: L("Photo booth", "ថតរូបជាមួយសត្វ"), href: "/photo-booth" }, { label: L("Animal postcard", "កាតប៉ុស្តាល់សត្វ"), href: "/postcard" }] };
   }
   if (has(q, WORDS.games)) {
     return {

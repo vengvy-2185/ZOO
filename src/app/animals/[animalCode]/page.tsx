@@ -11,7 +11,6 @@ import { ZooMapArtwork } from "@/components/visitor/ZooMapArtwork";
 import { calculateAge, daysUntilNextBirthday, formatBirthday, formatFullDate, isBirthdayToday } from "@/lib/utils/age";
 import { categoryTheme } from "@/lib/utils/category";
 import { SpeciesIcon } from "@/components/visitor/SpeciesIcon";
-import { QuestDiscoveryTrigger } from "@/components/visitor/QuestDiscoveryTrigger";
 import { PhotoGallery } from "@/components/visitor/PhotoGallery";
 import { ShareButton } from "@/components/visitor/ShareButton";
 import { FavoriteButton } from "@/components/visitor/Favorites";
@@ -64,10 +63,8 @@ async function getAnimal(animalCode: string) {
 
 export default async function AnimalProfilePage({
   params,
-  searchParams,
 }: {
   params: { animalCode: string };
-  searchParams: { scanned?: string };
 }) {
   const data = await getAnimal(params.animalCode);
   if (!data) notFound();
@@ -87,7 +84,6 @@ export default async function AnimalProfilePage({
 
   return (
     <div className="pb-20 md:pb-0">
-      {searchParams.scanned === "1" && <QuestDiscoveryTrigger animalId={animal.id} animalName={animal.name} />}
       <Navbar />
 
       {/* ───────────── HERO ───────────── */}
@@ -142,7 +138,7 @@ export default async function AnimalProfilePage({
                   {animal.species?.scientific_name && <p className="text-sm italic text-white/60">{animal.species.scientific_name}</p>}
                 </div>
                 <Link
-                  href={`/scan/${animal.animal_code}`}
+                  href="/quest?scan=1"
                   className="hidden flex-shrink-0 flex-col items-center gap-1 rounded-2xl bg-white/15 px-4 py-3 text-xs font-bold text-white ring-1 ring-white/30 backdrop-blur transition hover:bg-white hover:text-primary sm:flex"
                 >
                   <QrCode size={30} /> {t.detail.scanQr}
@@ -179,7 +175,7 @@ export default async function AnimalProfilePage({
           <ActionButton href={hasStory ? `/animals/${animal.animal_code}/story` : undefined} icon={BookOpen} label={t.detail.readStory} soon={t.common.comingSoon} primary />
           <ActionButton href={`/animals/${animal.animal_code}/audio`} icon={Volume2} label={t.detail.listen} />
           <ActionButton href={`/animals/${animal.animal_code}/map`} icon={Navigation} label={t.detail.find(displayName)} />
-          <ActionButton href={`/scan/${animal.animal_code}`} icon={QrCode} label={t.detail.scanQr} />
+          <ActionButton href="/quest?scan=1" icon={QrCode} label={t.detail.scanQr} />
           <ShareButton title={`${displayName}, Green Wild Zoo`} className="col-span-2 sm:col-span-1" />
         </div>
         <Link

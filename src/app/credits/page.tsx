@@ -37,11 +37,11 @@ export default function CreditsPage() {
       <main className="mx-auto max-w-5xl px-4 md:px-6">
         <div className="grid gap-3 sm:grid-cols-2">
           {credits.map((c) => (
-            <div key={c.file} className="card flex gap-4 p-3">
-              <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-xl">
+            <div key={c.file} className="card flex gap-3 p-3 sm:gap-4">
+              <div className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl sm:w-28">
                 <Image src={`/animals/${c.file}`} alt="" fill sizes="112px" className="object-cover" />
               </div>
-              <div className="min-w-0 text-sm">
+              <div className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
                 <a href={c.source} target="_blank" rel="noreferrer" className="block truncate font-bold text-forest hover:text-primary">
                   {c.title.replace(/^File:/, "")}
                 </a>

@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getCategoryIcon } from "@/lib/icons/categoryIcons";
-import { Star, Trophy, PartyPopper, Check, Lock, QrCode, Target } from "lucide-react";
+import { Star, Trophy, PartyPopper, Check, Lock, QrCode, Target, ScanLine, MapPin, ArrowRight, XCircle } from "lucide-react";
+import { QuestScanner } from "@/components/visitor/QuestScanner";
 import { cn } from "@/lib/utils/cn";
 import { useI18n } from "@/lib/i18n/client";
 import { num } from "@/lib/utils/age";
+
+type Found = {
+  ok: true;
+  sessionId: string;
+  awarded: boolean;
+  points: number;
+  totalPoints: number;
+  found: number;
+  total: number;
+  animal: { id: string; code: string; name: string; name_km: string | null; species: string | null; species_km: string | null; image: string | null };
+  next: { code: string; name: string; name_km: string | null; image: string | null } | null;
+};
 
 interface AnimalRow { id: string; name: string; khmer_name: string | null; main_image_url: string | null; animal_code: string; category: { slug: string } | null }
 
@@ -17,6 +30,44 @@ export default function QuestPage() {
   const [discoveredIds, setDiscoveredIds] = useState<Set<string>>(new Set());
   const [points, setPoints] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<Found | { ok: false; reason: string } | null>(null);
+
+  // Sends a token read from a real QR sign to the server, which records the discovery.
+  const discover = useCallback(async (token: string) => {
+    setChecking(true);
+    try {
+      const res = await fetch("/api/quest/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, sessionId: localStorage.getItem("gwz_quest_session_id") }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        localStorage.setItem("gwz_quest_session_id", data.sessionId);
+        setDiscoveredIds((ids) => new Set(ids).add(data.animal.id));
+        setPoints(data.totalPoints);
+      }
+      setResult(data.ok ? data : { ok: false, reason: data.reason ?? "invalid" });
+    } catch {
+      setResult({ ok: false, reason: "error" });
+    } finally {
+      setChecking(false);
+      setScanning(false);
+    }
+  }, []);
+  const closeScanner = useCallback(() => setScanning(false), []);
+
+  // Opened from a QR sign with the phone's camera app (/q/<token> sends people here with ?t=),
+  // or from an animal page's "Scan QR" button (?scan=1).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("t");
+    if (token && /^[a-f0-9]{16,64}$/i.test(token)) discover(token);
+    else if (params.get("scan") === "1") setScanning(true);
+    if (token || params.get("scan")) window.history.replaceState(null, "", "/quest");
+  }, [discover]);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +106,24 @@ export default function QuestPage() {
         </div>
       ) : (
         <>
+          <button
+            onClick={() => {
+              setResult(null);
+              setScanning(true);
+            }}
+            className="mb-4 flex w-full items-center gap-4 rounded-3xl bg-gradient-to-r from-primary to-forest p-4 text-left text-white shadow-lift transition hover:brightness-110 active:scale-[.99] sm:p-5"
+          >
+            <span className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+              <ScanLine size={30} />
+              <span className="absolute -right-1 -top-1 h-3.5 w-3.5 animate-ping rounded-full bg-leaf" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-xl font-extrabold">{t.quest.scan}</span>
+              <span className="block text-sm text-white/80">{t.quest.scanHint}</span>
+            </span>
+            <ArrowRight size={22} className="flex-shrink-0" />
+          </button>
+
           <div className="grid gap-3 sm:grid-cols-3">
             <Stat icon={Target} label={t.quest.discovered} value={`${num(discovered, locale)} / ${num(total, locale)}`} />
             <Stat icon={Star} label={t.quest.points} value={num(points, locale)} accent />
@@ -122,7 +191,9 @@ export default function QuestPage() {
                       <Icon size={24} />
                     )}
                   </span>
-                  <span className={cn("text-xs font-bold", found ? "text-forest" : "text-ink/40")}>{found ? (locale === "km" && a.khmer_name) || a.name : "???"}</span>
+                  <span className={cn("text-xs font-bold", found ? "text-forest" : "text-ink/40")} title={found ? undefined : t.quest.tapToFind}>
+                    {found ? (locale === "km" && a.khmer_name) || a.name : "???"}
+                  </span>
                   <span
                     className={cn(
                       "absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full",
@@ -137,6 +208,30 @@ export default function QuestPage() {
           </div>
           {total === 0 && <p className="mt-4 text-sm text-ink/50">{t.quest.noAnimals}</p>}
         </>
+      )}
+
+      {scanning && <QuestScanner onToken={discover} onClose={closeScanner} busy={checking} />}
+      {!scanning && checking && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-forest/60 backdrop-blur-sm">
+          <span className="rounded-2xl bg-white px-5 py-3 font-bold text-forest shadow-lift">{t.quest.checking}</span>
+        </div>
+      )}
+      {result && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-forest/60 p-3 backdrop-blur-sm animate-[gwzFade_.2s_ease] sm:items-center" onClick={() => setResult(null)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-[2rem] bg-white shadow-2xl animate-[gwzDrop_.35s_ease]" onClick={(e) => e.stopPropagation()}>
+            {result.ok ? (
+              <FoundCard r={result} locale={locale} t={t} onScan={() => { setResult(null); setScanning(true); }} />
+            ) : (
+              <div className="p-6 text-center">
+                <XCircle size={44} className="mx-auto text-red-500" />
+                <p className="mt-3 font-semibold text-ink/75">{result.reason === "invalid" ? t.quest.invalid : t.quest.error}</p>
+                <button onClick={() => { setResult(null); setScanning(true); }} className="btn-primary mt-5 w-full hover:translate-y-0">
+                  <ScanLine size={17} /> {t.quest.scanAnother}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </main>
   );
@@ -153,5 +248,62 @@ function Stat({ icon: Icon, label, value, accent }: { icon: any; label: string; 
         <div className={cn("font-display text-3xl font-extrabold leading-none", accent ? "text-white" : "text-forest")}>{value}</div>
       </div>
     </div>
+  );
+}
+
+function FoundCard({ r, locale, t, onScan }: { r: Found; locale: "en" | "km"; t: any; onScan: () => void }) {
+  const q = t.quest;
+  const name = (locale === "km" && r.animal.name_km) || r.animal.name;
+  const nextName = r.next && ((locale === "km" && r.next.name_km) || r.next.name);
+  return (
+    <>
+      <div className="relative bg-gradient-to-br from-primary to-forest px-6 pb-6 pt-7 text-center text-white">
+        <span className="relative mx-auto block h-28 w-28">
+          <span className="absolute inset-0 animate-ping rounded-full bg-leaf/40" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={r.animal.image ?? ""} alt="" className="relative h-28 w-28 rounded-full object-cover ring-4 ring-white shadow-lift" />
+          <span className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-leaf text-forest ring-4 ring-white">
+            <Check size={18} strokeWidth={3} />
+          </span>
+        </span>
+        <p className="mt-4 font-display text-2xl font-extrabold leading-tight">{q.found(name)}</p>
+        {((locale === "km" && r.animal.species_km) || r.animal.species) && <p className="text-sm text-white/75">{(locale === "km" && r.animal.species_km) || r.animal.species}</p>}
+        <span className={cn("mt-3 inline-block rounded-full px-4 py-1.5 text-sm font-extrabold", r.awarded ? "bg-leaf text-forest" : "bg-white/15 text-white")}>
+          {r.awarded ? q.plus(r.points) : q.already}
+        </span>
+      </div>
+      <div className="space-y-4 p-5">
+        <div>
+          <div className="flex justify-between text-xs font-semibold text-ink/55">
+            <span>{q.progressLine(num(r.found, locale), num(r.total, locale))}</span>
+            <span>{q.total(num(r.totalPoints, locale))}</span>
+          </div>
+          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-light-green">
+            <div className="h-full rounded-full bg-gradient-to-r from-primary to-leaf" style={{ width: `${r.total ? (r.found / r.total) * 100 : 0}%` }} />
+          </div>
+        </div>
+        {r.next && (
+          <Link href={`/animals/${r.next.code}/map`} className="flex items-center gap-3 rounded-2xl bg-cream p-3 ring-1 ring-primary/10 transition hover:ring-primary">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={r.next.image ?? ""} alt="" className="h-12 w-12 rounded-xl object-cover opacity-80 grayscale" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-bold text-ink/50">{q.nextToFind}</span>
+              <span className="block truncate font-bold text-forest">{nextName}</span>
+            </span>
+            <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-bold text-primary">
+              <MapPin size={14} /> {q.showOnMap}
+            </span>
+          </Link>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <Link href={`/animals/${r.animal.code}`} className="btn-outline justify-center px-3 text-sm">
+            {q.viewAnimal}
+          </Link>
+          <button onClick={onScan} className="btn-primary justify-center px-3 text-sm hover:translate-y-0">
+            <ScanLine size={16} /> {q.scanAnother}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

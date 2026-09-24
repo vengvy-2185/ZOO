@@ -392,7 +392,7 @@ export default async function HomePage() {
                 [Mic, t.home.animalTalks, t.home.everyDay],
                 [Camera, t.home.photoSpots, t.home.aroundPark],
               ].map(([Icon, title, sub]: any) => (
-                <div key={title} className="rounded-3xl bg-white/10 p-4 text-center ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
+                <div key={title} className="rounded-3xl bg-white/10 p-3 text-center ring-1 sm:p-4 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
                   <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary shadow-soft">
                     <Icon size={22} strokeWidth={2.3} />
                   </span>
@@ -492,12 +492,12 @@ export default async function HomePage() {
               [MapPin, t.home.location, t.footer.address, "/visit"],
               [ParkingCircle, t.home.parking, t.home.parkingText, "/visit"],
             ].map(([Icon, title, value, href]: any) => (
-              <Link key={title} href={href} className="group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 md:p-5">
+              <Link key={title} href={href} className="group card flex flex-col items-start gap-2.5 p-4 transition hover:-translate-y-0.5 sm:flex-row sm:items-center sm:gap-3 md:flex-col md:items-start md:p-5 lg:flex-row lg:items-center">
                 <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-light-green text-primary transition group-hover:bg-primary group-hover:text-white">
                   <Icon size={22} />
                 </span>
-                <span className="min-w-0">
-                  <span className="block font-display font-bold text-forest">{title}</span>
+                <span className="w-full min-w-0">
+                  <span className="block font-display font-bold leading-snug text-forest">{title}</span>
                   <span className="block truncate text-xs text-ink/55">{value}</span>
                 </span>
               </Link>

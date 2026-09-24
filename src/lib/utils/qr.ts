@@ -4,7 +4,16 @@
 import QRCode from "qrcode";
 
 export function animalProfileUrl(siteUrl: string, animalCode: string) {
-  return `${siteUrl}/animal/${animalCode}`;
+  return `${siteUrl}/animals/${animalCode}`;
+}
+
+/**
+ * What the QR sign beside each enclosure encodes: a short link with the
+ * animal's secret token (animal_qr_codes.qr_token). Only someone standing in
+ * front of the sign can read it, so scanning it is real proof of a visit.
+ */
+export function animalQrUrl(siteUrl: string, qrToken: string) {
+  return `${siteUrl}/q/${qrToken}`;
 }
 
 export function ticketUrl(siteUrl: string, bookingCode: string) {

@@ -1,4 +1,4 @@
-import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, type LucideIcon } from "lucide-react";
+import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Single source of truth for the visitor site's menu — the desktop header,
@@ -20,6 +20,7 @@ export const MORE_LINKS: { href: string; key: keyof Dictionary["nav"]; icon: Luc
   { href: "/planner", key: "planner", icon: Route },
   { href: "/match", key: "match", icon: Sparkles },
   { href: "/photo-booth", key: "booth", icon: Camera },
+  { href: "/postcard", key: "postcard", icon: Mail },
   { href: "/compare", key: "compare", icon: Ruler },
   { href: "/reviews", key: "reviews", icon: Star },
   { href: "/adopt", key: "adopt", icon: HeartHandshake },
