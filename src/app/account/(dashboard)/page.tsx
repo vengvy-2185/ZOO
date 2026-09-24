@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { ProfileEditor } from "@/components/visitor/ProfileEditor";
 import { MemberCardSection } from "@/components/visitor/MemberCardSection";
-import { getMembers } from "@/lib/server/members";
+import { getMembers, ensureCard } from "@/lib/server/members";
 import { getSiteUrl } from "@/lib/server/site-url";
 import { ClaimQuestSession } from "@/components/visitor/ClaimQuestSession";
 import { IconBadge } from "@/components/visitor/IconBadge";
@@ -53,7 +53,9 @@ async function getAccountData() {
   // Spendable points (quest animals, purchases, invites, minus rewards): see lib/server/points.
   const { data: balance } = await createServiceRoleClient().rpc("points_balance", { p_user: user.id });
   const totalPoints = Number(balance ?? 0);
-  const [member] = await getMembers(user.id);
+  const [found] = await getMembers(user.id);
+  // Earned a card? Make sure it has its QR record so it can be shown and saved.
+  const member = found?.card ? await ensureCard(found) : found;
 
   return {
     user,

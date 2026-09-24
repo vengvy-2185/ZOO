@@ -1,5 +1,5 @@
-import { IdCard, CheckCircle2, Clock, PackageCheck, Footprints, Wallet } from "lucide-react";
-import { IdBadge } from "@/components/IdBadge";
+import { IdCard as IdCardIcon, CheckCircle2, Clock, PackageCheck, Footprints, Wallet } from "lucide-react";
+import { IdCard } from "@/components/IdCard";
 import { CARD_STYLE, TIERS, memberNo } from "@/lib/members";
 import type { MemberRow } from "@/lib/server/members";
 import { cn } from "@/lib/utils/cn";
@@ -15,6 +15,9 @@ export function MemberCardSection({ m, km, site }: { m: MemberRow; km: boolean; 
         ready: (n: string) => `កាត${n}របស់អ្នករួចរាល់ហើយ! មកបញ្ជរលក់សំបុត្រ ហើយបង្ហាញទំព័រនេះ ដើម្បីទទួលកាតបោះពុម្ពរបស់អ្នក។`,
         printed: "កាតរបស់អ្នកបានបោះពុម្ពរួច ហើយកំពុងរង់ចាំអ្នកនៅបញ្ជរលក់សំបុត្រ។",
         collected: "អ្នកបានទទួលកាតរួចហើយ។ អរគុណដែលជាសមាជិករបស់យើង!",
+        save: "រក្សាទុកក្នុងទូរស័ព្ទ",
+        print: "បោះពុម្ព",
+        issued: (n: number) => `បានប្រគល់កាត ${n} ដង។ បើបាត់កាត សូមប្រាប់បុគ្គលិក ដើម្បីធ្វើកាតជំនួស។`,
         team: "សូមស្នើអ្នកគ្រប់គ្រងឲ្យបោះពុម្ពកាតរបស់អ្នក។",
         how: "របៀបទទួលកាតសមាជិក",
         rule: (v: number, s: number) => `មកលេង ${v} ដង ឬចំណាយ $${s}`,
@@ -29,6 +32,9 @@ export function MemberCardSection({ m, km, site }: { m: MemberRow; km: boolean; 
         ready: (n: string) => `Your ${n} card is ready! Come to the ticket counter and show this page to collect your printed card.`,
         printed: "Your card has been printed and is waiting for you at the ticket counter.",
         collected: "You have your card. Thank you for being a member!",
+        save: "Save to phone",
+        print: "Print",
+        issued: (n: number) => `Card handed over ${n} ${n === 1 ? "time" : "times"}. Lost it? Tell a staff member and they will make a replacement.`,
         team: "Ask an admin to print your card.",
         how: "How to earn a member card",
         rule: (v: number, s: number) => `${v} visits or $${s} spent`,
@@ -43,16 +49,20 @@ export function MemberCardSection({ m, km, site }: { m: MemberRow; km: boolean; 
   return (
     <section className="card overflow-hidden p-5">
       <h2 className="flex items-center gap-2 font-display text-xl font-bold text-forest">
-        <IdCard size={22} className="text-primary" /> {L.title}
+        <IdCardIcon size={22} className="text-primary" /> {L.title}
       </h2>
 
       {m.card && (
-        <div className="mt-4 flex justify-center">
-          <div className="origin-top scale-[0.78]" style={{ marginBottom: -98 }}>
-            <IdBadge type={m.card} name={m.name} photo={m.avatar} memberNo={memberNo(m.id)} since={since} site={site} />
-          </div>
+        <div className="mt-4">
+          <IdCard
+            data={{ type: m.card, name: m.name, photo: m.avatar, memberNo: memberNo(m.id), since, site, verifyUrl: m.verifyToken ? `${site}/verify/${m.verifyToken}` : null }}
+            fileName={`green-wild-zoo-card-${memberNo(m.id)}`}
+            labels={{ save: L.save, print: L.print }}
+            width={240}
+          />
         </div>
       )}
+      {m.card && m.issueCount > 0 && <p className="mt-3 text-center text-xs text-ink/55">{L.issued(m.issueCount)}</p>}
 
       {m.card && (
         <p className={cn("mt-3 flex items-start gap-2 rounded-2xl p-3 text-sm font-semibold", m.cardStatus === "collected" ? "bg-light-green text-primary" : "bg-accent/25 text-forest")}>

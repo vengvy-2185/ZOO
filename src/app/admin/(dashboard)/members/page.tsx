@@ -26,7 +26,7 @@ export default async function AdminMembersPage({ searchParams }: { searchParams:
     people: all.length,
     visits: all.reduce((s, m) => s + m.visits, 0),
     spent: all.reduce((s, m) => s + m.spent, 0),
-    waiting: all.filter((m) => m.card && !m.cardStatus).length,
+    waiting: all.filter((m) => m.card && (!m.cardStatus || m.cardStatus === "ready")).length,
   };
   const L = km
     ? { title: "សមាជិក និងកាតសម្គាល់", sub: "ចំនួនដងមកលេង និងប្រាក់ដែលចំណាយរបស់គណនីនីមួយៗ។ បោះពុម្ពកាតសម្រាប់ពាក់ក សម្រាប់សមាជិក បុគ្គលិក និងអ្នកគ្រប់គ្រង។", people: "គណនី", visits: "ដងមកលេងសរុប", spent: "ប្រាក់ចំណាយតាមគណនី", waiting: "កាតរង់ចាំបោះពុម្ព", f: { all: "ទាំងអស់", cards: "ត្រូវការកាត", visitor: "ភ្ញៀវ", staff: "បុគ្គលិក", admin: "អ្នកគ្រប់គ្រង" }, search: "ស្វែងរកឈ្មោះ ឬអ៊ីមែល", visitsCol: "មកលេង", spentCol: "ចំណាយ", card: "កាត", print: "បោះពុម្ពកាត", noCard: "មិនទាន់", printed: "បានបោះពុម្ព", collected: "បានប្រគល់", rules: "លក្ខខណ្ឌទទួលកាតសមាជិក", or: "ឬ", times: "ដង" }
@@ -131,7 +131,10 @@ function Row({ m, km, L }: { m: MemberRow; km: boolean; L: any }) {
             <span className="w-fit rounded-full px-2.5 py-1 text-[11px] font-bold text-white" style={{ background: `linear-gradient(135deg, ${s.from}, ${s.to})` }}>
               {km ? s.km : s.en}
             </span>
-            <span className="mt-1 text-[11px] text-ink/50">{m.cardStatus === "collected" ? L.collected : m.cardStatus === "printed" ? L.printed : ""}</span>
+            <span className="mt-1 text-[11px] text-ink/50">
+              {m.cardStatus === "collected" ? L.collected : m.cardStatus === "printed" ? L.printed : ""}
+              {m.issueCount > 0 && ` (${m.issueCount}x)`}
+            </span>
           </span>
         ) : (
           <span className="text-xs text-ink/40">{L.noCard}</span>

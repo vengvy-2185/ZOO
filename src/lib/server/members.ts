@@ -13,8 +13,11 @@ export type MemberRow = {
   bookings: number; // paid bookings
   spent: number; // total paid, USD
   card: CardType | null;
-  cardStatus: "printed" | "collected" | null;
+  cardStatus: "ready" | "printed" | "collected" | null;
   cardPrintedAs: string | null;
+  verifyToken: string | null; // the secret in the card's QR
+  issueCount: number; // how many printed cards were handed over (first + replacements)
+  lastIssuedAt: string | null;
 };
 
 /** Visits, spending and card status for every account (or one account). */
@@ -24,13 +27,16 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
   if (onlyUserId) profilesQ = profilesQ.eq("id", onlyUserId);
   let bookingsQ = db.from("bookings").select("id, visitor_id, total_usd, status, visitor_checkins(id)").not("visitor_id", "is", null).eq("status", "confirmed");
   if (onlyUserId) bookingsQ = bookingsQ.eq("visitor_id", onlyUserId);
-  let cardsQ = db.from("member_cards").select("user_id, card_type, status");
+  let cardsQ = db.from("member_cards").select("user_id, card_type, status, verify_token");
   if (onlyUserId) cardsQ = cardsQ.eq("user_id", onlyUserId);
+  let issuesQ = db.from("member_card_issues").select("user_id, issued_at").order("issued_at", { ascending: false });
+  if (onlyUserId) issuesQ = issuesQ.eq("user_id", onlyUserId);
 
-  const [{ data: profiles }, { data: bookings }, { data: cards }, users] = await Promise.all([
+  const [{ data: profiles }, { data: bookings }, { data: cards }, { data: issues }, users] = await Promise.all([
     profilesQ,
     bookingsQ,
     cardsQ,
+    issuesQ,
     onlyUserId
       ? db.auth.admin.getUserById(onlyUserId).then((r) => (r.data.user ? [r.data.user] : []))
       : db.auth.admin.listUsers({ perPage: 1000 }).then((r) => r.data?.users ?? []),
@@ -46,6 +52,12 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
   }
   const auth = new Map(users.map((u: any) => [u.id, u]));
   const cardMap = new Map((cards ?? []).map((c) => [c.user_id, c]));
+  const issueMap = new Map<string, { n: number; last: string }>();
+  for (const i of issues ?? []) {
+    const e = issueMap.get(i.user_id);
+    if (e) e.n += 1;
+    else issueMap.set(i.user_id, { n: 1, last: i.issued_at });
+  }
 
   return (profiles ?? []).map((p) => {
     const u: any = auth.get(p.id);
@@ -65,6 +77,32 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
       card: cardTypeFor(p.role, s.visits, s.spent),
       cardStatus: (c?.status as MemberRow["cardStatus"]) ?? null,
       cardPrintedAs: c?.card_type ?? null,
+      verifyToken: c?.verify_token ?? null,
+      issueCount: issueMap.get(p.id)?.n ?? 0,
+      lastIssuedAt: issueMap.get(p.id)?.last ?? null,
     };
   });
+}
+
+/** Makes sure a person who has earned a card has a card record (with its QR token). */
+export async function ensureCard(m: MemberRow): Promise<MemberRow> {
+  if (!m.card) return m;
+  const db = createServiceRoleClient();
+  if (!m.verifyToken) {
+    await db.from("member_cards").upsert({ user_id: m.id, card_type: m.card }, { onConflict: "user_id", ignoreDuplicates: true });
+  } else if (m.cardPrintedAs !== m.card) {
+    // Moved up a level (e.g. Silver to Gold): same QR, new card colour.
+    await db.from("member_cards").update({ card_type: m.card, updated_at: new Date().toISOString() }).eq("user_id", m.id);
+  } else return m;
+  const [fresh] = await getMembers(m.id);
+  return fresh ?? m;
+}
+
+/** Looks up a card from the QR token (for the public check page). */
+export async function getCardByToken(token: string) {
+  if (!/^[a-f0-9]{16,64}$/i.test(token)) return null;
+  const { data } = await createServiceRoleClient().from("member_cards").select("user_id").eq("verify_token", token.toLowerCase()).maybeSingle();
+  if (!data) return null;
+  const [m] = await getMembers(data.user_id);
+  return m ?? null;
 }

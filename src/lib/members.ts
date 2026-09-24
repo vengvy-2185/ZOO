@@ -15,9 +15,9 @@ export const TIERS: { key: Extract<CardType, "silver" | "gold" | "platinum">; vi
 export const CARD_STYLE: Record<CardType, { en: string; km: string; from: string; to: string; ink: string }> = {
   admin: { en: "Administrator", km: "អ្នកគ្រប់គ្រង", from: "#881337", to: "#E11D48", ink: "#FFE4E6" },
   staff: { en: "Zoo Staff", km: "បុគ្គលិកសួនសត្វ", from: "#1E3A8A", to: "#2563EB", ink: "#DBEAFE" },
-  platinum: { en: "Platinum Member", km: "សមាជិកប្លាទីន", from: "#0F172A", to: "#334155", ink: "#E2E8F0" },
+  platinum: { en: "Platinum Member", km: "សមាជិកប្លាទីន", from: "#1E1B4B", to: "#4338CA", ink: "#E0E7FF" },
   gold: { en: "Gold Member", km: "សមាជិកមាស", from: "#92400E", to: "#F59E0B", ink: "#FEF3C7" },
-  silver: { en: "Silver Member", km: "សមាជិកប្រាក់", from: "#475569", to: "#94A3B8", ink: "#F1F5F9" },
+  silver: { en: "Silver Member", km: "សមាជិកប្រាក់", from: "#334155", to: "#64748B", ink: "#E2E8F0" },
 };
 
 /** The highest member level reached, or null if not yet. */
