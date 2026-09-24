@@ -1,0 +1,44 @@
+{
+  "name": "green-wild-zoo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@fontsource/baloo-2": "^5.3.0",
+    "@fontsource/battambang": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "bakong-khqr": "^1.0.20",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "jose": "^6.2.12",
+    "jsqr": "^1.4.0",
+    "lucide-react": "^0.446.0",
+    "next": "14.2.13",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.4",
+    "tailwind-merge": "^2.5.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.12",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}

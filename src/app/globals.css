@@ -1,0 +1,264 @@
+/* Battambang (Khmer OS Battambang design) for Khmer letters ONLY — the
+   unicode-range keeps its serif Latin glyphs out, so English words and
+   numbers inside Khmer text use Inter. */
+@font-face {
+  font-family: "Battambang";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../../node_modules/@fontsource/battambang/files/battambang-khmer-400-normal.woff2") format("woff2");
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200B-200D, U+25CC;
+}
+@font-face {
+  font-family: "Battambang";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../../node_modules/@fontsource/battambang/files/battambang-khmer-700-normal.woff2") format("woff2");
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200B-200D, U+25CC;
+}
+@font-face {
+  font-family: "Battambang";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../../node_modules/@fontsource/battambang/files/battambang-khmer-900-normal.woff2") format("woff2");
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200B-200D, U+25CC;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Font families come from the @fontsource packages imported in app/layout.tsx. */
+  :root {
+    --font-inter: "Inter";
+    --font-display: "Baloo 2";
+    --font-khmer: "Battambang";
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-ink antialiased;
+    /* Never scroll sideways (clip, not hidden, so sticky headers keep working). */
+    overflow-x: clip;
+  }
+  :lang(km) {
+    @apply font-khmer;
+  }
+  /* Khmer letters stack vowels and sub-consonants above and below the line,
+     so tight Latin line-heights clip them — give Khmer text more room. */
+  html:lang(km) body {
+    line-height: 1.7;
+  }
+  html:lang(km) :is(h1, h2, h3, .leading-none, .leading-tight, .leading-snug, .leading-\[1\.02\]) {
+    line-height: 1.4 !important;
+  }
+  /* Letter-spacing splits Khmer syllable clusters apart — turn it off. */
+  html:lang(km) [class*="tracking-"] {
+    letter-spacing: 0 !important;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  /* Shared buttons so every page (visitor + admin) uses the same shapes. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf focus-visible:ring-offset-2 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white shadow-soft hover:-translate-y-0.5 hover:bg-forest;
+  }
+  .btn-outline {
+    @apply btn border-2 border-primary text-primary hover:bg-light-green;
+  }
+  .btn-ghost-light {
+    @apply btn border-2 border-white/80 text-white backdrop-blur-sm hover:bg-white/15;
+  }
+  .card {
+    @apply rounded-3xl bg-white shadow-soft ring-1 ring-black/[0.04];
+  }
+  .section-title {
+    @apply flex items-center gap-2 font-display text-2xl font-bold text-forest md:text-3xl;
+  }
+  .input {
+    @apply w-full rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+}
+
+/* ── Scroll reveal (see components/ScrollReveal.tsx) ─────────────────────
+   Only active once the script has run (html.reveal-on), so without JS
+   everything is simply visible. */
+html.reveal-on [data-reveal]:not([data-shown]) {
+  opacity: 0;
+  transform: translateY(28px);
+}
+html.reveal-on [data-reveal="zoom"]:not([data-shown]) {
+  transform: scale(0.94);
+}
+html.reveal-on [data-reveal="left"]:not([data-shown]) {
+  transform: translateX(-32px);
+}
+html.reveal-on [data-reveal="right"]:not([data-shown]) {
+  transform: translateX(32px);
+}
+html.reveal-on [data-reveal] {
+  transition:
+    opacity 0.75s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.75s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+/* Once revealed, hover effects on cards shouldn't inherit the long delay. */
+html.reveal-on [data-reveal][data-shown]:hover {
+  transition-delay: 0ms;
+}
+
+/* ── Ambient wildlife (components/visitor/JungleAmbience.tsx) ───────── */
+@keyframes gwzClimb {
+  0%, 100% { transform: translate(-50%, 0); }
+  48%, 52% { transform: translate(-50%, calc(62vh - 100%)); }
+}
+.gwz-climb { animation: gwzClimb 16s ease-in-out infinite; }
+@keyframes gwzArmL { from { transform: rotate(-10deg); } to { transform: rotate(8deg); } }
+@keyframes gwzArmR { from { transform: rotate(8deg); } to { transform: rotate(-10deg); } }
+.gwz-arm-l { transform-origin: 52px 78px; animation: gwzArmL 0.45s ease-in-out infinite alternate; }
+.gwz-arm-r { transform-origin: 68px 78px; animation: gwzArmR 0.45s ease-in-out infinite alternate; }
+.gwz-leg-l { transform-origin: 50px 112px; animation: gwzArmR 0.45s ease-in-out infinite alternate; }
+.gwz-leg-r { transform-origin: 70px 112px; animation: gwzArmL 0.45s ease-in-out infinite alternate; }
+@keyframes gwzTail { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
+.gwz-tail { transform-origin: 72px 108px; animation: gwzTail 1.4s ease-in-out infinite alternate; }
+@keyframes gwzBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.gwz-blink { transform-origin: 60px 56px; animation: gwzBlink 4s infinite; }
+@keyframes gwzPop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+
+@keyframes gwzLeaf {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  50% { transform: translate(40px, 340px) rotate(200deg); }
+  90% { opacity: 1; }
+  100% { transform: translate(-20px, 720px) rotate(400deg); opacity: 0; }
+}
+.gwz-leaf { animation: gwzLeaf linear infinite; }
+@keyframes gwzFlutterA {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  25% { transform: translate(120px, -40px) rotate(10deg); }
+  50% { transform: translate(240px, 10px) rotate(-6deg); }
+  75% { transform: translate(110px, 50px) rotate(8deg); }
+}
+@keyframes gwzFlutterB {
+  0%, 100% { transform: translate(0, 0) rotate(6deg); }
+  30% { transform: translate(-160px, -50px) rotate(-10deg); }
+  60% { transform: translate(-60px, -120px) rotate(8deg); }
+}
+.gwz-flutter-a { animation: gwzFlutterA 14s ease-in-out infinite; }
+.gwz-flutter-b { animation: gwzFlutterB 17s ease-in-out infinite; }
+@keyframes gwzWings { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.35); } }
+.gwz-wings { animation: gwzWings 0.35s ease-in-out infinite; }
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .card-shadow {
+    box-shadow: 0 8px 30px rgba(23, 107, 58, 0.08);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+.storybook-page {
+  backface-visibility: hidden;
+}
+
+/* Audio guide equaliser */
+@keyframes gwzEq {
+  from { height: 4px; }
+  to { height: 22px; }
+}
+
+/* Photo booth camera flash */
+@keyframes gwzFlash {
+  from { opacity: 0.95; }
+  to { opacity: 0; }
+}
+
+/* Scratch card confetti */
+@keyframes gwzBurst {
+  from { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(220deg) scale(0.6); opacity: 0; }
+}
+
+/* Sign-in feedback (components/AuthFeedback.tsx) */
+@keyframes gwzFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes gwzDrop { from { opacity: 0; transform: translateY(-24px) scale(0.95); } to { opacity: 1; transform: none; } }
+@keyframes gwzDraw { to { stroke-dashoffset: 0; } }
+@keyframes gwzShrink { from { width: 100%; } to { width: 0%; } }
+
+/* ── Opening animation (components/IntroSplash.tsx) ───────────────────── */
+.gwz-intro { display: none; }
+html.intro-on { overflow: hidden; }
+html.intro-on .gwz-intro {
+  position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; background: radial-gradient(circle at 50% 40%, #1f7a45 0%, #0e3f24 70%);
+}
+.gwz-intro-out { animation: gwzIntroOut .7s ease forwards; }
+.gwz-intro-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5; animation: gwzIntroZoom 4.5s ease-out forwards; }
+.gwz-intro-shade { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, rgba(14,63,36,.35), rgba(14,63,36,.9) 75%); }
+.gwz-intro-ring { position: relative; width: 16rem; height: 16rem; display: flex; align-items: center; justify-content: center; }
+@media (min-width: 768px) { .gwz-intro-ring { width: 21rem; height: 21rem; } }
+.gwz-intro-photo {
+  position: absolute; left: 50%; top: 50%; width: 3.6rem; height: 3.6rem; margin: -1.8rem 0 0 -1.8rem; border-radius: 9999px;
+  object-fit: cover; border: 3px solid #fff; box-shadow: 0 10px 25px rgba(0,0,0,.35); opacity: 0;
+  animation: gwzIntroPhoto .6s cubic-bezier(.2,.9,.3,1.4) forwards, gwzIntroFloat 2.4s ease-in-out infinite alternate;
+}
+@media (min-width: 768px) { .gwz-intro-photo { width: 4.6rem; height: 4.6rem; margin: -2.3rem 0 0 -2.3rem; } }
+.gwz-intro-logo { opacity: 0; transform: scale(.3); animation: gwzIntroLogo .8s .9s cubic-bezier(.2,.9,.3,1.4) forwards; filter: drop-shadow(0 12px 30px rgba(0,0,0,.4)); }
+.gwz-intro-title { opacity: 0; letter-spacing: .5em; animation: gwzIntroTitle .9s 1.4s ease forwards; }
+.gwz-intro-tag { opacity: 0; animation: gwzFade .6s 2s ease forwards; }
+.gwz-intro-bar span { width: 0; animation-name: gwzIntroBar; animation-timing-function: linear; animation-fill-mode: forwards; }
+.gwz-intro-leaf {
+  position: absolute; top: -2rem; width: 14px; height: 22px; border-radius: 0 100% 0 100%; background: #9bd13b; opacity: .8;
+  animation-name: gwzIntroLeaf; animation-timing-function: linear; animation-iteration-count: infinite;
+}
+.gwz-intro-leaf:nth-child(3n) { background: #f4c95d; }
+@keyframes gwzIntroPhoto {
+  from { opacity: 0; transform: rotate(var(--a)) translateY(0) rotate(calc(-1 * var(--a))) scale(.2); }
+  to { opacity: 1; transform: rotate(var(--a)) translateY(-7.2rem) rotate(calc(-1 * var(--a))) scale(1); }
+}
+@media (min-width: 768px) {
+  @keyframes gwzIntroPhoto {
+    from { opacity: 0; transform: rotate(var(--a)) translateY(0) rotate(calc(-1 * var(--a))) scale(.2); }
+    to { opacity: 1; transform: rotate(var(--a)) translateY(-9.4rem) rotate(calc(-1 * var(--a))) scale(1); }
+  }
+}
+@keyframes gwzIntroFloat { from { translate: 0 0; } to { translate: 0 -6px; } }
+@keyframes gwzIntroLogo { to { opacity: 1; transform: scale(1); } }
+@keyframes gwzIntroTitle { to { opacity: 1; letter-spacing: .04em; } }
+@keyframes gwzIntroBar { to { width: 100%; } }
+@keyframes gwzIntroZoom { from { transform: scale(1.15); } to { transform: scale(1); } }
+@keyframes gwzIntroLeaf { from { transform: translateY(0) rotate(0); } to { transform: translateY(110vh) rotate(540deg); } }
+@keyframes gwzIntroOut { to { opacity: 0; transform: scale(1.08); visibility: hidden; } }
+@keyframes gwzSlideIn { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* Frosted tabs tucked against the right edge (chat, monkey): quiet until touched. */
+.side-tab {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0.35rem 0.4rem 0.35rem 0.55rem;
+  border-radius: 1rem 0 0 1rem;
+  background: rgba(255, 255, 255, 0.38);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 6px 20px -8px rgba(14, 63, 36, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  opacity: 0.75;
+  transition: opacity .25s ease, padding .25s ease, background .25s ease;
+}
+.side-tab:hover, .side-tab:focus-visible { opacity: 1; padding-right: 0.75rem; background: rgba(255, 255, 255, 0.7); }
