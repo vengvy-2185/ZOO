@@ -31,6 +31,8 @@ const PTS = {
     toPay: "Amount to pay",
     saved: (d: string) => `You save ${d}`,
     pointsError: "Your points changed. Please check the total and try again.",
+    fromAccount: "From your account",
+    change: "Change",
   },
   km: {
     discounts: "ការបញ្ចុះតម្លៃ",
@@ -46,6 +48,8 @@ const PTS = {
     toPay: "ប្រាក់ត្រូវបង់",
     saved: (d: string) => `អ្នកសន្សំបាន ${d}`,
     pointsError: "ពិន្ទុរបស់អ្នកបានប្រែប្រួល។ សូមពិនិត្យតម្លៃ ហើយព្យាយាមម្តងទៀត។",
+    fromAccount: "ពីគណនីរបស់អ្នក",
+    change: "កែប្រែ",
   },
 };
 const usd = (n: number) => `$${n.toFixed(2)}`;
@@ -55,13 +59,17 @@ import { formatFullDate, num } from "@/lib/utils/age";
 interface CartItem { ticket_type_id: string; name: string; price: number; quantity: number }
 interface Cart { visitDate: string; items: CartItem[]; subtotal: number }
 
-export function CheckoutClient() {
+const VISITOR_KEY = "gwz_visitor";
+
+export function CheckoutClient({ me }: { me: { name: string; email: string } | null }) {
   const router = useRouter();
   const { locale, t } = useI18n();
   const [cart, setCart] = useState<Cart | null>(null);
   const [ready, setReady] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(me?.name ?? "");
+  const [email, setEmail] = useState(me?.email ?? "");
+  // With an account the details show as a card; "Change" turns it back into inputs.
+  const [editing, setEditing] = useState(!me?.name || !me?.email);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Discount code: typed text, the applied result, and its own status message.
@@ -117,6 +125,14 @@ export function CheckoutClient() {
   useEffect(() => {
     const raw = sessionStorage.getItem("gwz_cart");
     if (raw) setCart(JSON.parse(raw));
+    // Guests: fill in what they typed last time on this device.
+    if (!me) {
+      try {
+        const v = JSON.parse(localStorage.getItem(VISITOR_KEY) ?? "null");
+        if (v?.name) setName(v.name);
+        if (v?.email) setEmail(v.email);
+      } catch {}
+    }
     setReady(true);
   }, []);
 
@@ -125,6 +141,9 @@ export function CheckoutClient() {
     if (!cart) return;
     setLoading(true);
     setError(null);
+    try {
+      localStorage.setItem(VISITOR_KEY, JSON.stringify({ name, email }));
+    } catch {}
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -182,6 +201,22 @@ export function CheckoutClient() {
           <div className="mt-8 grid gap-6 md:grid-cols-[1.2fr_1fr]">
             <form onSubmit={submit} className="card space-y-4 p-6">
               <h2 className="font-display text-xl font-bold text-forest">{t.checkout.yourDetails}</h2>
+              {!editing ? (
+                <div className="flex items-center gap-3 rounded-3xl bg-light-green/60 p-4 ring-1 ring-primary/15">
+                  <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary font-display text-lg font-extrabold text-white">
+                    {name.trim().charAt(0).toUpperCase() || <User size={18} />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-primary">{P.fromAccount}</p>
+                    <p className="truncate font-display font-bold text-forest">{name}</p>
+                    <p className="truncate text-sm text-ink/60">{email}</p>
+                  </div>
+                  <button type="button" onClick={() => setEditing(true)} className="flex-shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-soft hover:bg-cream">
+                    {P.change}
+                  </button>
+                </div>
+              ) : (
+              <>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink/45">{t.checkout.visitorName}</span>
                 <div className="relative">
@@ -196,6 +231,8 @@ export function CheckoutClient() {
                   <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input pl-11" />
                 </div>
               </label>
+              </>
+              )}
               <div className="space-y-3 rounded-3xl bg-cream p-4 ring-1 ring-primary/10">
                 <p className="flex items-center gap-2 font-display text-lg font-bold text-forest">
                   <BadgePercent size={20} className="text-primary" /> {P.discounts}

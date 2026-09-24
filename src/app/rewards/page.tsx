@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { getI18n } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getRequestOrigin } from "@/lib/server/site-url";
-import { getWallet, REWARDS, REFERRAL, QUEST_POINTS, PURCHASE_RATE } from "@/lib/server/points";
+import { getWallet, claimSignupReferral, REWARDS, REFERRAL, QUEST_POINTS, PURCHASE_RATE } from "@/lib/server/points";
 import { RedeemCard, ShareInvite, CopyButton } from "@/components/visitor/RewardsClient";
 import { formatFullDate } from "@/lib/utils/age";
 import { cn } from "@/lib/utils/cn";
@@ -37,7 +37,7 @@ const TEXT = {
     validTo: (d: string) => `Use by ${d}`,
     useNow: "Use it on tickets",
     invite: "Invite friends, earn points",
-    inviteText: `Share your link. Each friend who buys tickets through it gives you ${REFERRAL.perFriend} points, and they get ${REFERRAL.welcome} welcome points.`,
+    inviteText: `Share your link. Each friend who creates an account through it gives you ${REFERRAL.join} points, and ${REFERRAL.perFriend} more when they buy tickets. They get ${REFERRAL.welcome} welcome points.`,
     share: "Share my link",
     shareMsg: "Come to Green Wild Zoo with me! Book your tickets here:",
     friends: (n: number) => `${n} ${n === 1 ? "friend" : "friends"} joined`,
@@ -45,9 +45,9 @@ const TEXT = {
     how: "How to earn points",
     howQuest: `Find animals in the Animal Quest: ${QUEST_POINTS.perAnimal} points each, plus ${QUEST_POINTS.allBonus} for finding them all`,
     howBuy: `Buy tickets while signed in: ${PURCHASE_RATE} point for every $1`,
-    howInvite: `A friend buys tickets with your link: ${REFERRAL.perFriend} points`,
+    howInvite: `A friend joins with your link: ${REFERRAL.join} points, and ${REFERRAL.perFriend} more when they buy tickets`,
     history: "Points history",
-    reasons: { purchase: "Ticket purchase", referral: "A friend bought tickets", welcome: "Welcome gift from a friend", milestone: "Friends bonus", redeem: "Reward", admin: "Gift from the zoo", checkout: "Used on tickets" } as Record<string, string>,
+    reasons: { purchase: "Ticket purchase", referral: "A friend bought tickets", referral_join: "A friend joined with your link", welcome: "Welcome gift from a friend", milestone: "Friends bonus", redeem: "Reward", admin: "Gift from the zoo", checkout: "Used on tickets" } as Record<string, string>,
     questLine: "Animals found in the quest",
     signInTitle: "Sign in to collect points",
     signInText: "Points are saved to your account, so they are never lost and you can spend them on any device.",
@@ -76,7 +76,7 @@ const TEXT = {
     validTo: (d: string) => `ប្រើបានដល់ ${d}`,
     useNow: "ប្រើពេលទិញសំបុត្រ",
     invite: "អញ្ជើញមិត្ត ទទួលពិន្ទុ",
-    inviteText: `ចែករំលែក link របស់អ្នក។ មិត្តម្នាក់ៗដែលទិញសំបុត្រតាម link នេះ ផ្តល់ឲ្យអ្នក ${REFERRAL.perFriend} ពិន្ទុ ហើយមិត្តក៏ទទួលបាន ${REFERRAL.welcome} ពិន្ទុស្វាគមន៍ដែរ។`,
+    inviteText: `ចែករំលែក link របស់អ្នក។ មិត្តម្នាក់ៗដែលបង្កើតគណនីតាម link នេះ ផ្តល់ឲ្យអ្នក ${REFERRAL.join} ពិន្ទុ និង ${REFERRAL.perFriend} ពិន្ទុបន្ថែមទៀតពេលគេទិញសំបុត្រ។ មិត្តក៏ទទួលបាន ${REFERRAL.welcome} ពិន្ទុស្វាគមន៍ដែរ។`,
     share: "ចែករំលែក link របស់ខ្ញុំ",
     shareMsg: "តោះទៅលេងសួនសត្វ Green Wild Zoo ជាមួយគ្នា! កក់សំបុត្រនៅទីនេះ៖",
     friends: (n: number) => `មិត្ត ${n} នាក់បានចូលរួម`,
@@ -84,9 +84,9 @@ const TEXT = {
     how: "របៀបប្រមូលពិន្ទុ",
     howQuest: `រកសត្វក្នុងបេសកកម្មសត្វ៖ ${QUEST_POINTS.perAnimal} ពិន្ទុក្នុងមួយក្បាល និងបន្ថែម ${QUEST_POINTS.allBonus} ពិន្ទុពេលរកឃើញទាំងអស់`,
     howBuy: `ទិញសំបុត្រពេលបានចូលគណនី៖ ${PURCHASE_RATE} ពិន្ទុក្នុង $1`,
-    howInvite: `មិត្តទិញសំបុត្រតាម link របស់អ្នក៖ ${REFERRAL.perFriend} ពិន្ទុ`,
+    howInvite: `មិត្តបង្កើតគណនីតាម link របស់អ្នក៖ ${REFERRAL.join} ពិន្ទុ និង ${REFERRAL.perFriend} ពិន្ទុទៀតពេលគេទិញសំបុត្រ`,
     history: "ប្រវត្តិពិន្ទុ",
-    reasons: { purchase: "ទិញសំបុត្រ", referral: "មិត្តបានទិញសំបុត្រ", welcome: "អំណោយស្វាគមន៍ពីមិត្ត", milestone: "រង្វាន់មិត្តភក្តិ", redeem: "ប្តូររង្វាន់", admin: "អំណោយពីសួនសត្វ", checkout: "ប្រើពេលទិញសំបុត្រ" } as Record<string, string>,
+    reasons: { purchase: "ទិញសំបុត្រ", referral: "មិត្តបានទិញសំបុត្រ", referral_join: "មិត្តចូលរួមតាម link របស់អ្នក", welcome: "អំណោយស្វាគមន៍ពីមិត្ត", milestone: "រង្វាន់មិត្តភក្តិ", redeem: "ប្តូររង្វាន់", admin: "អំណោយពីសួនសត្វ", checkout: "ប្រើពេលទិញសំបុត្រ" } as Record<string, string>,
     questLine: "សត្វដែលរកឃើញក្នុងបេសកកម្ម",
     signInTitle: "ចូលគណនីដើម្បីប្រមូលពិន្ទុ",
     signInText: "ពិន្ទុត្រូវបានរក្សាទុកក្នុងគណនីរបស់អ្នក ដូច្នេះមិនបាត់ទេ ហើយអាចប្រើបានលើគ្រប់ឧបករណ៍។",
@@ -100,6 +100,7 @@ export default async function RewardsPage() {
   const km = locale === "km";
   const L = TEXT[km ? "km" : "en"];
   const user = await getSessionUser();
+  if (user) await claimSignupReferral(user.id).catch(() => {});
   const wallet = user ? await getWallet(user.id) : null;
   // The domain the visitor is on right now (Vercel or Render), so the link always matches a working site.
   const inviteUrl = wallet?.referralCode ? `${getRequestOrigin()}/r/${wallet.referralCode}` : null;

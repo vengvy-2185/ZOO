@@ -121,7 +121,9 @@
     @apply flex items-center gap-2 font-display text-2xl font-bold text-forest md:text-3xl;
   }
   .input {
-    @apply w-full rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+    /* text colour is set here so a box inside a white-text section (e.g. the
+       green page headers) doesn't inherit white text on its white background */
+    @apply w-full rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm text-ink caret-primary outline-none placeholder:text-ink/40 transition focus:border-primary focus:ring-2 focus:ring-primary/15;
   }
 }
 

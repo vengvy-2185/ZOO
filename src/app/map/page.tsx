@@ -59,7 +59,7 @@ export default async function MapPage() {
         title={t.map.title}
         subtitle={t.map.subtitle}
       />
-      <main className="mx-auto -mt-4 max-w-7xl px-4 md:px-6">
+      <main className="relative z-10 mx-auto -mt-4 max-w-7xl px-4 md:px-6">
         <MapClient zones={zones} facilities={facilities} animals={animals} calibration={calibration} mapImageUrl={mapImageUrl} />
       </main>
       <SiteFooter />

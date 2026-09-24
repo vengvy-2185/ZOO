@@ -79,9 +79,24 @@ export function MonkeyFace({ className }: { className?: string }) {
 function MonkeyScene({ onHide, hideLabel }: { onHide: () => void; hideLabel: string }) {
   const { t } = useI18n();
   const [hello, setHello] = useState(false);
+  // On phones the vine would cover text at the right edge, so it steps aside
+  // once the visitor scrolls and comes back at the top of the page.
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setAway(window.innerWidth < 768 && window.scrollY > 120);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   return (
-    <div className="pointer-events-none fixed right-1 top-16 z-30 h-[62vh] w-16 motion-reduce:hidden md:right-3 md:top-[72px] md:w-24">
+    <div
+      className={`pointer-events-none fixed right-1 top-16 z-30 h-[62vh] w-16 transition-[opacity,transform] duration-500 motion-reduce:hidden md:right-3 md:top-[72px] md:w-24 ${away ? "translate-x-full opacity-0 [&_*]:!pointer-events-none" : ""}`}
+    >
       {/* switch it off */}
       <button
         type="button"

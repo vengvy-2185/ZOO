@@ -13,6 +13,7 @@ import { zooToday } from "@/lib/data/gate";
 import { formatFullDate, num } from "@/lib/utils/age";
 import { getI18n } from "@/lib/i18n/server";
 import { getVerifiedUserId, getSessionUser } from "@/lib/auth/session";
+import { claimSignupReferral } from "@/lib/server/points";
 
 async function getAccountData() {
   const supabase = createClient();
@@ -20,6 +21,8 @@ async function getAccountData() {
   const userId = getVerifiedUserId();
   const me = await getSessionUser();
   if (!userId || !me) return null;
+  // New account made through a friend's invite link: credit the friend (once).
+  await claimSignupReferral(userId).catch(() => {});
   const user = { id: userId, email: me.email, fullName: me.fullName, user_metadata: { avatar_url: me.avatarUrl } };
 
   const [{ data: profile }, { data: bookings }, { data: questSessions }, { count: totalAnimals }] =

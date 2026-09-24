@@ -38,8 +38,8 @@ export function FactsCarousel({ facts }: { facts: Fact[] }) {
       onMouseLeave={() => setPaused(false)}
       className="relative overflow-hidden rounded-[2rem] bg-forest text-white shadow-lift"
     >
-      <div className="grid md:grid-cols-[1fr_1.1fr]">
-        <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[340px]">
+      <div className="grid md:h-[380px] md:grid-cols-[1fr_1.1fr]">
+        <div className="relative h-56 sm:h-72 md:h-full">
           {facts.map((x, k) => {
             const near = k === i || k === (i + 1) % n || k === (i - 1 + n) % n;
             if (!near) return null;
@@ -56,29 +56,31 @@ export function FactsCarousel({ facts }: { facts: Fact[] }) {
           <div className="absolute inset-0 bg-gradient-to-t from-forest via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-forest" />
         </div>
 
-        <div className="relative flex flex-col justify-center p-6 md:p-10">
+        <div className="relative flex h-[19rem] flex-col p-6 sm:h-[18rem] md:h-full md:p-9">
           <span className="mb-3 inline-flex w-fit items-center gap-2 rounded-full bg-accent px-3 py-1 text-xs font-bold text-forest">
             <Lightbulb size={14} /> {t.fun.didYouKnow}
           </span>
-          <div key={i} className="animate-[factIn_.6s_ease]">
-            <p className="font-display text-xl font-bold leading-snug md:text-2xl">{f.fact}</p>
-            <p className="mt-3 text-sm text-white/70">
+          {/* text area has a fixed height; long facts are trimmed to four lines */}
+          <div key={i} className="flex min-h-0 flex-1 flex-col animate-[factIn_.6s_ease]">
+            <p className="line-clamp-4 font-display text-xl font-bold leading-snug md:text-2xl">{f.fact}</p>
+            <p className="mt-2 truncate text-sm text-white/70">
               {f.name}
               {f.species && `, ${f.species}`}
             </p>
-            <Link href={`/animals/${f.code}`} className="btn mt-5 w-fit bg-leaf text-forest hover:bg-white">
+            <Link href={`/animals/${f.code}`} className="btn mt-auto w-fit bg-leaf text-forest hover:bg-white">
               {t.fun.meet(f.name)} <ArrowRight size={16} />
             </Link>
           </div>
 
           {n > 1 && (
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-5 flex items-center gap-3">
               <button onClick={() => setI((i - 1 + n) % n)} aria-label="Previous" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
                 <ChevronLeft size={20} />
               </button>
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="flex-shrink-0 font-display text-sm font-bold tabular-nums text-white/80">
-                  {i + 1} / {n}
+                <span className="flex flex-shrink-0 items-baseline gap-1 rounded-full bg-white/10 px-3.5 py-1.5 font-display tabular-nums ring-1 ring-white/15">
+                  <span className="text-lg font-extrabold leading-none text-leaf">{i + 1}</span>
+                  <span className="text-xs font-bold leading-none text-white/50">/ {n}</span>
                 </span>
                 <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/15">
                   <span className="block h-full rounded-full bg-leaf transition-all duration-500" style={{ width: `${((i + 1) / n) * 100}%` }} />

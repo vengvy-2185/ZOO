@@ -84,6 +84,11 @@ export function PostcardMaker({ animals }: { animals: QuizAnimal[] }) {
 
   // Phones get a tall card (photo on top, message below) so nothing is tiny or cut off.
   const [portrait, setPortrait] = useState(false);
+  // Redraw once web fonts (Khmer) have loaded, so text is measured with the real font.
+  const [fontsReady, setFontsReady] = useState(false);
+  useEffect(() => {
+    document.fonts?.ready.then(() => setFontsReady(true));
+  }, []);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
     const on = () => setPortrait(mq.matches);
@@ -228,10 +233,19 @@ export function PostcardMaker({ animals }: { animals: QuizAnimal[] }) {
       ctx.beginPath(); ctx.moveTo(M.x, y + 16); ctx.lineTo(M.right, y + 16); ctx.stroke();
     }
     ctx.font = `700 40px ${font}`;
-    ctx.textAlign = "right";
-    ctx.fillText(from.trim() ? c.fromLine(from.trim()) : c.fromDefault, M.right, M.bottom);
+    // Signature: measured and placed from the left so it can never run off the card
+    // (Safari measured right-aligned Khmer wrongly), shrunk if it is too long.
+    const sign = from.trim() ? c.fromLine(from.trim()) : c.fromDefault;
+    let size = 40;
+    ctx.font = `700 ${size}px ${font}`;
+    while (ctx.measureText(sign).width > M.right - M.x && size > 22) {
+      size -= 2;
+      ctx.font = `700 ${size}px ${font}`;
+    }
+    ctx.textAlign = "left";
+    ctx.fillText(sign, Math.max(M.x, M.right - ctx.measureText(sign).width), M.bottom);
     setSaved(false);
-  }, [img, design, to, from, message, locale, current, c, portrait]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [img, design, to, from, message, locale, current, c, portrait, fontsReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function toFile() {
     const blob: Blob = await new Promise((r) => canvasRef.current!.toBlob((b) => r(b!), "image/jpeg", 0.92));

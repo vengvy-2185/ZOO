@@ -132,7 +132,7 @@ export default async function HomePage() {
     .filter(Boolean) as Fact[];
   // 20 facts a day, a different set each day, so the carousel stays short.
   const factStart = allFacts.length ? (dayNumber(zooToday()) * 20) % allFacts.length : 0;
-  const facts = Array.from({ length: Math.min(20, allFacts.length) }, (_, k) => allFacts[(factStart + k) % allFacts.length]);
+  const facts = allFacts.map((_, k) => allFacts[(factStart + k) % allFacts.length]);
 
   return (
     <div className="pb-20 md:pb-0">

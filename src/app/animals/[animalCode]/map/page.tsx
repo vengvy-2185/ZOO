@@ -71,7 +71,7 @@ export default async function FindAnimalPage({ params }: { params: { animalCode:
         title={t.findPage.title(name)}
         subtitle={data.loc ? t.findPage.route(name, data.loc.zone_code, habitatName) : t.findPage.unavailable}
       />
-      <main className="mx-auto -mt-4 max-w-7xl px-4 md:px-6">
+      <main className="relative z-10 mx-auto -mt-4 max-w-7xl px-4 md:px-6">
         <ZooMap
           zones={data.zones}
           facilities={data.facilities}

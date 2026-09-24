@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestOrigin } from "@/lib/server/site-url";
 import { createClient } from "@/lib/supabase/server";
+import { claimSignupReferral } from "@/lib/server/points";
 
 // Supabase redirects here after Google sign-in with a one-time `code`.
 // This is the ONE place that code is exchanged for a session — every login
@@ -28,8 +29,12 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return welcome(NextResponse.redirect(`${origin}${next}`));
+    const { data: exchanged, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      // Came through a friend's invite link and just made an account? Credit the friend.
+      if (exchanged.user) await claimSignupReferral(exchanged.user.id).catch(() => {});
+      return welcome(NextResponse.redirect(`${origin}${next}`));
+    }
     console.error("[auth/callback] code exchange failed:", error.message);
     // If the exchange did go through (e.g. a slow reply), the session cookie
     // is already set — let the visitor in instead of showing an error.

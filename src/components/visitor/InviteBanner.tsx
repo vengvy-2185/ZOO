@@ -17,8 +17,8 @@ export async function InviteBanner({ km }: { km: boolean }) {
         <p className="font-display text-lg font-extrabold leading-tight">{km ? `${who} បានអញ្ជើញអ្នកមកលេងសួនសត្វ!` : `${who} invited you to the zoo!`}</p>
         <p className="text-sm text-forest/80">
           {km
-            ? `ពេលអ្នកទិញសំបុត្រ ${who} ទទួលបានពិន្ទុ ហើយបើអ្នកបានចូលគណនី អ្នកក៏ទទួលបាន ${REFERRAL.welcome} ពិន្ទុស្វាគមន៍ដែរ។`
-            : `When you buy tickets, ${who} earns points, and if you're signed in you get ${REFERRAL.welcome} welcome points too.`}
+            ? `បង្កើតគណនីថ្មី ដើម្បីទទួលបាន ${REFERRAL.welcome} ពិន្ទុស្វាគមន៍ ហើយ ${who} ក៏ទទួលបានពិន្ទុដែរ។`
+            : `Create an account to get ${REFERRAL.welcome} welcome points, and ${who} earns points too.`}
         </p>
       </div>
     </div>
