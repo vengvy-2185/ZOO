@@ -5,6 +5,7 @@ import { Download, Share2, Check } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 import type { QuizAnimal } from "./AnimalQuiz";
+import { AnimalPicker } from "./AnimalPicker";
 
 const W = 1500;
 const H = 1000;
@@ -270,28 +271,7 @@ export function PostcardMaker({ animals }: { animals: QuizAnimal[] }) {
 
       <div className="min-w-0 space-y-4">
         <div className="card p-4">
-          <p className="mb-2 text-sm font-bold text-forest">{c.pickAnimal}</p>
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-4 lg:px-0">
-            {animals.map((a) => (
-              <button
-                key={a.code}
-                onClick={() => setAnimal(a.code)}
-                title={animalName(a)}
-                className={cn(
-                  "relative aspect-square w-16 flex-shrink-0 overflow-hidden rounded-2xl ring-2 transition lg:w-auto",
-                  a.code === animal ? "ring-primary" : "ring-transparent hover:ring-primary/40"
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.image} alt="" className="h-full w-full object-cover" />
-                {a.code === animal && (
-                  <span className="absolute inset-0 flex items-center justify-center bg-primary/40 text-white">
-                    <Check size={20} strokeWidth={3} />
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          <AnimalPicker animals={animals} value={animal} onChange={setAnimal} title={c.pickAnimal} />
         </div>
 
         <div className="card p-4">

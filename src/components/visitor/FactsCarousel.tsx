@@ -40,15 +40,19 @@ export function FactsCarousel({ facts }: { facts: Fact[] }) {
     >
       <div className="grid md:grid-cols-[1fr_1.1fr]">
         <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[340px]">
-          {facts.map((x, k) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={x.code}
-              src={x.image ?? ""}
-              alt=""
-              className={cn("absolute inset-0 h-full w-full object-cover transition-all duration-1000", k === i ? "scale-100 opacity-100" : "scale-105 opacity-0")}
-            />
-          ))}
+          {facts.map((x, k) => {
+            const near = k === i || k === (i + 1) % n || k === (i - 1 + n) % n;
+            if (!near) return null;
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={x.code}
+                src={x.image ?? ""}
+                alt=""
+                className={cn("absolute inset-0 h-full w-full object-cover transition-all duration-1000", k === i ? "scale-100 opacity-100" : "scale-105 opacity-0")}
+              />
+            );
+          })}
           <div className="absolute inset-0 bg-gradient-to-t from-forest via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-forest" />
         </div>
 
@@ -72,15 +76,13 @@ export function FactsCarousel({ facts }: { facts: Fact[] }) {
               <button onClick={() => setI((i - 1 + n) % n)} aria-label="Previous" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
                 <ChevronLeft size={20} />
               </button>
-              <div className="flex gap-1.5">
-                {facts.map((x, k) => (
-                  <button
-                    key={x.code}
-                    onClick={() => setI(k)}
-                    aria-label={x.name}
-                    className={cn("h-2 rounded-full transition-all duration-500", k === i ? "w-7 bg-leaf" : "w-2 bg-white/30 hover:bg-white/60")}
-                  />
-                ))}
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="flex-shrink-0 font-display text-sm font-bold tabular-nums text-white/80">
+                  {i + 1} / {n}
+                </span>
+                <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/15">
+                  <span className="block h-full rounded-full bg-leaf transition-all duration-500" style={{ width: `${((i + 1) / n) * 100}%` }} />
+                </span>
               </div>
               <button onClick={() => setI((i + 1) % n)} aria-label="Next" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
                 <ChevronRight size={20} />

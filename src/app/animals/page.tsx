@@ -12,6 +12,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 import { getI18n } from "@/lib/i18n/server";
 import { pickName } from "@/lib/i18n/shared";
+import { ShowMore } from "@/components/visitor/ShowMore";
 
 export const revalidate = 30;
 
@@ -77,19 +78,25 @@ export default async function AnimalsPage({
       </PageHeader>
 
       <main className="mx-auto max-w-7xl px-4 md:px-6">
-        {/* Category chips — scroll sideways on phones instead of wrapping into many rows */}
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
-          <Link href="/animals" className={chip(!searchParams.category)}>
-            <PawPrint size={15} /> {t.animals.all}
-          </Link>
-          {categories.map((c) => {
-            const Icon = getCategoryIcon(c.slug);
-            return (
-              <Link key={c.id} href={`/animals?category=${c.slug}`} className={chip(searchParams.category === c.slug)}>
-                <Icon size={15} /> {pickName(locale, c)}
-              </Link>
-            );
-          })}
+        {/* Category bar: stays under the header while scrolling, with how many animals each has */}
+        <div className="sticky top-16 z-30 -mx-4 border-b border-black/5 bg-background/90 px-4 py-2.5 backdrop-blur-md md:top-[72px] md:mx-0 md:rounded-b-3xl md:px-3">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+            <Link href="/animals" className={chip(!searchParams.category)}>
+              <PawPrint size={15} /> {t.animals.all}
+              <span className={cn("rounded-full px-1.5 text-xs", !searchParams.category ? "bg-white/20" : "bg-light-green text-primary")}>{(allAnimals as any[]).length}</span>
+            </Link>
+            {categories.map((c) => {
+              const Icon = getCategoryIcon(c.slug);
+              const n = (allAnimals as any[]).filter((a) => a.category_id === c.id).length;
+              const on = searchParams.category === c.slug;
+              return (
+                <Link key={c.id} href={`/animals?category=${c.slug}`} className={chip(on)} scroll={false}>
+                  <Icon size={15} /> {pickName(locale, c)}
+                  <span className={cn("rounded-full px-1.5 text-xs", on ? "bg-white/20" : "bg-light-green text-primary")}>{n}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {searchParams.q && (
@@ -111,11 +118,17 @@ export default async function AnimalsPage({
           </p>
         )}
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4" data-reveal-stagger>
+        {/* 24 at a time: faster to load and much less scrolling */}
+        <ShowMore
+          key={`${searchParams.category ?? "all"}-${searchParams.q ?? ""}`}
+          step={24}
+          label={locale === "km" ? "បង្ហាញបន្ថែម (នៅសល់ {n})" : "Show more ({n} left)"}
+          className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4"
+        >
           {animals.map((a) => (
             <AnimalCard key={a.id} animal={a} />
           ))}
-        </div>
+        </ShowMore>
 
         {!error && animals.length === 0 && (
           <div className="mt-10 flex flex-col items-center rounded-3xl border-2 border-dashed border-primary/15 bg-white/60 px-6 py-14 text-center">

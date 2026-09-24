@@ -5,6 +5,7 @@ import { RotateCcw, Trophy, Eye } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 import type { QuizAnimal } from "../AnimalQuiz";
+import { AnimalPicker } from "../AnimalPicker";
 
 const TEXT = {
   en: { pick: "Pick a photo", size: "Pieces", tip: "Tap two pieces to swap them. Put the picture back together!", moves: "Moves", peek: "Peek", again: "Mix again", won: (n: string, m: number) => `Well done! You rebuilt ${n} in ${m} moves.` },
@@ -58,14 +59,8 @@ export function AnimalPuzzle({ animals }: { animals: QuizAnimal[] }) {
 
   return (
     <div className="mx-auto max-w-xl">
-      <p className="mb-2 text-sm font-bold text-forest">{L.pick}</p>
-      <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        {animals.map((a) => (
-          <button key={a.code} onClick={() => setPick(a.code)} className={cn("h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl ring-2 transition", pick === a.code ? "ring-primary" : "ring-transparent opacity-70")}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={a.image} alt="" className="h-full w-full object-cover" />
-          </button>
-        ))}
+      <div className="mb-4">
+        <AnimalPicker animals={animals} value={pick} onChange={setPick} title={L.pick} />
       </div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1 rounded-full bg-white p-1 shadow-soft">

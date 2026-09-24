@@ -48,6 +48,8 @@ import Image from "next/image";
 import { getI18n } from "@/lib/i18n/server";
 import { pickName } from "@/lib/i18n/shared";
 import { num } from "@/lib/utils/age";
+import { dayNumber } from "@/lib/data/invites";
+import { zooToday } from "@/lib/data/gate";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 export const revalidate = 60; // ISR: refresh homepage data every minute
@@ -114,7 +116,7 @@ export default async function HomePage() {
   const EXPERIENCES = experiences(t);
   const n = (v: string | number) => num(v, locale);
   // First sentence of each animal's "interesting facts", in the visitor's language.
-  const facts: Fact[] = (allAnimals as any[])
+  const allFacts: Fact[] = (allAnimals as any[])
     .map((a) => {
       const text = (locale === "km" && a.interesting_facts_km) || a.interesting_facts;
       if (!text) return null;
@@ -128,6 +130,9 @@ export default async function HomePage() {
       };
     })
     .filter(Boolean) as Fact[];
+  // 20 facts a day, a different set each day, so the carousel stays short.
+  const factStart = allFacts.length ? (dayNumber(zooToday()) * 20) % allFacts.length : 0;
+  const facts = Array.from({ length: Math.min(20, allFacts.length) }, (_, k) => allFacts[(factStart + k) % allFacts.length]);
 
   return (
     <div className="pb-20 md:pb-0">

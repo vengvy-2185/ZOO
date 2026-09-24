@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getCategoryIcon } from "@/lib/icons/categoryIcons";
 import { Star, Trophy, PartyPopper, Check, Lock, QrCode, Target, ScanLine, MapPin, ArrowRight, XCircle } from "lucide-react";
 import { QuestScanner } from "@/components/visitor/QuestScanner";
+import { ShowMore } from "@/components/visitor/ShowMore";
 import { QuestRank, RANKS, rankFor } from "@/components/visitor/QuestRank";
 import { cn } from "@/lib/utils/cn";
 import { useI18n } from "@/lib/i18n/client";
@@ -171,8 +172,9 @@ export default function QuestPage() {
           </div>
 
           <h2 className="section-title mt-10 text-xl md:text-2xl">{t.quest.collection}</h2>
-          <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5" data-reveal-stagger="zoom">
-            {animals.map((a) => {
+          {/* Found animals first; the rest 24 at a time so the page stays short */}
+          <ShowMore step={24} label={locale === "km" ? "បង្ហាញបន្ថែម (នៅសល់ {n})" : "Show more ({n} left)"} className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+            {[...animals].sort((x, y) => Number(discoveredIds.has(y.id)) - Number(discoveredIds.has(x.id))).map((a) => {
               const found = discoveredIds.has(a.id);
               const Icon = getCategoryIcon(a.category?.slug);
               return (
@@ -216,7 +218,7 @@ export default function QuestPage() {
                 </Link>
               );
             })}
-          </div>
+          </ShowMore>
           {total === 0 && <p className="mt-4 text-sm text-ink/50">{t.quest.noAnimals}</p>}
         </>
       )}
