@@ -128,7 +128,7 @@ export function TodayAtZoo() {
           {t.extra.seeSchedule} <ArrowRight size={15} />
         </Link>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {highlight.map((e) => {
           const Icon = ICONS[e.icon];
           return (

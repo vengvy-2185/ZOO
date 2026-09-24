@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus, RefreshCcw, Download, Share2, RotateCcw, Eraser, Aperture, Undo2, Trash2 } from "lucide-react";
+import { Camera, ImagePlus, RefreshCcw, Download, Share2, RotateCcw, Eraser, Aperture, Undo2, Trash2, Minus, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 
@@ -47,6 +47,9 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
   const [flash, setFlash] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
+  // Fingers currently on a sticker (for two-finger pinch to resize).
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ id: number; dist: number; size: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
 
@@ -281,21 +284,13 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
   const f = FRAMES[frame];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       {/* Stage */}
       <div className="mx-auto w-full max-w-md">
         <div
           ref={stageRef}
-          className="relative aspect-[4/5] w-full touch-none select-none overflow-hidden rounded-[2rem] shadow-lift"
+          className="relative aspect-[4/5] w-full select-none overflow-hidden rounded-[2rem] shadow-lift ring-4 ring-white"
           style={{ background: `linear-gradient(135deg, ${f.bg[0]}, ${f.bg[1]})` }}
-          onPointerMove={(e) => {
-            if (!drag.current) return;
-            const p = toFraction(e);
-            const d = drag.current;
-            setStickers((s) => s.map((st) => (st.id === d.id ? { ...st, x: p.x - d.dx, y: p.y - d.dy } : st)));
-          }}
-          onPointerUp={() => (drag.current = null)}
-          onPointerLeave={() => (drag.current = null)}
         >
           {result ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -311,7 +306,9 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
               <video ref={videoRef} muted playsInline className={cn("h-full w-full object-cover", facing === "user" && "-scale-x-100", !live && "hidden")} />
               {!live && (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-white">
-                  <span className="text-6xl">📸</span>
+                  <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/40 backdrop-blur">
+                    <Camera size={38} />
+                  </span>
                   <p className="text-sm text-white/85 drop-shadow">{noCamera ? b.noCamera : b.subtitle}</p>
                 </div>
               )}
@@ -326,17 +323,51 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
               <span
                 key={s.id}
                 onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                  if (touches.current.size === 2) {
+                    // second finger: switch from moving to pinch-resizing
+                    const [a, c] = [...touches.current.values()];
+                    pinch.current = { id: s.id, dist: Math.hypot(a.x - c.x, a.y - c.y) || 1, size: s.size };
+                    drag.current = null;
+                    return;
+                  }
                   snapshot();
                   setSelected(s.id);
                   const p = toFraction(e);
                   drag.current = { id: s.id, dx: p.x - s.x, dy: p.y - s.y };
+                }}
+                onPointerMove={(e) => {
+                  if (!touches.current.has(e.pointerId)) return;
+                  touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                  const pz = pinch.current;
+                  if (pz && touches.current.size >= 2) {
+                    const [a, c] = [...touches.current.values()];
+                    const k = Math.hypot(a.x - c.x, a.y - c.y) / pz.dist;
+                    setStickers((all) => all.map((st) => (st.id === pz.id ? { ...st, size: Math.min(1.2, Math.max(0.06, pz.size * k)) } : st)));
+                    return;
+                  }
+                  const d = drag.current;
+                  if (!d) return;
+                  const p = toFraction(e);
+                  setStickers((all) => all.map((st) => (st.id === d.id ? { ...st, x: Math.min(1.05, Math.max(-0.05, p.x - d.dx)), y: Math.min(1.05, Math.max(-0.05, p.y - d.dy)) } : st)));
+                }}
+                onPointerUp={(e) => {
+                  touches.current.delete(e.pointerId);
+                  if (touches.current.size < 2) pinch.current = null;
+                  if (touches.current.size === 0) drag.current = null;
+                }}
+                onPointerCancel={(e) => {
+                  touches.current.delete(e.pointerId);
+                  pinch.current = null;
+                  drag.current = null;
                 }}
                 onDoubleClick={() => {
                   // pointerdown already saved a snapshot for this gesture
                   setStickers((all) => all.filter((x) => x.id !== s.id));
                 }}
                 className={cn(
-                  "absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center rounded-2xl border-2 border-dashed active:cursor-grabbing",
+                  "absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-2xl border-2 border-dashed active:cursor-grabbing",
                   selected === s.id ? "border-white/80" : "border-transparent hover:border-white/50"
                 )}
                 style={{
@@ -349,6 +380,20 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
             ))}
           {flash && <div className="absolute inset-0 animate-[gwzFlash_0.35s_ease-out] bg-white" />}
         </div>
+
+        {photo && !result && selected !== null && stickers.some((x) => x.id === selected) && (
+          <div className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full bg-white p-1.5 shadow-soft ring-1 ring-black/5 animate-[gwzDrop_.25s_ease]">
+            <button onClick={() => resize(0.85)} className="flex h-10 w-10 items-center justify-center rounded-full bg-cream text-forest hover:bg-light-green" aria-label="smaller">
+              <Minus size={18} />
+            </button>
+            <button onClick={() => resize(1.18)} className="flex h-10 w-10 items-center justify-center rounded-full bg-cream text-forest hover:bg-light-green" aria-label="bigger">
+              <Plus size={18} />
+            </button>
+            <button onClick={() => (snapshot(), setStickers((all) => all.filter((x) => x.id !== selected)), setSelected(null))} className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100" aria-label="delete">
+              <Trash2 size={17} />
+            </button>
+          </div>
+        )}
 
         {/* Main actions */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -414,9 +459,9 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
       </div>
 
       {/* Controls */}
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <div className="card p-4">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink/50">{b.frames}</p>
+          <p className="mb-2 text-sm font-bold text-forest">{b.frames}</p>
           <div className="grid grid-cols-4 gap-2">
             {(Object.keys(FRAMES) as FrameKey[]).map((k) => (
               <button
@@ -433,47 +478,38 @@ export function PhotoBooth({ animals }: { animals: BoothSticker[] }) {
           </div>
         </div>
         <div className={cn("card p-4 transition", (!photo || result) && "opacity-75")}>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink/50">{b.stickers}</p>
+          <p className="mb-2 text-sm font-bold text-forest">{b.stickers}</p>
           {animals.length > 0 && (
-            <div className="mb-3 grid grid-cols-3 gap-2">
+            <div className="no-scrollbar -mx-4 mb-3 flex snap-x gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0">
               {animals.map((a) => (
                 <button
                   key={a.id}
                   disabled={!photo || !!result}
                   onClick={() => addAnimal(a)}
                   title={a.name}
-                  className="group flex aspect-square flex-col items-center justify-center rounded-2xl bg-gradient-to-b from-light-green to-cream p-1.5 ring-1 ring-primary/10 transition hover:-translate-y-0.5 hover:ring-primary active:scale-95"
+                  className="group flex aspect-square w-24 flex-shrink-0 snap-start flex-col items-center justify-center rounded-2xl bg-gradient-to-b from-light-green to-cream p-1.5 ring-1 ring-primary/10 transition hover:-translate-y-0.5 hover:ring-primary active:scale-95 disabled:cursor-not-allowed lg:w-auto"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={a.image} alt="" className="h-[78%] w-full object-contain drop-shadow transition group-hover:scale-110" />
-                  <span className="mt-0.5 w-full truncate text-center text-[10px] font-bold text-forest">{a.name}</span>
+                  <span className="mt-0.5 w-full truncate text-center text-[11px] font-bold text-forest">{a.name}</span>
                 </button>
               ))}
             </div>
           )}
-          <div className="grid grid-cols-9 gap-1">
+          <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:grid lg:grid-cols-9 lg:gap-1 lg:px-0">
             {EMOJI.map((s) => (
               <button
                 key={s}
                 disabled={!photo || !!result}
                 onClick={() => addEmoji(s)}
-                className="flex aspect-square items-center justify-center rounded-xl bg-cream text-2xl transition hover:scale-110 hover:bg-light-green active:scale-95"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-cream text-2xl transition hover:scale-110 hover:bg-light-green active:scale-95 lg:aspect-square lg:h-auto lg:w-auto"
               >
                 {s}
               </button>
             ))}
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <p className="text-[11px] text-ink/45">{b.hint}</p>
-            {selected !== null && stickers.some((x) => x.id === selected) && !result && (
-              <span className="flex items-center gap-1">
-                <button onClick={() => resize(0.85)} className="h-7 w-7 rounded-lg bg-cream text-base font-bold text-forest" aria-label="smaller">−</button>
-                <button onClick={() => resize(1.18)} className="h-7 w-7 rounded-lg bg-cream text-base font-bold text-forest" aria-label="bigger">+</button>
-                <button onClick={() => (snapshot(), setStickers((all) => all.filter((x) => x.id !== selected)), setSelected(null))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-600" aria-label="delete">
-                  <Trash2 size={14} />
-                </button>
-              </span>
-            )}
+            <p className="text-xs text-ink/50">{b.hint}</p>
             {stickers.length > 0 && !result && (
               <button onClick={() => (snapshot(), setStickers([]))} className="inline-flex items-center gap-1 text-xs font-bold text-red-600">
                 <Eraser size={13} /> {b.clearStickers}

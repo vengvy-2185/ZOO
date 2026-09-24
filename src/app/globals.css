@@ -39,6 +39,8 @@
   }
   html {
     scroll-behavior: smooth;
+    /* A little larger than the 16px default so text and menus read easily. */
+    font-size: 106.25%;
   }
   body {
     @apply bg-background text-ink antialiased;

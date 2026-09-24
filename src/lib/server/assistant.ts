@@ -247,10 +247,11 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
   }
   if (has(q, WORDS.games)) {
     return {
-      text: L("Kids love these: the Animal Quest (scan QR signs and collect points), the Quiz, Which Animal Are You?, and You vs Animals.", "ក្មេងៗចូលចិត្តណាស់៖ បេសកកម្មសត្វ (ស្កេនផ្លាក QR ប្រមូលពិន្ទុ) ល្បែងសំណួរ តើអ្នកជាសត្វអ្វី? និងប្រៀបធៀបខ្លួនអ្នកនឹងសត្វ។"),
+      text: L("Kids love these: the Animal Quest (scan QR signs and collect points), the Quiz, the new Zoom Guess game, Which Animal Are You?, and You vs Animals.", "ក្មេងៗចូលចិត្តណាស់៖ បេសកកម្មសត្វ (ស្កេនផ្លាក QR ប្រមូលពិន្ទុ) ល្បែងសំណួរ ល្បែងថ្មីទាយសត្វពីរូបជិត តើអ្នកជាសត្វអ្វី? និងប្រៀបធៀបខ្លួនអ្នកនឹងសត្វ។"),
       links: [
         { label: L("Animal Quest", "បេសកកម្ម"), href: "/quest" },
         { label: L("Quiz", "ល្បែងសំណួរ"), href: "/quiz" },
+        { label: L("Zoom Guess", "ទាយសត្វពីរូបជិត"), href: "/guess" },
         { label: L("Which animal are you?", "តើអ្នកជាសត្វអ្វី?"), href: "/match" },
       ],
     };

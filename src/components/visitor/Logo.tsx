@@ -39,19 +39,19 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <Link href={href} className={cn("group flex flex-shrink-0 items-center gap-2.5", className)} aria-label="Green Wild Zoo home page">
-      <LogoMark className="transition-transform duration-300 group-hover:-rotate-6" />
-      <span className="whitespace-nowrap leading-none">
+    <Link href={href} className={cn("group flex min-w-0 items-center gap-2 sm:gap-2.5", className)} aria-label="Green Wild Zoo home page">
+      <LogoMark className="h-9 w-9 transition-transform duration-300 group-hover:-rotate-6 sm:h-10 sm:w-10" />
+      <span className="min-w-0 whitespace-nowrap leading-none">
         <span
           className={cn(
-            "block font-display text-[1.15rem] font-extrabold uppercase tracking-wide",
+            "block font-display text-base font-extrabold uppercase tracking-wide max-[380px]:text-[0.9rem] sm:text-[1.15rem]",
             tone === "dark" ? "text-forest" : "text-white"
           )}
         >
           Green Wild <span className={tone === "dark" ? "text-primary" : "text-leaf"}>Zoo</span>
         </span>
         {subtitle && (
-          <span className={cn("mt-0.5 block text-[10px] font-medium", tone === "dark" ? "text-ink/50" : "text-white/60")}>
+          <span className={cn("mt-0.5 block truncate text-[10px] font-medium", tone === "dark" ? "text-ink/50" : "text-white/60")}>
             {subtitle}
           </span>
         )}

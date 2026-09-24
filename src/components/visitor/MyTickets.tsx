@@ -28,7 +28,7 @@ export function MyTicketsButton({ label, signedInCount = 0 }: { label: string; s
   }, []);
   const count = Math.max(n, signedInCount);
   return (
-    <Link href="/my-tickets" title={label} aria-label={label} className="relative flex h-10 w-10 items-center justify-center rounded-full text-forest transition hover:bg-light-green">
+    <Link href="/my-tickets" title={label} aria-label={label} className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-forest transition hover:bg-light-green">
       <Ticket size={19} strokeWidth={2.4} />
       {count > 0 && (
         <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">{count}</span>

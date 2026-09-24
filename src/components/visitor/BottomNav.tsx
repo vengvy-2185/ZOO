@@ -36,15 +36,15 @@ export function BottomNav() {
               href={href}
               prefetch
               aria-current={active ? "page" : undefined}
-              className="flex flex-1 flex-col items-center gap-0.5 pb-1.5 text-[11px] font-semibold"
+              className="flex flex-1 flex-col items-center gap-0.5 pb-1.5 text-xs font-semibold"
             >
               <span
                 className={cn(
-                  "flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300",
+                  "flex h-9 w-14 items-center justify-center rounded-full transition-all duration-300",
                   active ? "bg-primary text-white shadow-soft" : "text-ink/45"
                 )}
               >
-                <Icon size={20} strokeWidth={active ? 2.5 : 2.1} />
+                <Icon size={22} strokeWidth={active ? 2.5 : 2.1} />
               </span>
               <span className={active ? "text-primary" : "text-ink/50"}>{t.nav[key]}</span>
             </Link>

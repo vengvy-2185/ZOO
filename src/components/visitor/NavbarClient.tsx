@@ -93,17 +93,15 @@ export function NavbarClient({
 
   return (
     <>
-      {/* Climbing monkey: everywhere on desktop, homepage only on phones (so it never covers content). */}
-      <div className={pathname === "/" ? "" : "hidden md:block"}>
-        <MonkeyOnVine />
-      </div>
+      {/* Climbing monkey on every page (it can be switched off with its X button). */}
+      <MonkeyOnVine />
       <header
         className={cn(
           "sticky top-0 z-40 border-b transition-all duration-300",
           scrolled ? "border-black/5 bg-white/90 shadow-soft backdrop-blur-lg" : "border-transparent bg-white/75 backdrop-blur"
         )}
       >
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-3 px-4 md:h-[72px] md:px-6">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:h-[72px] md:px-6">
           <Logo subtitle={t.nav.tagline} />
 
           {/* Desktop menu */}
@@ -117,7 +115,7 @@ export function NavbarClient({
                   prefetch
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex items-center whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition-colors 2xl:px-3.5",
+                    "relative flex items-center whitespace-nowrap rounded-full px-2.5 py-2 text-[15px] font-semibold transition-colors 2xl:px-3.5",
                     active ? "text-primary" : "text-ink/65 hover:bg-light-green hover:text-primary"
                   )}
                 >
@@ -133,7 +131,7 @@ export function NavbarClient({
                 onMouseEnter={() => setMoreOpen(true)}
                 aria-expanded={moreOpen}
                 className={cn(
-                  "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition-colors 2xl:px-3.5",
+                  "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-2 text-[15px] font-semibold transition-colors 2xl:px-3.5",
                   MORE_LINKS.some((l) => isActivePath(pathname, l.href)) || moreOpen ? "text-primary" : "text-ink/65 hover:bg-light-green hover:text-primary"
                 )}
               >
@@ -146,7 +144,7 @@ export function NavbarClient({
                       key={href}
                       href={href}
                       className={cn(
-                        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition",
+                        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-[15px] font-semibold transition",
                         isActivePath(pathname, href) ? "bg-light-green text-primary" : "text-ink/75 hover:bg-cream hover:text-primary"
                       )}
                     >
@@ -161,11 +159,11 @@ export function NavbarClient({
             </div>
           </nav>
 
-          <div className="flex flex-shrink-0 items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-0.5 sm:gap-2">
             <button
               onClick={() => setSearchOpen((s) => !s)}
               aria-label={t.nav.searchAnimals}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-forest transition hover:bg-light-green"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-forest transition hover:bg-light-green"
             >
               <Search size={19} strokeWidth={2.4} />
             </button>
@@ -210,7 +208,7 @@ export function NavbarClient({
             <button
               onClick={() => setMenuOpen(true)}
               aria-label={t.nav.openMenu}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-light-green text-forest transition hover:bg-primary hover:text-white xl:hidden"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-light-green text-forest transition hover:bg-primary hover:text-white xl:hidden"
             >
               <Menu size={21} strokeWidth={2.4} />
             </button>
@@ -318,7 +316,7 @@ export function NavbarClient({
                     key={href}
                     href={href}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold transition",
+                      "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[15px] font-semibold transition",
                       active ? "bg-primary text-white shadow-soft" : "text-forest hover:bg-white",
                       // Phones already have these in the bottom bar.
                       BOTTOM_BAR.includes(href) && "max-md:hidden"
@@ -326,11 +324,11 @@ export function NavbarClient({
                   >
                     <span
                       className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-lg",
+                        "flex h-8 w-8 items-center justify-center rounded-lg",
                         active ? "bg-white/15" : "bg-light-green text-primary"
                       )}
                     >
-                      <Icon size={15} strokeWidth={2.3} />
+                      <Icon size={17} strokeWidth={2.3} />
                     </span>
                     {t.nav[key]}
                     <ChevronRight size={14} className={cn("ml-auto", active ? "text-white/70" : "text-ink/25")} />
@@ -341,9 +339,9 @@ export function NavbarClient({
 
             <div className="mt-1 space-y-1">
               {MORE_LINKS.map(({ href, key, icon: Icon }) => (
-                <Link key={href} href={href} className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold text-forest transition hover:bg-white">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-light-green text-primary">
-                    <Icon size={15} strokeWidth={2.3} />
+                <Link key={href} href={href} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[15px] font-semibold text-forest transition hover:bg-white">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-light-green text-primary">
+                    <Icon size={17} strokeWidth={2.3} />
                   </span>
                   {t.nav[key]}
                   <ChevronRight size={14} className="ml-auto text-ink/25" />

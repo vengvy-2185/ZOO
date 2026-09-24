@@ -65,7 +65,7 @@ export function FavoritesGrid({ animals }: { animals: FavCardAnimal[] }) {
 export function FavoritesNavButton({ label }: { label: string }) {
   const { favs } = useFavourites();
   return (
-    <Link href="/favorites" aria-label={label} title={label} className="relative flex h-10 w-10 items-center justify-center rounded-full text-forest transition hover:bg-rose-50 hover:text-rose-500">
+    <Link href="/favorites" aria-label={label} title={label} className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-forest transition hover:bg-rose-50 hover:text-rose-500">
       <Heart size={19} strokeWidth={2.4} fill={favs.length ? "currentColor" : "none"} className={favs.length ? "text-rose-500" : ""} />
       {favs.length > 0 && (
         <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
