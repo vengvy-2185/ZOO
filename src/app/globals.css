@@ -52,6 +52,32 @@
     /* Never scroll sideways (clip, not hidden, so sticky headers keep working). */
     overflow-x: clip;
   }
+  /* Older iPhones (before iOS 16) do not know "clip": clip the whole page
+     sideways at the viewport instead, so it can never be dragged left/right. */
+  html {
+    overflow-x: hidden;
+  }
+  @supports not (overflow: clip) {
+    body {
+      overflow-x: hidden;
+    }
+  }
+  /* iPhone Safari draws date/time boxes wider than their container and ignores
+     width, pushing the page sideways. Keep them inside their box. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+    display: block;
+  }
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
   :lang(km) {
     @apply font-khmer;
   }

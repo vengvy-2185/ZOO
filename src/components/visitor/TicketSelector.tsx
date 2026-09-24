@@ -59,7 +59,7 @@ export function TicketSelector({ ticketTypes, initialDate }: { ticketTypes: Tick
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div>
         {presets.length > 0 && (
           <div className="mb-5">
@@ -171,7 +171,7 @@ export function TicketSelector({ ticketTypes, initialDate }: { ticketTypes: Tick
       </div>
 
       {/* Order summary — sticks beside the list on desktop */}
-      <aside className="card h-fit p-5 lg:sticky lg:top-24">
+      <aside className="card h-fit min-w-0 p-5 lg:sticky lg:top-24">
         <h3 className="font-display text-xl font-bold text-forest">{t.tickets.yourOrder}</h3>
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-ink/45">
           {t.tickets.visitDate}

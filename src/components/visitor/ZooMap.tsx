@@ -356,6 +356,9 @@ export function ZooMap({
 
                 {showAnimals &&
                   animals.map((a) => {
+                    // Many animals: smaller pins. Pins also keep their size while zooming,
+                    // so zooming in spreads them apart instead of making them bigger.
+                    const dense = animals.length > 30;
                     const AnimalIcon = getCategoryIcon(a.categorySlug);
                     const isSel = selected?.id === a.id;
                     return (
@@ -368,10 +371,12 @@ export function ZooMap({
                         style={{ left: `${a.map_x}%`, top: `${a.map_y}%`, zIndex: isSel ? 20 : 10 }}
                       >
                         {/* Photo pin: round real photo with a pointer tail */}
+                        <span className="relative flex flex-col items-center" style={{ transform: `scale(${1 / view.scale})`, transformOrigin: "50% 100%" }}>
                         <span className="relative flex flex-col items-center transition-transform duration-200 group-hover:-translate-y-1 group-hover:scale-110">
                           <span
                             className={cn(
-                              "flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-[3px] shadow-lg md:h-12 md:w-12",
+                              "flex items-center justify-center overflow-hidden rounded-full shadow-lg",
+                              dense ? "h-7 w-7 border-2 md:h-9 md:w-9" : "h-11 w-11 border-[3px] md:h-12 md:w-12",
                               isSel ? "border-primary ring-4 ring-leaf/60" : "border-white",
                               !a.image && "bg-accent text-forest"
                             )}
@@ -383,7 +388,8 @@ export function ZooMap({
                               <AnimalIcon size={18} strokeWidth={2.4} />
                             )}
                           </span>
-                          <span className={cn("-mt-1 h-2.5 w-2.5 rotate-45 shadow", isSel ? "bg-primary" : "bg-white")} />
+                          <span className={cn("-mt-1 rotate-45 shadow", dense ? "h-2 w-2" : "h-2.5 w-2.5", isSel ? "bg-primary" : "bg-white")} />
+                        </span>
                         </span>
                         {isSel && <span className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 animate-ping rounded-full bg-primary/50" />}
                         <span

@@ -21,14 +21,16 @@ const FOODS: Record<FoodKey, { Icon: LucideIcon; en: string; km: string; color: 
 
 // What each kind of animal eats (matched on the species' English name), with a fun fact.
 const DIETS: { re: RegExp; food: FoodKey; en: string; km: string }[] = [
-  { re: /shark|penguin|seal|otter|pelican|dolphin/i, food: "fish", en: "It catches fish with its sharp teeth.", km: "វាចាប់ត្រីដោយធ្មេញមុតស្រួច។" },
+  // most specific first
   { re: /flamingo/i, food: "shrimp", en: "Flamingos are pink because of the tiny shrimp they eat!", km: "ក្រៀលផ្កាឈូកមានពណ៌ផ្កាឈូក ដោយសារវាស៊ីបង្គាតូចៗ!" },
-  { re: /red panda|panda/i, food: "bamboo", en: "It munches bamboo leaves almost all day.", km: "វាស៊ីស្លឹកឫស្សីស្ទើរពេញមួយថ្ងៃ។" },
-  { re: /macaw|parrot|monkey|gibbon|orangutan|chimp/i, food: "fruit", en: "It loves sweet fruit and nuts.", km: "វាចូលចិត្តផ្លែឈើផ្អែម និងគ្រាប់។" },
-  { re: /peacock|chicken|pigeon|dove/i, food: "seeds", en: "It pecks seeds and grain from the ground.", km: "វាចឹកគ្រាប់ធញ្ញជាតិពីលើដី។" },
-  { re: /crocodile|alligator|lion|tiger|leopard|cheetah|wolf|eagle|hyena/i, food: "meat", en: "It is a meat eater, a real hunter!", km: "វាជាសត្វស៊ីសាច់ ជាអ្នកប្រមាញ់ពិតប្រាកដ!" },
-  { re: /elephant|giraffe|zebra|rhino|hippo|deer|kangaroo|tortoise|turtle|goat/i, food: "leaves", en: "It eats plants: leaves, grass and branches.", km: "វាស៊ីរុក្ខជាតិ៖ ស្លឹកឈើ ស្មៅ និងមែកឈើ។" },
-  { re: /anteater|pangolin|frog|gecko|lizard|meerkat/i, food: "insects", en: "It eats lots of little insects.", km: "វាស៊ីសត្វល្អិតតូចៗច្រើនណាស់។" },
+  { re: /seahorse|clownfish|blue tang|jellyfish|stingray|zebra shark|octopus/i, food: "shrimp", en: "It eats tiny shrimp and other small sea animals.", km: "វាស៊ីបង្គាតូចៗ និងសត្វសមុទ្រតូចៗផ្សេងទៀត។" },
+  { re: /bald eagle|water monitor|gharial|stork|adjutant|shark|penguin|seal|otter|pelican|dolphin/i, food: "fish", en: "It catches fish, its favourite meal.", km: "វាចាប់ត្រី ដែលជាអាហារចូលចិត្តបំផុតរបស់វា។" },
+  { re: /panda/i, food: "bamboo", en: "It munches bamboo leaves almost all day.", km: "វាស៊ីស្លឹកឫស្សីស្ទើរពេញមួយថ្ងៃ។" },
+  { re: /macaw|parrot|monkey|gibbon|orangutan|chimp|gorilla|lemur|macaque|marmoset|hornbill|cockatoo|lorikeet|cassowary|toucan|binturong|sun bear|black bear|beetle/i, food: "fruit", en: "It loves sweet fruit.", km: "វាចូលចិត្តផ្លែឈើផ្អែម។" },
+  { re: /peacock|peafowl|junglefowl|chicken|pigeon|dove|ostrich|emu|duck|crane/i, food: "seeds", en: "It pecks seeds and grain.", km: "វាចឹកគ្រាប់ និងធញ្ញជាតិ។" },
+  { re: /crocodile|alligator|lion|tiger|leopard|cheetah|jaguar|puma|wolf|dhole|fox|eagle|hyena|owl|cobra|python|komodo/i, food: "meat", en: "It is a meat eater, a real hunter!", km: "វាជាសត្វស៊ីសាច់ ជាអ្នកប្រមាញ់ពិតប្រាកដ!" },
+  { re: /elephant|giraffe|zebra|rhino|hippo|deer|kangaroo|koala|tortoise|turtle|goat|banteng|gaur|tapir|sloth|capybara|iguana|swan|catfish|boar|stick insect/i, food: "leaves", en: "It eats plants: leaves, grass and branches.", km: "វាស៊ីរុក្ខជាតិ៖ ស្លឹកឈើ ស្មៅ និងមែកឈើ។" },
+  { re: /anteater|pangolin|frog|toad|gecko|lizard|meerkat|chameleon|loris|axolotl|arowana/i, food: "insects", en: "It eats lots of little insects.", km: "វាស៊ីសត្វល្អិតតូចៗច្រើនណាស់។" },
 ];
 
 const TEXT = {
@@ -58,7 +60,7 @@ export function FeedGame({ animals }: { animals: QuizAnimal[] }) {
       .map((a) => ({ a, diet: DIETS.find((d) => d.re.test(a.species ?? "") || d.re.test(a.name)) }))
       .filter((x): x is { a: QuizAnimal; diet: (typeof DIETS)[number] } => !!x.diet);
     setRounds(
-      shuffle(known).map((x) => ({
+      shuffle(known).slice(0, 10).map((x) => ({
         ...x,
         options: shuffle([x.diet.food, ...shuffle((Object.keys(FOODS) as FoodKey[]).filter((f) => f !== x.diet.food)).slice(0, 3)]),
       }))
