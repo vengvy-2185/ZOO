@@ -57,7 +57,7 @@ export function MemberCardSection({ m, km, site }: { m: MemberRow; km: boolean; 
           <IdCard
             data={{ type: m.card, name: m.name, photo: m.avatar, memberNo: memberNo(m.id), since, site, verifyUrl: m.verifyToken ? `${site}/verify/${m.verifyToken}` : null }}
             fileName={`green-wild-zoo-card-${memberNo(m.id)}`}
-            labels={{ save: L.save, print: L.print }}
+            labels={{ save: L.save, print: L.print, flip: km ? "បង្វិលកាត" : "Flip card", hint: km ? "ចុចលើកាតដើម្បីមើលខាងក្រោយ" : "Tap the card to see the back" }}
             width={240}
           />
         </div>
