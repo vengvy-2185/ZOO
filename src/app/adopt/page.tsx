@@ -6,9 +6,11 @@ import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { AdoptForm, type AdoptAnimal } from "@/components/visitor/AdoptForm";
 import { getActiveAnimals } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
+import { getSessionUser } from "@/lib/auth/session";
 
 export default async function AdoptPage({ searchParams }: { searchParams: { animal?: string } }) {
-  const { t } = getI18n();
+  const { t, locale } = getI18n();
+  const me = await getSessionUser();
   const animals: AdoptAnimal[] = ((await getActiveAnimals()) as any[]).map((a) => ({
     code: a.animal_code,
     name: a.name,
@@ -23,7 +25,7 @@ export default async function AdoptPage({ searchParams }: { searchParams: { anim
       <Navbar />
       <PageHeader icon={HeartHandshake} eyebrow={t.adopt.eyebrow} title={t.adopt.title} subtitle={t.adopt.subtitle} />
       <main className="mx-auto max-w-5xl px-4 md:px-6">
-        <AdoptForm animals={animals} initialCode={searchParams.animal} />
+        <AdoptForm animals={animals} initialCode={searchParams.animal} me={me ? { name: me.fullName ?? "", email: me.email ?? "" } : null} km={locale === "km"} />
       </main>
       <SiteFooter />
       <BottomNav />

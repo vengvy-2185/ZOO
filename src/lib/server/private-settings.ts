@@ -9,6 +9,8 @@ import { resilientFetch } from "@/lib/supabase/resilient-fetch";
 export interface PaymentSettings {
   enabled?: boolean;
   bakong_account_id?: string; // e.g. "greenwildzoo@aba"
+  bank_account?: string; // optional: the bank account number the Bakong ID is linked to (put in the KHQR)
+  bank_name?: string; // optional: that bank's name, e.g. "ABA Bank"
   merchant_name?: string;
   merchant_city?: string;
   currency?: "USD" | "KHR";

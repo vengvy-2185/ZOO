@@ -61,7 +61,7 @@ interface Cart { visitDate: string; items: CartItem[]; subtotal: number }
 
 const VISITOR_KEY = "gwz_visitor";
 
-export function CheckoutClient({ me }: { me: { name: string; email: string } | null }) {
+export function CheckoutClient({ me }: { me: { name: string; email: string } }) {
   const router = useRouter();
   const { locale, t } = useI18n();
   const [cart, setCart] = useState<Cart | null>(null);
@@ -158,6 +158,11 @@ export function CheckoutClient({ me }: { me: { name: string; email: string } | n
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        // signed out in another tab: sign in again, the cart stays in this tab
+        router.push("/account/login?next=/checkout");
+        return;
+      }
       if (res.status === 409 && data.error === "discount") {
         setApplied(null);
         setCodeMsg(reasonText(data));

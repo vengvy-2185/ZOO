@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, Shield, Crown, Check, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Heart, Shield, Crown, Check, Loader2, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useI18n } from "@/lib/i18n/client";
 import { ADOPTION_TIERS, type AdoptionTier } from "@/lib/data/adoption";
@@ -18,13 +19,13 @@ export interface AdoptAnimal {
 
 const TIER_ICON = { friend: Heart, guardian: Shield, hero: Crown } as const;
 
-export function AdoptForm({ animals, initialCode }: { animals: AdoptAnimal[]; initialCode?: string }) {
+export function AdoptForm({ animals, initialCode, me, km }: { animals: AdoptAnimal[]; initialCode?: string; me: { name: string; email: string } | null; km: boolean }) {
   const { locale, t } = useI18n();
   const router = useRouter();
   const [code, setCode] = useState(initialCode && animals.some((a) => a.code === initialCode) ? initialCode : animals[0]?.code);
   const [tier, setTier] = useState<AdoptionTier>("guardian");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(me?.name ?? "");
+  const [email, setEmail] = useState(me?.email ?? "");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,9 +111,16 @@ export function AdoptForm({ animals, initialCode }: { animals: AdoptAnimal[]; in
         <input type="email" maxLength={120} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={a.email} className="input" />
         <textarea maxLength={200} rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={a.message} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary" />
         {error && <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button disabled={busy || !name || !code} className="btn-primary w-full py-3.5 text-base hover:translate-y-0">
-          {busy ? <Loader2 size={18} className="animate-spin" /> : <Heart size={18} />} {chosen ? a.submit(`${nm(chosen)} ($${ADOPTION_TIERS[tier]})`) : ""}
-        </button>
+        {me ? (
+          <button disabled={busy || !name || !code} className="btn-primary w-full py-3.5 text-base hover:translate-y-0">
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <Heart size={18} />} {chosen ? a.submit(`${nm(chosen)} ($${ADOPTION_TIERS[tier]})`) : ""}
+          </button>
+        ) : (
+          // Adopting needs an account; come back to the same animal after signing in.
+          <Link href={`/account/login?next=${encodeURIComponent(`/adopt?animal=${code ?? ""}`)}`} className="btn-primary w-full py-3.5 text-base hover:translate-y-0">
+            <LogIn size={18} /> {km ? "ចូលគណនី ដើម្បីឧបត្ថម្ភ" : "Sign in to adopt"}
+          </Link>
+        )}
       </section>
     </form>
   );

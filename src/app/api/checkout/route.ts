@@ -27,6 +27,8 @@ const CheckoutSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "signin" }, { status: 401 });
   const body = await req.json();
   const parsed = CheckoutSchema.safeParse(body);
   if (!parsed.success) {
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
   // their profile so it shows up under My Tickets — read from their own
   // session cookie, never trust a client-supplied user id.
   // (token signature verified locally — no extra round trip to Supabase Auth)
-  const user = await getSessionUser();
+  // (checked first thing in POST: buying needs an account)
 
   const supabase = createServiceRoleClient();
 

@@ -29,6 +29,9 @@ export function createKhqr(s: PaymentSettings, amountUsd: number, billNumber: st
   const amount = currency === "KHR" ? Math.round(amountUsd * (s.usd_to_khr || 4100)) : Math.round(amountUsd * 100) / 100;
   const expiresAt = Date.now() + QR_MINUTES * 60 * 1000;
   const info = new IndividualInfo(s.bakong_account_id, (s.merchant_name || "Green Wild Zoo").slice(0, 25), (s.merchant_city || "Phnom Penh").slice(0, 15), {
+    // The bank account the Bakong ID is linked to (optional; shown to the payer's bank app).
+    ...(s.bank_account ? { accountInformation: s.bank_account.slice(0, 32) } : {}),
+    ...(s.bank_name ? { acquiringBank: s.bank_name.slice(0, 32) } : {}),
     currency: currency === "KHR" ? khqrData.currency.khr : khqrData.currency.usd,
     amount,
     billNumber: billNumber.slice(0, 25),

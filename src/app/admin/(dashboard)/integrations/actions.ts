@@ -24,10 +24,15 @@ export async function savePayment(formData: FormData) {
   await requireAdmin();
   const current = await getPrivateSetting<PaymentSettings>("payment");
   const account = str(formData, "bakong_account_id");
-  if (account && !/^[a-z0-9._-]+@[a-z0-9]+$/i.test(account)) redirect("/admin/integrations?msg=bad-account");
+  // A Bakong ID is name@bank (no dot after the @) — an email address is a common mix-up.
+  if (account && !/^[a-z0-9._-]+@[a-z0-9]+$/i.test(account)) redirect(`/admin/integrations?msg=${account.includes(".") && /@.*\./.test(account) ? "email-account" : "bad-account"}`);
+  const bankAccount = str(formData, "bank_account").replace(/[\s-]/g, "");
+  if (bankAccount && !/^\d{6,24}$/.test(bankAccount)) redirect("/admin/integrations?msg=bad-bank-account");
   const next: PaymentSettings = {
     enabled: formData.get("enabled") === "on",
     bakong_account_id: account || undefined,
+    bank_account: bankAccount || undefined,
+    bank_name: str(formData, "bank_name") || undefined,
     merchant_name: str(formData, "merchant_name") || undefined,
     merchant_city: str(formData, "merchant_city") || undefined,
     currency: str(formData, "currency") === "KHR" ? "KHR" : "USD",

@@ -19,7 +19,15 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         </p>
       )}
       {searchParams.msg === "bad-account" && (
-        <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Bakong account ID looks wrong — it should look like name@aba or name@acleda.</p>
+        <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Not saved: the Bakong account ID looks wrong. It should look like name@aclb or name@abaa (letters/numbers, one @, no dot after it).</p>
+      )}
+      {searchParams.msg === "email-account" && (
+        <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          Not saved: that is an email address, not a Bakong account ID. Open your bank app (ABA, ACLEDA, Wing…) or the Bakong app → your profile / "Receive" / KHQR, and copy the ID that looks like name@bank (e.g. greenwildzoo@aclb).
+        </p>
+      )}
+      {searchParams.msg === "bad-bank-account" && (
+        <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Not saved: the bank account number should be digits only (6–24 digits).</p>
       )}
       {searchParams.test && (
         <p className={`mb-5 flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold ${searchParams.test === "ok" ? "bg-light-green text-primary" : "bg-amber-50 text-amber-800"}`}>
@@ -29,14 +37,63 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
 
       <div className="space-y-6">
         {/* ── Bakong KHQR ─────────────────────────────── */}
-        <form action={savePayment}>
+        <form action={savePayment} autoComplete="off">
           <FormSection icon={QrCode} title="Bakong KHQR payments" hint="Visitors scan one KHQR with any Cambodian banking app (ABA, ACLEDA, Wing, Bakong…). Money goes straight to your Bakong account.">
+            {(() => {
+              const steps = [
+                { ok: /^[a-z0-9._-]+@[a-z0-9]+$/i.test(pay.bakong_account_id ?? ""), label: "Bakong account ID (name@bank) saved" },
+                { ok: Boolean(pay.merchant_name), label: "Merchant name saved" },
+                { ok: Boolean(pay.api_token), label: "Bakong API token saved (confirms payments automatically)" },
+                { ok: Boolean(pay.enabled), label: "KHQR payments turned on" },
+              ];
+              const live = steps.every((x) => x.ok);
+              return (
+                <div className={`rounded-2xl p-4 ring-1 ${live ? "bg-light-green ring-primary/20" : "bg-amber-50 ring-amber-200"}`}>
+                  <p className={`mb-2 flex items-center gap-2 text-sm font-extrabold ${live ? "text-primary" : "text-amber-800"}`}>
+                    {live ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+                    {live ? "Online payment is live: visitors see a KHQR at checkout." : "Online payment is OFF: visitors see \"Online payment isn't open yet\". Still needed:"}
+                  </p>
+                  <ul className="grid gap-1 text-sm sm:grid-cols-2">
+                    {steps.map((x) => (
+                      <li key={x.label} className={`flex items-center gap-2 ${x.ok ? "text-primary" : "font-semibold text-amber-900"}`}>
+                        <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black ${x.ok ? "bg-primary text-white" : "bg-white text-amber-700 ring-1 ring-amber-300"}`}>{x.ok ? "✓" : "!"}</span>
+                        {x.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
             <label className="flex w-fit cursor-pointer items-center gap-3 rounded-2xl bg-cream px-4 py-3 text-sm font-semibold text-forest">
               <input type="checkbox" name="enabled" defaultChecked={pay.enabled} className="h-5 w-5 accent-[#176B3A]" />
               Turn on KHQR payments (needs the account ID and API token — tickets are confirmed only when Bakong reports the transfer)
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Bakong account ID" name="bakong_account_id" defaultValue={pay.bakong_account_id} placeholder="greenwildzoo@aba" hint="The account that receives the money (shown in your bank app's KHQR / Bakong ID)." />
+              <Field
+                label="Bakong account ID"
+                name="bakong_account_id"
+                defaultValue={pay.bakong_account_id}
+                placeholder="greenwildzoo@aclb"
+                autoComplete="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
+                pattern="[A-Za-z0-9._\-]+@[A-Za-z0-9]+"
+                title="name@bank, e.g. greenwildzoo@aclb (not an email address)"
+                hint="Not your email. It's the ID that receives the money, like name@aclb or name@abaa: find it in your bank app or the Bakong app under your profile / Receive / KHQR."
+              />
+              <Field
+                label="Bank account number (optional)"
+                name="bank_account"
+                defaultValue={pay.bank_account}
+                placeholder="e.g. 000123456"
+                inputMode="numeric"
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                hint="The account the Bakong ID is linked to. It's added to the KHQR so the payer's bank shows where the money goes."
+              />
+              <Field label="Bank name (optional)" name="bank_name" defaultValue={pay.bank_name} placeholder="e.g. ACLEDA Bank" autoComplete="off" data-1p-ignore data-lpignore="true" />
               <Field label="Merchant name (on the QR)" name="merchant_name" defaultValue={pay.merchant_name ?? "Green Wild Zoo"} maxLength={25} />
               <Field label="City" name="merchant_city" defaultValue={pay.merchant_city ?? "Phnom Penh"} maxLength={15} />
               <div className="grid grid-cols-2 gap-3">
@@ -55,8 +112,12 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 <Field
                   label={`API token ${pay.api_token ? `(saved ${mask(pay.api_token)})` : ""}`}
                   name="api_token"
-                  type="password"
+                  type="text"
                   autoComplete="off"
+                  spellCheck={false}
+                  data-1p-ignore
+                  data-lpignore="true"
+                  style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
                   placeholder={pay.api_token ? "Leave blank to keep · type - to remove" : "Paste your Bakong API token"}
                 />
                 <Field label="API URL" name="api_url" defaultValue={pay.api_url ?? "https://api-bakong.nbc.gov.kh"} />
