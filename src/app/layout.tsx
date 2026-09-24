@@ -5,6 +5,7 @@ import { ScrollReveal } from "@/components/ScrollReveal";
 import { OAuthCodeCatcher } from "@/components/OAuthCodeCatcher";
 import { AuthToast } from "@/components/AuthFeedback";
 import { IntroSplash, INTRO_SCRIPT } from "@/components/IntroSplash";
+import { TEXT_SIZE_SCRIPT } from "@/lib/text-size";
 import { ZooAssistant } from "@/components/ZooAssistant";
 import { getBranding } from "@/lib/branding";
 import { ScrollTopOnSameLink } from "@/components/ScrollTopOnSameLink";
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         {/* Decides before the first paint whether to play the opening animation. */}
         <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: TEXT_SIZE_SCRIPT }} />
       </head>
       <body>
         <Suspense fallback={null}>

@@ -1,4 +1,4 @@
-import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, Gift, Palette, type LucideIcon } from "lucide-react";
+import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, Gift, Palette, Baby, HeartPulse, Moon, Accessibility, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Single source of truth for the visitor site's menu — the desktop header,
@@ -22,26 +22,30 @@ export const MORE_GROUPS: { key: keyof Dictionary["nav"]; links: NavLink[] }[] =
   {
     key: "groupPlay",
     links: [
+      { href: "/kids", key: "kids", icon: Baby },
       { href: "/coloring", key: "coloring", icon: Palette },
       { href: "/quiz", key: "quiz", icon: Brain },
       { href: "/guess", key: "guess", icon: ZoomIn },
-      { href: "/match", key: "match", icon: Sparkles },
       { href: "/compare", key: "compare", icon: Ruler },
     ],
   },
   {
     key: "groupCreate",
     links: [
-      { href: "/rewards", key: "rewards", icon: Gift },
+      { href: "/love", key: "love", icon: HeartPulse },
+      { href: "/zodiac", key: "zodiac", icon: Moon },
+      { href: "/match", key: "match", icon: Sparkles },
       { href: "/photo-booth", key: "booth", icon: Camera },
       { href: "/postcard", key: "postcard", icon: Mail },
-      { href: "/adopt", key: "adopt", icon: HeartHandshake },
     ],
   },
   {
     key: "groupPlan",
     links: [
+      { href: "/rewards", key: "rewards", icon: Gift },
       { href: "/planner", key: "planner", icon: Route },
+      { href: "/easy", key: "easy", icon: Accessibility },
+      { href: "/adopt", key: "adopt", icon: HeartHandshake },
       { href: "/reviews", key: "reviews", icon: Star },
       { href: "/news", key: "news", icon: Newspaper },
       { href: "/faq", key: "faq", icon: CircleHelp },

@@ -42,6 +42,10 @@ const WORDS = {
   myTickets: ["my ticket", "lost ticket", "find my ticket", "where is my ticket", "show qr", "សំបុត្ររបស់ខ្ញុំ", "បាត់សំបុត្រ", "រកសំបុត្រ"],
   account: ["login", "log in", "sign in", "sign up", "register", "account", "profile", "password", "change my name", "change name", "avatar", "គណនី", "ចូលគណនី", "ចុះឈ្មោះ", "ពាក្យសម្ងាត់", "ប្តូរឈ្មោះ", "ប្តូររូប", "ប្រវត្តិរូប"],
   adopt: ["adopt", "sponsor", "donate", "support an animal", "ឧបត្ថម្ភ", "បរិច្ចាគ", "ជួយសត្វ"],
+  lovematch: ["love match", "love test", "couple test", "compatibility", "ទស្សន៍ទាយស្នេហា", "តេស្តស្នេហា", "គូស្នេហ៍"],
+  zodiac: ["zodiac", "horoscope", "year animal", "born in the year", "ឆ្នាំកំណើត", "សត្វឆ្នាំ", "រាសី"],
+  easy: ["elderly", "senior", "old people", "grandma", "grandpa", "wheelchair", "big text", "bigger text", "ចាស់ទុំ", "មនុស្សចាស់", "អក្សរធំ"],
+  kidszone: ["kids zone", "តំបន់កុមារ"],
   rewards: ["points", "point", "reward", "rewards", "redeem", "invite", "referral", "refer a friend", "ពិន្ទុ", "រង្វាន់", "អញ្ជើញមិត្ត", "ណែនាំមិត្ត", "ប្តូរពិន្ទុ"],
   booth: ["postcard", "post card", "កាតប៉ុស្តាល់", "photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
   games: ["coloring", "colouring", "color", "draw", "គូររូប", "លាបពណ៌", "quiz", "game", "games", "for kids", "children", "kids", "which animal am i", "ល្បែង", "ហ្គេម", "សម្រាប់កុមារ", "ក្មេង", "កូនតូច"],
@@ -243,6 +247,18 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
       links: [{ label: L("Adopt an animal", "ឧបត្ថម្ភសត្វ"), href: animal ? `/adopt?animal=${animal.animal_code}` : "/adopt" }],
     };
   }
+  if (has(q, WORDS.lovematch)) {
+    return { text: L("Try our Love Match! Type both names (and add photos if you like) to see which animal couple at the zoo your love is like. It's just for fun!", "សាកទស្សន៍ទាយស្នេហា! វាយឈ្មោះទាំងពីរ (ដាក់រូបក៏បាន) ដើម្បីមើលថាស្នេហារបស់អ្នកដូចសត្វគូណានៅសួនសត្វ។ គ្រាន់តែសម្រាប់សប្បាយ!"), links: [{ label: L("Love Match", "ទស្សន៍ទាយស្នេហា"), href: "/love" }] };
+  }
+  if (has(q, WORDS.zodiac)) {
+    return { text: L("Enter your birthday to find your Khmer zodiac animal, its lucky colour, and your animal friend at the zoo.", "បញ្ចូលថ្ងៃកំណើត ដើម្បីដឹងសត្វឆ្នាំខ្មែររបស់អ្នក ពណ៌សំណាង និងមិត្តសត្វរបស់អ្នកនៅសួនសត្វ។"), links: [{ label: L("Zodiac animal", "សត្វឆ្នាំកំណើត"), href: "/zodiac" }] };
+  }
+  if (has(q, WORDS.easy)) {
+    return { text: L("Our Easy Visit page has the key information in large text, a switch to make text bigger on every page, and it can read the page aloud.", "ទំព័រទស្សនាងាយស្រួល មានព័ត៌មានសំខាន់ៗជាអក្សរធំ ប៊ូតុងពង្រីកអក្សរលើគ្រប់ទំព័រ និងអាចអានឲ្យស្តាប់បាន។"), links: [{ label: L("Easy Visit", "ទស្សនាងាយស្រួល"), href: "/easy" }] };
+  }
+  if (has(q, WORDS.kidszone)) {
+    return { text: L("Kids love our Kids Zone: a coloring book, Memory Match, Animal Puzzle, Feed the Animals, and Zoo Bingo to play during your visit.", "ក្មេងៗចូលចិត្តតំបន់កុមារ៖ សៀវភៅគូររូប ល្បែងចងចាំ ផ្គុំរូបសត្វ ឲ្យចំណីសត្វ និងប៊ីងហ្គោសួនសត្វសម្រាប់លេងពេលមកទស្សនា។"), links: [{ label: L("Kids Zone", "តំបន់កុមារ"), href: "/kids" }] };
+  }
   if (has(q, WORDS.rewards)) {
     return {
       text: L(
@@ -259,6 +275,7 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
     return {
       text: L("Kids love these: the Animal Quest (scan QR signs and collect points), the Quiz, the Zoom Guess game, the Animal Coloring Book, Which Animal Are You?, and You vs Animals.", "ក្មេងៗចូលចិត្តណាស់៖ បេសកកម្មសត្វ (ស្កេនផ្លាក QR ប្រមូលពិន្ទុ) ល្បែងសំណួរ ល្បែងទាយសត្វពីរូបជិត សៀវភៅគូររូបសត្វ តើអ្នកជាសត្វអ្វី? និងប្រៀបធៀបខ្លួនអ្នកនឹងសត្វ។"),
       links: [
+        { label: L("Kids Zone", "តំបន់កុមារ"), href: "/kids" },
         { label: L("Animal Quest", "បេសកកម្ម"), href: "/quest" },
         { label: L("Quiz", "ល្បែងសំណួរ"), href: "/quiz" },
         { label: L("Zoom Guess", "ទាយសត្វពីរូបជិត"), href: "/guess" },

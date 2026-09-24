@@ -108,6 +108,111 @@ const PICTURES: Picture[] = [
     details: "M166 158m-11 0a11 11 0 1 0 22 0a11 11 0 1 0-22 0 M234 158m-11 0a11 11 0 1 0 22 0a11 11 0 1 0-22 0 M150 100l-18-30 34 14 M250 100l18-30-34 14",
     magic: { night: "#24305E", moon: "#FFE08A", branch: "#7A4A26", body: "#A0714F", wingL: "#7E5537", wingR: "#7E5537", belly: "#EBD2B4", eyeL: "#FFFFFF", eyeR: "#FFFFFF", beak: "#F4A62A" },
   },
+  {
+    key: "penguin",
+    en: "Penguin",
+    km: "ភេនឃ្វីន",
+    regions: [
+      { id: "sky", d: "M0 0H400V280H0Z" },
+      { id: "ice", d: "M0 280L80 250L170 276L260 246L400 272V400H0Z" },
+      { id: "body", d: "M200 70C268 70 290 150 292 230C294 300 256 340 200 340S106 300 108 230C110 150 132 70 200 70Z" },
+      { id: "belly", d: "M200 130C244 130 256 190 256 240C256 296 232 320 200 320S144 296 144 240C144 190 156 130 200 130Z" },
+      { id: "flipL", d: "M112 170C84 210 80 260 96 286C112 270 118 220 118 190Z" },
+      { id: "flipR", d: "M288 170C316 210 320 260 304 286C288 270 282 220 282 190Z" },
+      { id: "beak", d: "M184 128L216 128L200 150Z" },
+      { id: "feet", d: "M160 334h36l-8 16h-36Z M204 334h36l8 16h-36Z" },
+    ],
+    details: "M180 108m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0 M220 108m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0",
+    magic: { sky: "#CFEFFF", ice: "#F0FAFF", body: "#2B3445", belly: "#FFFFFF", flipL: "#1F2633", flipR: "#1F2633", beak: "#F4A62A", feet: "#F4A62A" },
+  },
+  {
+    key: "panda",
+    en: "Panda",
+    km: "ផេនដា",
+    regions: [
+      { id: "bg", d: "M0 0H400V400H0Z" },
+      { id: "bamboo", d: "M40 400V120h24v280Z M330 400V90h24v310Z" },
+      { id: "leaves", d: "M64 150q40-30 70-10q-40 20-70 10Z M330 120q-40-30-70-10q40 20 70 10Z" },
+      { id: "earL", d: "M130 110m-34 0a34 34 0 1 0 68 0a34 34 0 1 0-68 0" },
+      { id: "earR", d: "M270 110m-34 0a34 34 0 1 0 68 0a34 34 0 1 0-68 0" },
+      { id: "body", d: "M200 250m-110 0a110 100 0 1 0 220 0a110 100 0 1 0-220 0" },
+      { id: "head", d: "M200 170m-92 0a92 82 0 1 0 184 0a92 82 0 1 0-184 0" },
+      { id: "patchL", d: "M152 170C136 150 150 132 170 142C184 150 180 180 166 184C160 186 156 178 152 170Z" },
+      { id: "patchR", d: "M248 170C264 150 250 132 230 142C216 150 220 180 234 184C240 186 244 178 248 170Z" },
+      { id: "arms", d: "M110 250C92 290 110 330 140 330C150 300 140 270 130 250Z M290 250C308 290 290 330 260 330C250 300 260 270 270 250Z" },
+    ],
+    details: "M166 162m-6 0a6 6 0 1 0 12 0a6 6 0 1 0-12 0 M234 162m-6 0a6 6 0 1 0 12 0a6 6 0 1 0-12 0 M190 196q10 8 20 0 M192 186h16l-8 8Z",
+    magic: { bg: "#DFF4D8", bamboo: "#7FBF6A", leaves: "#3E9A55", earL: "#1F2633", earR: "#1F2633", body: "#FFFFFF", head: "#FFFFFF", patchL: "#1F2633", patchR: "#1F2633", arms: "#1F2633" },
+  },
+  {
+    key: "giraffe",
+    en: "Giraffe",
+    km: "ហ្សីរ៉ាហ្វ",
+    regions: [
+      { id: "sky", d: "M0 0H400V300H0Z" },
+      { id: "tree", d: "M300 300V200h20v100Z M310 200m-60 0a60 44 0 1 0 120 0a60 44 0 1 0-120 0" },
+      { id: "grass", d: "M0 300H400V400H0Z" },
+      { id: "body", d: "M110 250C110 210 230 200 250 240C262 266 252 300 232 304H130C116 300 108 280 110 250Z" },
+      { id: "legs", d: "M126 296h18v76h-18Z M160 300h18v72h-18Z M200 300h18v72h-18Z M228 296h18v76h-18Z" },
+      { id: "neck", d: "M206 230C200 170 196 120 190 80L222 76C226 120 236 170 246 232Z" },
+      { id: "head", d: "M176 70C176 44 234 40 238 66C242 84 226 96 206 96C188 96 176 88 176 70Z" },
+      { id: "spots", d: "M150 240m-12 0a12 10 0 1 0 24 0a12 10 0 1 0-24 0 M196 256m-14 0a14 11 0 1 0 28 0a14 11 0 1 0-28 0 M214 150m-8 0a8 10 0 1 0 16 0a8 10 0 1 0-16 0 M206 196m-8 0a8 10 0 1 0 16 0a8 10 0 1 0-16 0" },
+    ],
+    details: "M194 46v-18 M214 44v-18 M194 28m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0 M214 26m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0 M200 66m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0",
+    magic: { sky: "#BDE7FF", tree: "#5FA046", grass: "#A3D977", body: "#F6C56B", legs: "#F6C56B", neck: "#F6C56B", head: "#F6C56B", spots: "#B7702C" },
+  },
+  {
+    key: "butterfly",
+    en: "Butterfly",
+    km: "មេអំបៅ",
+    regions: [
+      { id: "bg", d: "M0 0H400V400H0Z" },
+      { id: "flowerL", d: "M70 340m-26 0a26 26 0 1 0 52 0a26 26 0 1 0-52 0" },
+      { id: "flowerR", d: "M330 350m-22 0a22 22 0 1 0 44 0a22 22 0 1 0-44 0" },
+      { id: "wingTL", d: "M196 190C150 80 60 70 64 140C68 200 140 214 196 200Z" },
+      { id: "wingTR", d: "M204 190C250 80 340 70 336 140C332 200 260 214 204 200Z" },
+      { id: "wingBL", d: "M196 210C140 220 96 260 120 296C148 330 190 280 196 226Z" },
+      { id: "wingBR", d: "M204 210C260 220 304 260 280 296C252 330 210 280 204 226Z" },
+      { id: "dots", d: "M120 140m-16 0a16 16 0 1 0 32 0a16 16 0 1 0-32 0 M280 140m-16 0a16 16 0 1 0 32 0a16 16 0 1 0-32 0 M146 268m-10 0a10 10 0 1 0 20 0a10 10 0 1 0-20 0 M254 268m-10 0a10 10 0 1 0 20 0a10 10 0 1 0-20 0" },
+      { id: "body", d: "M200 150m-12 0a12 70 0 1 0 24 0a12 70 0 1 0-24 0" },
+    ],
+    details: "M196 90q-20-40-40-44 M204 90q20-40 40-44",
+    magic: { bg: "#FFF4D6", flowerL: "#F472B6", flowerR: "#FFD23F", wingTL: "#FF8A3D", wingTR: "#FF8A3D", wingBL: "#8B5CF6", wingBR: "#8B5CF6", dots: "#FFFFFF", body: "#3B2A1E" },
+  },
+  {
+    key: "crocodile",
+    en: "Crocodile",
+    km: "ក្រពើ",
+    regions: [
+      { id: "sky", d: "M0 0H400V210H0Z" },
+      { id: "river", d: "M0 210H400V400H0Z" },
+      { id: "tail", d: "M300 250C340 250 380 240 396 220C392 260 350 280 300 282Z" },
+      { id: "body", d: "M90 230C120 200 280 200 310 240C300 276 140 290 100 270Z" },
+      { id: "jawTop", d: "M100 234C70 222 30 222 14 234C30 244 70 250 100 250Z" },
+      { id: "jawBottom", d: "M100 256C70 262 34 264 18 256C34 272 74 276 102 268Z" },
+      { id: "bumps", d: "M150 212l10-14 10 14Z M190 208l10-14 10 14Z M230 210l10-14 10 14Z M270 218l10-14 10 14Z" },
+      { id: "legs", d: "M130 270l-10 30h24l6-28Z M250 270l10 30h-24l-6-28Z" },
+    ],
+    details: "M112 222m-6 0a6 6 0 1 0 12 0a6 6 0 1 0-12 0 M30 250h60",
+    magic: { sky: "#CFEFFF", river: "#5EC4E8", tail: "#4E8F3A", body: "#5FA046", jawTop: "#5FA046", jawBottom: "#A3D977", bumps: "#3E7A2E", legs: "#4E8F3A" },
+  },
+  {
+    key: "parrot",
+    en: "Parrot",
+    km: "សេក",
+    regions: [
+      { id: "bg", d: "M0 0H400V400H0Z" },
+      { id: "branch", d: "M20 300C120 290 280 296 390 280V304C280 320 120 316 20 326Z" },
+      { id: "tail", d: "M190 290L170 390H214L214 290Z" },
+      { id: "body", d: "M200 130C256 130 270 200 262 250C254 296 232 306 200 306S146 296 138 250C130 200 144 130 200 130Z" },
+      { id: "wing", d: "M234 180C266 200 270 260 244 296C226 270 222 220 234 180Z" },
+      { id: "head", d: "M200 110m-50 0a50 48 0 1 0 100 0a50 48 0 1 0-100 0" },
+      { id: "face", d: "M186 104m-22 0a22 20 0 1 0 44 0a22 20 0 1 0-44 0" },
+      { id: "beak", d: "M140 104C120 104 112 124 124 138C134 132 146 126 152 118Z" },
+    ],
+    details: "M184 102m-6 0a6 6 0 1 0 12 0a6 6 0 1 0-12 0",
+    magic: { bg: "#DFF4D8", branch: "#7A4A26", tail: "#1D6FA3", body: "#E63946", wing: "#FFD23F", head: "#E63946", face: "#FFFFFF", beak: "#2B2B2B" },
+  },
 ];
 
 const PALETTE = ["#E63946", "#FF8A3D", "#FFD23F", "#A3E635", "#2E8B57", "#5EC4E8", "#1D6FA3", "#8B5CF6", "#F472B6", "#8B5A2B", "#F6C56B", "#9FA8B4", "#FFFFFF", "#1F2A24"];
@@ -138,6 +243,8 @@ const TEXT = {
 };
 
 const STROKE = "#1F2A24";
+/** The eraser clears a part back to blank (white is a normal colour). */
+const ERASE = "erase";
 
 /** Tap-to-fill colouring pages of zoo animals, made for small children. */
 export function ColoringBook() {
@@ -152,7 +259,7 @@ export function ColoringBook() {
 
   const picture = PICTURES.find((p) => p.key === pic)!;
   const current = fills[pic] ?? {};
-  const coloured = picture.regions.filter((r) => current[r.id] && current[r.id] !== "#FFFFFF").length;
+  const coloured = picture.regions.filter((r) => current[r.id]).length;
   const total = picture.regions.length;
 
   // Remember each child's pictures on this device.
@@ -175,7 +282,7 @@ export function ColoringBook() {
   const apply = (next: Record<string, string>) => {
     setHistory((h) => [...h.slice(-30), current]);
     setFills((f) => ({ ...f, [pic]: next }));
-    const done = picture.regions.every((r) => next[r.id] && next[r.id] !== "#FFFFFF");
+    const done = picture.regions.every((r) => next[r.id]);
     if (done && coloured < total) {
       setCelebrate(true);
       setTimeout(() => setCelebrate(false), 3200);
@@ -183,6 +290,12 @@ export function ColoringBook() {
   };
 
   function paint(id: string) {
+    if (color === ERASE) {
+      if (!current[id]) return;
+      const next = { ...current };
+      delete next[id];
+      return apply(next);
+    }
     if (current[id] === color) return;
     apply({ ...current, [id]: color });
   }
@@ -305,10 +418,10 @@ export function ColoringBook() {
             ))}
           </div>
           <div className="mt-3 flex items-center gap-2 rounded-2xl bg-cream p-2">
-            <span className="h-8 w-8 flex-shrink-0 rounded-full ring-2 ring-white" style={{ background: color }} />
+            <span className="h-8 w-8 flex-shrink-0 rounded-full ring-2 ring-white" style={{ background: color === ERASE ? "repeating-linear-gradient(45deg,#fff 0 4px,#e5e7eb 4px 8px)" : color }} />
             <button
-              onClick={() => setColor("#FFFFFF")}
-              className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold", color === "#FFFFFF" ? "bg-forest text-white" : "bg-white text-forest")}
+              onClick={() => setColor(ERASE)}
+              className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold", color === ERASE ? "bg-forest text-white" : "bg-white text-forest")}
             >
               <Eraser size={14} /> {L.eraser}
             </button>

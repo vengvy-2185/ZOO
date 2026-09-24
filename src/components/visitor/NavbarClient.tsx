@@ -343,28 +343,24 @@ export function NavbarClient({
               })}
             </nav>
 
-            {MORE_GROUPS.map((g) => (
-              <div key={g.key} className="mt-3">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-ink/40">{t.nav[g.key]}</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {g.links.map(({ href, key, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={cn(
-                        "flex min-w-0 flex-col items-start gap-1.5 rounded-2xl p-2.5 text-[13px] font-semibold leading-snug transition",
-                        isActivePath(pathname, href) ? "bg-primary text-white" : "bg-white text-forest shadow-soft hover:bg-light-green"
-                      )}
-                    >
-                      <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", isActivePath(pathname, href) ? "bg-white/15" : "bg-light-green text-primary")}>
-                        <Icon size={17} strokeWidth={2.3} />
-                      </span>
-                      {t.nav[key]}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="mt-1 space-y-1">
+              {MORE_LINKS.map(({ href, key, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[15px] font-semibold transition",
+                    isActivePath(pathname, href) ? "bg-primary text-white shadow-soft" : "text-forest hover:bg-white"
+                  )}
+                >
+                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", isActivePath(pathname, href) ? "bg-white/15" : "bg-light-green text-primary")}>
+                    <Icon size={17} strokeWidth={2.3} />
+                  </span>
+                  {t.nav[key]}
+                  <ChevronRight size={14} className={cn("ml-auto", isActivePath(pathname, href) ? "text-white/60" : "text-ink/25")} />
+                </Link>
+              ))}
+            </div>
 
             {dashboard && (
               <>
