@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/visitor/PageHeader";
 import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { getI18n } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { getSiteUrl } from "@/lib/server/site-url";
+import { getRequestOrigin } from "@/lib/server/site-url";
 import { getWallet, REWARDS, REFERRAL, QUEST_POINTS, PURCHASE_RATE } from "@/lib/server/points";
 import { RedeemCard, ShareInvite, CopyButton } from "@/components/visitor/RewardsClient";
 import { formatFullDate } from "@/lib/utils/age";
@@ -99,7 +99,8 @@ export default async function RewardsPage() {
   const L = TEXT[km ? "km" : "en"];
   const user = await getSessionUser();
   const wallet = user ? await getWallet(user.id) : null;
-  const inviteUrl = wallet?.referralCode ? `${getSiteUrl()}/r/${wallet.referralCode}` : null;
+  // The domain the visitor is on right now (Vercel or Render), so the link always matches a working site.
+  const inviteUrl = wallet?.referralCode ? `${getRequestOrigin()}/r/${wallet.referralCode}` : null;
   const next = wallet ? REWARDS.find((r) => r.cost > wallet.balance) : null;
 
   const how = [
