@@ -21,3 +21,21 @@ export function getSiteUrl(): string {
   }
   return env || "http://localhost:3000";
 }
+
+/**
+ * The address the visitor is actually using (from the proxy headers), for
+ * redirects that must stay on the same domain as their login cookies.
+ */
+export function getRequestOrigin(): string {
+  try {
+    const h = headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (host) {
+      const proto = h.get("x-forwarded-proto") ?? (/^localhost|^127\./.test(host) ? "http" : "https");
+      return `${proto.split(",")[0]}://${host}`;
+    }
+  } catch {
+    /* not inside a request */
+  }
+  return getSiteUrl();
+}

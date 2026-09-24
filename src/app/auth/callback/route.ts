@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getRequestOrigin } from "@/lib/server/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 // Supabase redirects here after Google sign-in with a one-time `code`.
@@ -12,7 +13,9 @@ function welcome(res: NextResponse) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  // The public address: behind Render/Vercel, request.url carries the internal host (e.g. localhost:10000).
+  const origin = getRequestOrigin();
   const code = searchParams.get("code");
   // Only same-site paths: "@evil.com" or "//evil.com" appended to origin
   // would otherwise send a freshly signed-in user to another site.
