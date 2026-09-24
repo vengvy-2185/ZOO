@@ -1,4 +1,4 @@
-import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, Gift, type LucideIcon } from "lucide-react";
+import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, Brain, HeartHandshake, Camera, Ruler, Star, Newspaper, Route, CircleHelp, Sparkles, ZoomIn, Mail, Gift, Palette, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Single source of truth for the visitor site's menu — the desktop header,
@@ -16,20 +16,39 @@ export const NAV_LINKS: { href: string; key: keyof Dictionary["nav"]; icon: Luci
 
 /** Extra pages: the desktop "More" dropdown, the mobile menu and the footer.
  *  (My tickets and Favourites are NOT here — they have their own header icons.) */
-export const MORE_LINKS: { href: string; key: keyof Dictionary["nav"]; icon: LucideIcon }[] = [
-  { href: "/rewards", key: "rewards", icon: Gift },
-  { href: "/planner", key: "planner", icon: Route },
-  { href: "/match", key: "match", icon: Sparkles },
-  { href: "/photo-booth", key: "booth", icon: Camera },
-  { href: "/postcard", key: "postcard", icon: Mail },
-  { href: "/compare", key: "compare", icon: Ruler },
-  { href: "/reviews", key: "reviews", icon: Star },
-  { href: "/adopt", key: "adopt", icon: HeartHandshake },
-  { href: "/quiz", key: "quiz", icon: Brain },
-  { href: "/guess", key: "guess", icon: ZoomIn },
-  { href: "/news", key: "news", icon: Newspaper },
-  { href: "/faq", key: "faq", icon: CircleHelp },
+type NavLink = { href: string; key: keyof Dictionary["nav"]; icon: LucideIcon };
+
+export const MORE_GROUPS: { key: keyof Dictionary["nav"]; links: NavLink[] }[] = [
+  {
+    key: "groupPlay",
+    links: [
+      { href: "/coloring", key: "coloring", icon: Palette },
+      { href: "/quiz", key: "quiz", icon: Brain },
+      { href: "/guess", key: "guess", icon: ZoomIn },
+      { href: "/match", key: "match", icon: Sparkles },
+      { href: "/compare", key: "compare", icon: Ruler },
+    ],
+  },
+  {
+    key: "groupCreate",
+    links: [
+      { href: "/rewards", key: "rewards", icon: Gift },
+      { href: "/photo-booth", key: "booth", icon: Camera },
+      { href: "/postcard", key: "postcard", icon: Mail },
+      { href: "/adopt", key: "adopt", icon: HeartHandshake },
+    ],
+  },
+  {
+    key: "groupPlan",
+    links: [
+      { href: "/planner", key: "planner", icon: Route },
+      { href: "/reviews", key: "reviews", icon: Star },
+      { href: "/news", key: "news", icon: Newspaper },
+      { href: "/faq", key: "faq", icon: CircleHelp },
+    ],
+  },
 ];
+export const MORE_LINKS: NavLink[] = MORE_GROUPS.flatMap((g) => g.links);
 
 export function isActivePath(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);

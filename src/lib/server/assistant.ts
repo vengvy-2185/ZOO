@@ -44,7 +44,7 @@ const WORDS = {
   adopt: ["adopt", "sponsor", "donate", "support an animal", "ឧបត្ថម្ភ", "បរិច្ចាគ", "ជួយសត្វ"],
   rewards: ["points", "point", "reward", "rewards", "redeem", "invite", "referral", "refer a friend", "ពិន្ទុ", "រង្វាន់", "អញ្ជើញមិត្ត", "ណែនាំមិត្ត", "ប្តូរពិន្ទុ"],
   booth: ["postcard", "post card", "កាតប៉ុស្តាល់", "photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
-  games: ["quiz", "game", "games", "for kids", "children", "kids", "which animal am i", "ល្បែង", "ហ្គេម", "សម្រាប់កុមារ", "ក្មេង", "កូនតូច"],
+  games: ["coloring", "colouring", "color", "draw", "គូររូប", "លាបពណ៌", "quiz", "game", "games", "for kids", "children", "kids", "which animal am i", "ល្បែង", "ហ្គេម", "សម្រាប់កុមារ", "ក្មេង", "កូនតូច"],
   food: ["food", "eat", "restaurant", "cafe", "coffee", "hungry", "drink", "snack", "អាហារ", "ញ៉ាំ", "ឃ្លាន", "ហាងកាហ្វេ", "ភេសជ្ជៈ", "ភោជនីយដ្ឋាន"],
   toilet: ["toilet", "restroom", "bathroom", "wc", "washroom", "បង្គន់", "បន្ទប់ទឹក"],
   parking: ["parking", "park my", "car park", "motorbike", "ចំណត", "ចតរថយន្ត", "ចតម៉ូតូ"],
@@ -257,11 +257,12 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
   }
   if (has(q, WORDS.games)) {
     return {
-      text: L("Kids love these: the Animal Quest (scan QR signs and collect points), the Quiz, the new Zoom Guess game, Which Animal Are You?, and You vs Animals.", "ក្មេងៗចូលចិត្តណាស់៖ បេសកកម្មសត្វ (ស្កេនផ្លាក QR ប្រមូលពិន្ទុ) ល្បែងសំណួរ ល្បែងថ្មីទាយសត្វពីរូបជិត តើអ្នកជាសត្វអ្វី? និងប្រៀបធៀបខ្លួនអ្នកនឹងសត្វ។"),
+      text: L("Kids love these: the Animal Quest (scan QR signs and collect points), the Quiz, the Zoom Guess game, the Animal Coloring Book, Which Animal Are You?, and You vs Animals.", "ក្មេងៗចូលចិត្តណាស់៖ បេសកកម្មសត្វ (ស្កេនផ្លាក QR ប្រមូលពិន្ទុ) ល្បែងសំណួរ ល្បែងទាយសត្វពីរូបជិត សៀវភៅគូររូបសត្វ តើអ្នកជាសត្វអ្វី? និងប្រៀបធៀបខ្លួនអ្នកនឹងសត្វ។"),
       links: [
         { label: L("Animal Quest", "បេសកកម្ម"), href: "/quest" },
         { label: L("Quiz", "ល្បែងសំណួរ"), href: "/quiz" },
         { label: L("Zoom Guess", "ទាយសត្វពីរូបជិត"), href: "/guess" },
+        { label: L("Coloring book", "សៀវភៅគូររូប"), href: "/coloring" },
         { label: L("Which animal are you?", "តើអ្នកជាសត្វអ្វី?"), href: "/match" },
       ],
     };

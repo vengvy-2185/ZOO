@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Search, Menu, X, LogIn, UserPlus, User, LayoutDashboard, ScanLine, ChevronRight, ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { Logo } from "./Logo";
-import { NAV_LINKS, MORE_LINKS, isActivePath } from "./nav-links";
+import { NAV_LINKS, MORE_LINKS, MORE_GROUPS, isActivePath } from "./nav-links";
 
 const BOTTOM_BAR = ["/", "/animals", "/map", "/tickets"];
 import { FavoritesNavButton } from "./FavoritesGrid";
@@ -138,21 +138,27 @@ export function NavbarClient({
                 {t.nav.more} <ChevronDown size={15} className={cn("transition-transform", moreOpen && "rotate-180")} />
               </button>
               <div className={cn("absolute right-0 top-full z-50 pt-3 transition", moreOpen ? "visible opacity-100" : "invisible -translate-y-1 opacity-0")}>
-                <div className="w-64 rounded-3xl bg-white p-2 shadow-lift ring-1 ring-black/5">
-                  {MORE_LINKS.map(({ href, key, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-[15px] font-semibold transition",
-                        isActivePath(pathname, href) ? "bg-light-green text-primary" : "text-ink/75 hover:bg-cream hover:text-primary"
-                      )}
-                    >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-light-green text-primary">
-                        <Icon size={16} />
-                      </span>
-                      {t.nav[key]}
-                    </Link>
+                <div className="grid w-[min(46rem,calc(100vw-3rem))] grid-cols-3 gap-2 rounded-3xl bg-white p-3 shadow-lift ring-1 ring-black/5">
+                  {MORE_GROUPS.map((g, gi) => (
+                    <div key={g.key} className={cn("min-w-0 p-1", gi > 0 && "border-l border-black/5 pl-3")}>
+                      <p className="px-2 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-wider text-ink/40">{t.nav[g.key]}</p>
+                      {g.links.map(({ href, key, icon: Icon }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setMoreOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-2xl px-2 py-2 text-sm font-semibold transition",
+                            isActivePath(pathname, href) ? "bg-light-green text-primary" : "text-ink/75 hover:bg-cream hover:text-primary"
+                          )}
+                        >
+                          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-light-green text-primary">
+                            <Icon size={16} />
+                          </span>
+                          <span className="min-w-0 leading-snug">{t.nav[key]}</span>
+                        </Link>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -337,17 +343,28 @@ export function NavbarClient({
               })}
             </nav>
 
-            <div className="mt-1 space-y-1">
-              {MORE_LINKS.map(({ href, key, icon: Icon }) => (
-                <Link key={href} href={href} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[15px] font-semibold text-forest transition hover:bg-white">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-light-green text-primary">
-                    <Icon size={17} strokeWidth={2.3} />
-                  </span>
-                  {t.nav[key]}
-                  <ChevronRight size={14} className="ml-auto text-ink/25" />
-                </Link>
-              ))}
-            </div>
+            {MORE_GROUPS.map((g) => (
+              <div key={g.key} className="mt-3">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-ink/40">{t.nav[g.key]}</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {g.links.map(({ href, key, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex min-w-0 flex-col items-start gap-1.5 rounded-2xl p-2.5 text-[13px] font-semibold leading-snug transition",
+                        isActivePath(pathname, href) ? "bg-primary text-white" : "bg-white text-forest shadow-soft hover:bg-light-green"
+                      )}
+                    >
+                      <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", isActivePath(pathname, href) ? "bg-white/15" : "bg-light-green text-primary")}>
+                        <Icon size={17} strokeWidth={2.3} />
+                      </span>
+                      {t.nav[key]}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
 
             {dashboard && (
               <>

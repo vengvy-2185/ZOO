@@ -53,22 +53,26 @@ export function ShareInvite({ url, text, label, copyLabel, copied }: { url: stri
 function Submit({ label, disabled }: { label: string; disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button disabled={disabled || pending} className="btn-primary w-full justify-center py-2.5 text-sm hover:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45">
+    <button disabled={disabled || pending} className="btn-primary w-full justify-center whitespace-nowrap px-2 py-2.5 text-sm hover:translate-y-0 disabled:cursor-not-allowed disabled:bg-black/5 disabled:text-ink/45 disabled:shadow-none">
       {pending ? <Loader2 size={15} className="animate-spin" /> : disabled ? <Lock size={15} /> : <Gift size={15} />} {label}
     </button>
   );
 }
 
-/** One reward card: swap points for a single-use discount code. */
+/** One reward card, drawn as a coupon: swap points for a single-use discount code. */
 export function RedeemCard({
   reward,
-  title,
+  value,
+  caption,
+  colors,
   cost,
   balance,
   t,
 }: {
   reward: string;
-  title: string;
+  value: string;
+  caption: string;
+  colors: [string, string];
   cost: number;
   balance: number;
   t: { redeem: string; needMore: string; got: string; copy: string; copied: string; errors: Record<string, string>; points: string };
@@ -76,28 +80,41 @@ export function RedeemCard({
   const [state, action] = useFormState<RedeemState, FormData>(redeemAction, null);
   const enough = balance >= cost;
   return (
-    <div className={`flex flex-col rounded-3xl p-4 ring-1 transition ${enough ? "bg-white shadow-soft ring-primary/20" : "bg-white/60 ring-black/5"}`}>
-      <p className="font-display text-lg font-extrabold leading-tight text-forest">{title}</p>
-      <p className="mt-1 text-sm font-bold text-primary">
-        {cost} {t.points}
-      </p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-green">
-        <div className="h-full rounded-full bg-gradient-to-r from-primary to-leaf" style={{ width: `${Math.min(100, (balance / cost) * 100)}%` }} />
+    <div className={`relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-soft ring-1 ring-black/5 transition ${enough ? "hover:-translate-y-0.5 hover:shadow-lift" : ""}`}>
+      {/* coupon face */}
+      <div className={`relative px-4 pb-4 pt-3.5 text-white ${enough ? "" : "grayscale-[0.35]"}`} style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}>
+        <Gift size={46} className="pointer-events-none absolute -right-2 -top-1 text-white/20" />
+        <p className="font-display text-4xl font-extrabold leading-none sm:text-5xl">{value}</p>
+        <p className="mt-1.5 text-xs font-semibold leading-snug text-white/90 sm:text-sm">{caption}</p>
       </div>
-      <div className="mt-auto pt-3">
-        {state?.ok && state.code ? (
-          <div className="rounded-2xl bg-light-green p-3 text-center">
-            <p className="text-xs font-bold text-primary">{t.got}</p>
-            <p className="my-1 font-mono text-lg font-extrabold tracking-wider text-forest">{state.code}</p>
-            <CopyButton text={state.code} label={t.copy} done={t.copied} />
-          </div>
-        ) : (
-          <form action={action}>
-            <input type="hidden" name="reward" value={reward} />
-            <Submit label={enough ? t.redeem : t.needMore} disabled={!enough} />
-            {state && !state.ok && <p className="mt-2 text-center text-xs font-semibold text-red-600">{t.errors[state.reason ?? "error"] ?? t.errors.error}</p>}
-          </form>
-        )}
+      {/* perforation */}
+      <div className="relative h-0">
+        <span className="absolute -left-2.5 -top-2.5 h-5 w-5 rounded-full bg-background" />
+        <span className="absolute -right-2.5 -top-2.5 h-5 w-5 rounded-full bg-background" />
+        <span className="absolute inset-x-4 top-0 border-t-2 border-dashed border-white/70" />
+      </div>
+      <div className="flex flex-1 flex-col p-3.5 sm:p-4">
+        <p className="flex items-baseline gap-1 whitespace-nowrap font-display text-lg font-extrabold text-forest">
+          {cost} <span className="text-xs font-bold text-ink/50">{t.points}</span>
+        </p>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-light-green">
+          <div className="h-full rounded-full" style={{ width: `${Math.min(100, (balance / cost) * 100)}%`, background: colors[1] }} />
+        </div>
+        <div className="mt-auto pt-3">
+          {state?.ok && state.code ? (
+            <div className="rounded-2xl bg-light-green p-2.5 text-center">
+              <p className="text-[11px] font-bold text-primary">{t.got}</p>
+              <p className="my-1 font-mono text-base font-extrabold tracking-wider text-forest">{state.code}</p>
+              <CopyButton text={state.code} label={t.copy} done={t.copied} />
+            </div>
+          ) : (
+            <form action={action}>
+              <input type="hidden" name="reward" value={reward} />
+              <Submit label={enough ? t.redeem : t.needMore} disabled={!enough} />
+              {state && !state.ok && <p className="mt-2 text-center text-xs font-semibold text-red-600">{t.errors[state.reason ?? "error"] ?? t.errors.error}</p>}
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

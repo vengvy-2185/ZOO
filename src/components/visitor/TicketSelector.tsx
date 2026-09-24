@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ticket, Baby, GraduationCap, Users, HeartHandshake, Minus, Plus, CalendarDays, Check, ArrowRight, Zap, X, type LucideIcon } from "lucide-react";
+import { Ticket, Baby, GraduationCap, Users, HeartHandshake, Minus, Plus, CalendarDays, Check, ArrowRight, Zap, X, User, type LucideIcon } from "lucide-react";
 import type { TicketType } from "@/types/domain";
 import { cn } from "@/lib/utils/cn";
 import { useI18n } from "@/lib/i18n/client";
@@ -43,9 +43,9 @@ export function TicketSelector({ ticketTypes, initialDate }: { ticketTypes: Tick
   const presets =
     adult && child
       ? [
-          { label: t.tickets.presetCouple, emoji: "👫", q: { [adult.id]: 2 } },
-          { label: t.tickets.presetParent, emoji: "🧑‍🧒", q: { [adult.id]: 1, [child.id]: 1 } },
-          { label: t.tickets.presetFamily, emoji: "👨‍👩‍👧‍👦", q: { [adult.id]: 2, [child.id]: 2 } },
+          { label: t.tickets.presetCouple, icons: [User, User], q: { [adult.id]: 2 } },
+          { label: t.tickets.presetParent, icons: [User, Baby], q: { [adult.id]: 1, [child.id]: 1 } },
+          { label: t.tickets.presetFamily, icons: [Users, Baby], q: { [adult.id]: 2, [child.id]: 2 } },
         ]
       : [];
 
@@ -62,24 +62,39 @@ export function TicketSelector({ ticketTypes, initialDate }: { ticketTypes: Tick
     <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div>
         {presets.length > 0 && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-ink/45">
-              <Zap size={13} className="text-accent" /> {t.tickets.quickPick}
-            </span>
-            {presets.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => setQty(p.q)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-sm font-bold text-forest shadow-soft ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:ring-primary"
-              >
-                <span>{p.emoji}</span> {p.label}
-              </button>
-            ))}
-            {totalVisitors > 0 && (
-              <button onClick={() => setQty({})} className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50">
-                <X size={13} /> {t.tickets.clearAll}
-              </button>
-            )}
+          <div className="mb-5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-forest">
+                <Zap size={15} className="text-accent" /> {t.tickets.quickPick}
+              </span>
+              {totalVisitors > 0 && (
+                <button onClick={() => setQty({})} className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50">
+                  <X size={13} /> {t.tickets.clearAll}
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {presets.map((p) => {
+                const active = Object.keys(p.q).length === Object.keys(qty).filter((k) => (qty[k] ?? 0) > 0).length && Object.entries(p.q).every(([k, v]) => qty[k] === v);
+                return (
+                  <button
+                    key={p.label}
+                    onClick={() => setQty(p.q)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-2xl bg-white px-2 py-3 text-center shadow-soft ring-2 transition hover:-translate-y-0.5 active:scale-[.98]",
+                      active ? "ring-primary" : "ring-transparent hover:ring-primary/40"
+                    )}
+                  >
+                    <span className={cn("flex h-10 items-center justify-center gap-0.5 rounded-xl px-2.5", active ? "bg-primary text-white" : "bg-light-green text-primary")}>
+                      {p.icons.map((I, i) => (
+                        <I key={i} size={i === 0 ? 20 : 16} strokeWidth={2.3} />
+                      ))}
+                    </span>
+                    <span className="text-xs font-bold leading-snug text-forest sm:text-sm">{p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2" data-reveal-stagger="zoom">

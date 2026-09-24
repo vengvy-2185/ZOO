@@ -23,8 +23,9 @@ const TEXT = {
     nextReward: (n: number, r: string) => `${n} more points for ${r}`,
     allUnlocked: "You can afford every reward. Treat yourself!",
     rewards: "Swap points for rewards",
-    redeem: "Get this reward",
-    needMore: (n: number) => `${n} more points needed`,
+    redeem: "Get it",
+    needMore: (n: number) => `${n} to go`,
+    off: "off tickets",
     got: "Your code is ready",
     copy: "Copy",
     copied: "Copied",
@@ -61,8 +62,9 @@ const TEXT = {
     nextReward: (n: number, r: string) => `ខ្វះ ${n} ពិន្ទុទៀត ដើម្បីទទួលបាន${r}`,
     allUnlocked: "អ្នកមានពិន្ទុគ្រប់គ្រាន់សម្រាប់រង្វាន់ទាំងអស់ហើយ!",
     rewards: "ប្តូរពិន្ទុជារង្វាន់",
-    redeem: "យករង្វាន់នេះ",
-    needMore: (n: number) => `ខ្វះ ${n} ពិន្ទុទៀត`,
+    redeem: "យករង្វាន់",
+    needMore: (n: number) => `ខ្វះ ${n} ពិន្ទុ`,
+    off: "បញ្ចុះតម្លៃសំបុត្រ",
     got: "លេខកូដរបស់អ្នករួចរាល់",
     copy: "ចម្លង",
     copied: "បានចម្លង",
@@ -148,12 +150,14 @@ export default async function RewardsPage() {
               <h2 className="section-title text-xl md:text-2xl">
                 <Gift size={24} className="text-primary" /> {L.rewards}
               </h2>
-              <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {REWARDS.map((r) => (
                   <RedeemCard
                     key={r.key}
                     reward={r.key}
-                    title={km ? r.km : r.en}
+                    value={r.value}
+                    caption={L.off}
+                    colors={[r.from, r.to]}
                     cost={r.cost}
                     balance={wallet.balance}
                     t={{ redeem: L.redeem, needMore: L.needMore(Math.max(0, r.cost - wallet.balance)), got: L.got, copy: L.copy, copied: L.copied, errors: L.errors, points: L.points }}

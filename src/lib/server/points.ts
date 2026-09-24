@@ -3,10 +3,10 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 
 /** What points can buy. Prices are enforced in the database (redeem_points); these are for display. */
 export const REWARDS = [
-  { key: "p5", cost: 100, en: "5% off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ 5%" },
-  { key: "p10", cost: 200, en: "10% off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ 10%" },
-  { key: "usd2", cost: 250, en: "$2 off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ $2" },
-  { key: "p20", cost: 450, en: "20% off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ 20%" },
+  { key: "p5", cost: 100, value: "5%", en: "5% off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ 5%", from: "#8CCB63", to: "#2E8B57" },
+  { key: "p10", cost: 200, value: "10%", en: "10% off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ 10%", from: "#5EC4E8", to: "#1D6FA3" },
+  { key: "usd2", cost: 250, value: "$2", en: "$2 off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ $2", from: "#F4C95D", to: "#D98F2B" },
+  { key: "p20", cost: 450, value: "20%", en: "20% off tickets", km: "បញ្ចុះតម្លៃសំបុត្រ 20%", from: "#F59E7B", to: "#C2410C" },
 ] as const;
 export type RewardKey = (typeof REWARDS)[number]["key"];
 

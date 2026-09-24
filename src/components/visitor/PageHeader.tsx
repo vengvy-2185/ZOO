@@ -30,7 +30,7 @@ export function PageHeader({
             <Icon size={28} strokeWidth={2.2} />
           </span>
           <div className="min-w-0">
-            {eyebrow && <p className="text-xs font-bold uppercase tracking-[0.2em] text-leaf">{eyebrow}</p>}
+            {eyebrow && <p className="mb-1 text-xs font-bold uppercase leading-relaxed tracking-[0.2em] text-leaf">{eyebrow}</p>}
             <h1 className="font-display text-3xl font-extrabold leading-tight md:text-5xl">{title}</h1>
             {subtitle && <p className="mt-1.5 max-w-2xl text-white/80">{subtitle}</p>}
           </div>
