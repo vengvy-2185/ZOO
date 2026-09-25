@@ -14,7 +14,7 @@ export default async function GatePage() {
   const km = locale === "km";
   return (
     <StaffShell active="gate" title={km ? "បញ្ជររាប់ភ្ញៀវ" : "Gate counter"} subtitle={km ? "រាប់ភ្ញៀវដែលទិញសំបុត្រនៅច្រកចូល។" : "Count visitors who buy at the gate."}>
-      <GateCounter initial={totals} locale={locale} embedded />
+      <GateCounter initial={totals} locale={locale} embedded tone="blue" />
     </StaffShell>
   );
 }

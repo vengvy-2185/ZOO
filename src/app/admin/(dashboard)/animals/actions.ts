@@ -27,7 +27,12 @@ function animalFields(formData: FormData) {
     row[f] = text(formData, f);
     row[`${f}_km`] = text(formData, `${f}_km`);
   }
-  // animal_code is filled in by the database (fill_animal_code trigger) and never changed here.
+  // animal_code: typed by the admin, or left blank so the database makes one (fill_animal_code trigger).
+  const code = text(formData, "animal_code")?.toUpperCase().replace(/\s+/g, "");
+  if (code) {
+    if (!/^[A-Z0-9][A-Z0-9-]{2,19}$/.test(code)) throw new Error("Animal code: use 3-20 letters, numbers or dashes, e.g. PAND-A-102.");
+    row.animal_code = code;
+  }
   if (!row.name || !row.species_id || !row.category_id) {
     throw new Error("Name, category and species are required.");
   }

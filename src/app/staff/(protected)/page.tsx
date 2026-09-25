@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ScanLine, UserRoundPlus, PawPrint, BarChart3, LogIn, LogOut, Clock, Wallet, ShieldAlert, BadgeCheck, CheckCircle2, CalendarOff, Megaphone, Pin, ChevronRight, Users } from "lucide-react";
+import { Ticket, Map as MapIcon, Sparkles, ScanLine, UserRoundPlus, PawPrint, BarChart3, LogIn, LogOut, Clock, Wallet, ShieldAlert, BadgeCheck, CheckCircle2, CalendarOff, Megaphone, Pin, ChevronRight, Users } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, payroll, thisMonth, openShift } from "@/lib/server/staff";
@@ -46,11 +46,20 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
     ? { hi: "សួស្តី", admin: "អ្នកកំពុងមើលជាអ្នកគ្រប់គ្រង។", onShift: "កំពុងធ្វើការ ចាប់ពី", off: "មិនទាន់ចុះម៉ោងចូល", in: "ចុះម៉ោងចូល", out: "ចុះម៉ោងចេញ", month: "ប្រាក់ខែខែនេះ", days: "ថ្ងៃ", hours: "ម៉ោង", est: "ប៉ាន់ស្មាន", paid: "បានបើករួច", details: "មើលលម្អិត", tools: "ឧបករណ៍ការងារ", scanner: "ស្កេនសំបុត្រ", scannerT: "ស្កេន QR ចូល និងទទួលប្រាក់ KHQR", gate: "បញ្ជររាប់ភ្ញៀវ", gateT: "រាប់ភ្ញៀវដែលទិញនៅច្រកចូល", animals: "កំណត់ត្រាថែសត្វ", animalsT: "ការឲ្យចំណី សុខភាព និងការសម្អាត", booked: "សំបុត្រកក់ថ្ងៃនេះ", insideNow: "ភ្ញៀវចូលថ្ងៃនេះ", noTools: "តួនាទីរបស់អ្នកមិនមានឧបករណ៍បន្ថែមទេ។", denied: "តួនាទីរបស់អ្នកមិនអាចប្រើឧបករណ៍នោះបានទេ។", notices: "សេចក្តីជូនដំណឹង", noNotices: "មិនទាន់មានសេចក្តីជូនដំណឹងទេ។", leave: "សុំច្បាប់", leaveT: (n: number) => (n ? `${n} សំណើកំពុងរង់ចាំ` : "ស្នើសុំឈប់សម្រាក"), hoursT: "ម៉ោងធ្វើការរបស់ខ្ញុំ", team: "អ្នកកំពុងធ្វើការឥឡូវ", nobody: "មិនទាន់មាននរណាចុះម៉ោងចូលទេ។", sub: "ថ្ងៃនេះ" }
     : { hi: "Hello", admin: "You are viewing as an admin.", onShift: "On shift since", off: "Not clocked in", in: "Clock in", out: "Clock out", month: "Pay this month", days: "days", hours: "hours", est: "estimate", paid: "Paid", details: "Details", tools: "Work tools", scanner: "Ticket scanner", scannerT: "Scan entry QR codes, take KHQR payments", gate: "Gate counter", gateT: "Count walk-in visitors", animals: "Animal care log", animalsT: "Feeding, health and cleaning notes", booked: "Tickets booked today", insideNow: "Visitors in today", noTools: "Your position has no extra tools.", denied: "Your position can't use that tool.", notices: "Notices", noNotices: "No notices yet.", leave: "Leave", leaveT: (n: number) => (n ? `${n} request(s) waiting` : "Ask for time off"), hoursT: "My working hours", team: "Working right now", nobody: "Nobody is clocked in yet.", sub: "Today" };
 
+  const X = km
+    ? { bookings: "ការកក់ថ្ងៃនេះ", bookingsT: "ស្វែងរកសំបុត្រ មើលអ្នកបានបង់ និងបានចូល", board: "ផ្ទាំងចំណី", boardT: "សត្វណាមិនទាន់បានចំណីថ្ងៃនេះ", schedule: "កម្មវិធីថ្ងៃនេះ", scheduleT: "កម្មវិធីសម្តែង និងការផ្តល់ចំណី តាមម៉ោង", cleaning: "បញ្ជីសម្អាត", cleaningT: "ធីកតំបន់ និងសេវាកម្មដែលសម្អាតរួច", reports: "របាយការណ៍", reportsT: "តួលេខថ្ងៃនេះ និង ៧ ថ្ងៃចុងក្រោយ" }
+    : { bookings: "Today's bookings", bookingsT: "Find tickets, see who paid and who's in", board: "Feeding board", boardT: "Which animals still need feeding today", schedule: "Today's programme", scheduleT: "Shows and feedings by the clock", cleaning: "Cleaning checklist", cleaningT: "Tick zones and facilities as they're cleaned", reports: "Reports", reportsT: "Today's numbers and the last 7 days" };
+  // one look for every tool: blue icon tiles
   const tools = [
-    access.perms.has("tickets") && { href: "/staff/scanner", icon: ScanLine, title: L.scanner, text: L.scannerT, color: "#2563EB" },
-    access.perms.has("tickets") && { href: "/staff/gate", icon: UserRoundPlus, title: L.gate, text: L.gateT, color: "#0EA5E9" },
-    access.perms.has("animals") && { href: "/staff/animals", icon: PawPrint, title: L.animals, text: L.animalsT, color: "#15803D" },
-  ].filter(Boolean) as { href: string; icon: any; title: string; text: string; color: string }[];
+    access.perms.has("tickets") && { href: "/staff/scanner", icon: ScanLine, title: L.scanner, text: L.scannerT },
+    access.perms.has("tickets") && { href: "/staff/gate", icon: UserRoundPlus, title: L.gate, text: L.gateT },
+    access.perms.has("tickets") && { href: "/staff/bookings", icon: Ticket, title: X.bookings, text: X.bookingsT },
+    access.perms.has("animals") && { href: "/staff/animals", icon: PawPrint, title: L.animals, text: L.animalsT },
+    access.perms.has("animals") && { href: "/staff/animals?tab=board", icon: CheckCircle2, title: X.board, text: X.boardT },
+    access.perms.has("guide") && { href: "/staff/schedule", icon: MapIcon, title: X.schedule, text: X.scheduleT },
+    access.perms.has("cleaning") && { href: "/staff/cleaning", icon: Sparkles, title: X.cleaning, text: X.cleaningT },
+    access.perms.has("reports") && { href: "/staff/reports", icon: BarChart3, title: X.reports, text: X.reportsT },
+  ].filter(Boolean) as { href: string; icon: any; title: string; text: string }[];
   const time = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
   const date = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { day: "numeric", month: "short", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
   const todayLong = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date());
@@ -64,7 +73,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
         access.staff && (
           <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
             <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 font-mono font-bold ring-1 ring-white/20"><BadgeCheck size={14} /> {access.staff.staff_no}</span>
-            {p && <span className="rounded-full px-3 py-1 font-bold shadow-soft" style={{ background: p.color }}>{(km && p.name_km) || p.name}</span>}
+            {p && <span className="rounded-full bg-white px-3 py-1 font-bold text-[#1E3A8A] shadow-soft">{(km && p.name_km) || p.name}</span>}
           </p>
         )
       }
@@ -116,7 +125,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((t) => (
             <Link key={t.href} href={t.href} className="group card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl text-white shadow-soft" style={{ background: t.color }}><t.icon size={26} /></span>
+              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] text-white shadow-soft"><t.icon size={26} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-lg font-extrabold text-forest">{t.title}</span>
                 <span className="block text-xs text-ink/55">{t.text}</span>
@@ -126,17 +135,17 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
           ))}
           {access.staff && (
             <Link href="/staff/leave" className="group card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F59E0B] text-white shadow-soft"><CalendarOff size={26} /></span>
+              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8]"><CalendarOff size={26} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-lg font-extrabold text-forest">{L.leave}</span>
-                <span className={`block text-xs ${pendingLeave ? "font-bold text-amber-700" : "text-ink/55"}`}>{L.leaveT(pendingLeave ?? 0)}</span>
+                <span className={`block text-xs ${pendingLeave ? "font-bold text-[#1D4ED8]" : "text-ink/55"}`}>{L.leaveT(pendingLeave ?? 0)}</span>
               </span>
               <ChevronRight size={18} className="text-ink/25 transition group-hover:translate-x-0.5 group-hover:text-ink/60" />
             </Link>
           )}
           {reports && (
             <div className="card flex items-center gap-4 p-4">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-[#7C3AED] text-white shadow-soft"><BarChart3 size={26} /></span>
+              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8]"><Users size={26} /></span>
               <div className="grid flex-1 grid-cols-2 gap-2 text-center">
                 <div><p className="font-display text-2xl font-extrabold text-forest">{reports[0].count ?? 0}</p><p className="text-[11px] text-ink/55">{L.booked}</p></div>
                 <div><p className="font-display text-2xl font-extrabold text-forest">{inside}</p><p className="text-[11px] text-ink/55">{L.insideNow}</p></div>
@@ -156,9 +165,9 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
               <p className="card p-5 text-sm text-ink/55">{L.noNotices}</p>
             ) : (
               (notices ?? []).map((n: any) => (
-                <div key={n.id} className={`card p-4 ${n.pinned ? "ring-2 ring-amber-300" : ""}`}>
+                <div key={n.id} className={`card p-4 ${n.pinned ? "ring-2 ring-[#93C5FD]" : ""}`}>
                   <p className="flex items-center gap-2 font-display font-extrabold text-forest">
-                    {n.pinned && <Pin size={14} className="text-amber-500" />} {n.title}
+                    {n.pinned && <Pin size={14} className="text-[#1D4ED8]" />} {n.title}
                     <span className="ml-auto text-[11px] font-semibold text-ink/40">{date(n.created_at)}</span>
                   </p>
                   <p className="mt-1 whitespace-pre-line text-sm text-ink/70">{n.body}</p>
@@ -171,7 +180,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
         {/* team on shift */}
         {showTeam && (
           <section>
-            <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-extrabold text-forest"><Users size={20} className="text-[#1D4ED8]" /> {L.team} <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm text-emerald-700">{onShiftIds.length}</span></h2>
+            <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-extrabold text-forest"><Users size={20} className="text-[#1D4ED8]" /> {L.team} <span className="rounded-full bg-[#EEF2FF] px-2.5 py-0.5 text-sm text-[#1D4ED8]">{onShiftIds.length}</span></h2>
             <div className="card divide-y divide-black/5">
               {(teamRows ?? []).length === 0 ? (
                 <p className="p-5 text-sm text-ink/55">{L.nobody}</p>

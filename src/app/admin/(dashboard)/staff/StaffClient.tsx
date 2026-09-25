@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { Camera, Check, Copy, KeyRound, Loader2, Printer, UserPlus, X } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 import { createStaff, resetStaffPassword, type CreateStaffState, type ResetState } from "./actions";
 
 type Pos = { id: string; name: string; name_km: string | null; pay_type: string; rate: number };
@@ -152,6 +153,10 @@ export function AddStaffForm({ positions, km, today }: { positions: Pos[]; km: b
                 </option>
               ))}
             </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-ink/50">{km ? "លេខសម្គាល់បុគ្គលិក" : "Staff ID"}</span>
+            <input name="staff_no" className={cn(field, "font-mono uppercase")} placeholder={km ? "ទុកទទេ = ស្វ័យប្រវត្តិ" : "Blank = automatic"} autoComplete="off" spellCheck={false} pattern="[A-Za-z0-9][A-Za-z0-9\-]{2,19}" />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-ink/50">{L.phone}</span>

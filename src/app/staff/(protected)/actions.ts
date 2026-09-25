@@ -130,3 +130,25 @@ export async function changeMyPassword(_prev: PasswordState, formData: FormData)
   const { error } = await db.auth.admin.updateUserById(id, { password: next });
   return error ? { error: "other" } : { ok: true };
 }
+
+// ── Daily task ticks (cleaning checklist, guide programme) ────────────
+/** Ticks (or un-ticks) one cleaning spot or one programme event for today. */
+export async function toggleTask(kind: "cleaning" | "event", ref: string) {
+  const { id, access } = await me();
+  if (!access.perms.has(kind === "cleaning" ? "cleaning" : "guide")) throw new Error("Not allowed for your position.");
+  if (!/^[\w-]{1,64}$/.test(ref)) return;
+  const db = createServiceRoleClient();
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  const { data: done } = await db.from("staff_task_checks").select("id").eq("kind", kind).eq("ref", ref).eq("check_date", today).maybeSingle();
+  if (done) await db.from("staff_task_checks").delete().eq("id", done.id);
+  else await db.from("staff_task_checks").insert({ kind, ref, user_id: id, check_date: today });
+  revalidatePath(kind === "cleaning" ? "/staff/cleaning" : "/staff/schedule");
+}
+
+/** One tap on the animal board: "fed just now". */
+export async function markFed(animalId: string) {
+  const { id, access } = await me();
+  if (!access.perms.has("animals")) throw new Error("Not allowed for your position.");
+  await createServiceRoleClient().from("animal_care_logs").insert({ animal_id: animalId, user_id: id, kind: "feeding", note: "Fed" });
+  revalidatePath("/staff/animals");
+}

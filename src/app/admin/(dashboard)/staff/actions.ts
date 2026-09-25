@@ -6,7 +6,7 @@ import { getCachedRole } from "@/lib/auth/role";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { resolveImage } from "@/lib/admin/upload";
 import { getMembers, ensureCard } from "@/lib/server/members";
-import { makePassword, staffEmail, monthRange, payroll, type Permission, type PayType } from "@/lib/server/staff";
+import { makePassword, staffEmail, monthRange, payroll, isStaffNo, type Permission, type PayType } from "@/lib/server/staff";
 
 // Staff accounts are made here, and only here: an admin fills in the form,
 // the server creates the sign-in account (Staff ID + password), the staff
@@ -43,8 +43,19 @@ export async function createStaff(_prev: CreateStaffState, formData: FormData): 
     return { ok: false, error: e.message };
   }
 
-  const { data: staffNo, error: seqErr } = await db.rpc("next_staff_no");
-  if (seqErr || !staffNo) return { ok: false, error: "Could not make a Staff ID." };
+  // Staff ID: typed by the admin, or the next automatic one (GWZ-S-0001, …).
+  const typed = str(formData, "staff_no").toUpperCase();
+  let staffNo: string;
+  if (typed) {
+    if (!isStaffNo(typed)) return { ok: false, error: "Staff ID: use 3-20 letters, numbers or dashes (e.g. GWZ-S-0101)." };
+    const { data: taken } = await db.from("staff_members").select("user_id").eq("staff_no", typed).maybeSingle();
+    if (taken) return { ok: false, error: `Staff ID ${typed} is already used.` };
+    staffNo = typed;
+  } else {
+    const { data: next, error: seqErr } = await db.rpc("next_staff_no");
+    if (seqErr || !next) return { ok: false, error: "Could not make a Staff ID." };
+    staffNo = next;
+  }
   const password = makePassword();
   const { data: created, error: authErr } = await db.auth.admin.createUser({
     email: staffEmail(staffNo),
@@ -119,7 +130,7 @@ function positionFields(f: FormData) {
     name_km: str(f, "name_km") || null,
     pay_type: (["monthly", "daily", "hourly"].includes(pay) ? pay : "monthly") as PayType,
     rate: money(f, "rate"),
-    permissions: f.getAll("permissions").map(String).filter((p): p is Permission => ["tickets", "animals", "reports"].includes(p)),
+    permissions: f.getAll("permissions").map(String).filter((p): p is Permission => ["tickets", "animals", "reports", "guide", "cleaning"].includes(p)),
     color: /^#[0-9a-f]{6}$/i.test(str(f, "color")) ? str(f, "color") : "#2563EB",
   };
 }

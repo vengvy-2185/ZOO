@@ -223,14 +223,14 @@ export default function ScannerPage() {
   const S = result ? STYLE[result.verdict] : null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0B1F14] text-white">
+    <div className="flex flex-col overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#0F1E4A] to-[#0B1433] pb-2 text-white shadow-lift">
       <header className="flex items-center justify-between gap-2 px-4 py-3">
         <Link href="/staff" className="flex items-center gap-2 font-display text-lg font-extrabold">
-          <ScanLine size={20} className="text-leaf" /> {L.title}
+          <ScanLine size={20} className="text-[#93C5FD]" /> {L.title}
         </Link>
         <div className="flex items-center gap-2">
           <span className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold">
-            {L.today}: <span className="text-leaf">{count}</span>
+            {L.today}: <span className="text-[#93C5FD]">{count}</span>
           </span>
           <Link href="/staff/gate" className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold hover:bg-white/20">
             <UserRoundPlus size={14} /> {L.gate}
@@ -238,7 +238,7 @@ export default function ScannerPage() {
         </div>
       </header>
 
-      <main className="relative mx-auto w-full max-w-md flex-1 px-4 pb-6">
+      <main className="relative mx-auto w-full max-w-md flex-1 px-4 pb-4">
         {/* Viewfinder */}
         <div className="relative aspect-[3/4] overflow-hidden rounded-[2rem] bg-black">
           <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
@@ -248,9 +248,9 @@ export default function ScannerPage() {
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="relative h-[62%] w-[78%]">
                   {["left-0 top-0 border-l-4 border-t-4 rounded-tl-3xl", "right-0 top-0 border-r-4 border-t-4 rounded-tr-3xl", "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-3xl", "bottom-0 right-0 border-b-4 border-r-4 rounded-br-3xl"].map((c) => (
-                    <span key={c} className={cn("absolute h-12 w-12 border-leaf", c)} />
+                    <span key={c} className={cn("absolute h-12 w-12 border-[#93C5FD]", c)} />
                   ))}
-                  <span className="absolute inset-x-3 top-1/2 h-0.5 animate-pulse bg-leaf/80 shadow-[0_0_12px_#A3E635]" />
+                  <span className="absolute inset-x-3 top-1/2 h-0.5 animate-pulse bg-[#93C5FD] shadow-[0_0_12px_#60A5FA]" />
                 </div>
               </div>
               <p className="absolute inset-x-0 bottom-4 text-center text-sm font-semibold text-white/85 drop-shadow">{L.point}</p>
@@ -260,7 +260,7 @@ export default function ScannerPage() {
           )}
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-              <Loader2 size={48} className="animate-spin text-leaf" />
+              <Loader2 size={48} className="animate-spin text-[#93C5FD]" />
             </div>
           )}
 
@@ -325,14 +325,14 @@ export default function ScannerPage() {
                     <img src={pay.img} alt="KHQR" className="w-full" />
                   </KhqrCard>
                   <p className="mt-3 flex items-center justify-center gap-2 text-center text-sm font-bold text-white">
-                    <Loader2 size={16} className="animate-spin text-leaf" /> {km ? "ឲ្យភ្ញៀវស្កេនបង់ · រង់ចាំ Bakong បញ្ជាក់…" : "Let the visitor scan and pay · waiting for Bakong…"}
+                    <Loader2 size={16} className="animate-spin text-[#93C5FD]" /> {km ? "ឲ្យភ្ញៀវស្កេនបង់ · រង់ចាំ Bakong បញ្ជាក់…" : "Let the visitor scan and pay · waiting for Bakong…"}
                   </p>
                   <p className="mt-1 text-center font-mono text-xs text-white/60">{pay.code}</p>
                 </>
               ) : pay.state === "error" ? (
                 <p className="rounded-2xl bg-red-600 p-5 text-center font-bold text-white">{km ? "មិនអាចបង្កើត KHQR បានទេ (ពិនិត្យការកំណត់ Bakong)។" : "Couldn't make a KHQR (check the Bakong settings)."}</p>
               ) : (
-                <div className="flex justify-center"><Loader2 size={44} className="animate-spin text-leaf" /></div>
+                <div className="flex justify-center"><Loader2 size={44} className="animate-spin text-[#93C5FD]" /></div>
               )}
               <button onClick={() => setPay(null)} className="mt-4 w-full rounded-2xl bg-white/15 py-3 font-bold text-white">
                 {km ? "បិទ" : "Close"}
@@ -355,10 +355,10 @@ export default function ScannerPage() {
               placeholder={L.manual}
               value={manual}
               onChange={(e) => setManual(e.target.value)}
-              className="w-full rounded-2xl bg-white/10 py-3 pl-9 pr-3 text-sm outline-none placeholder:text-white/40 focus:ring-2 focus:ring-leaf"
+              className="w-full rounded-2xl bg-white/10 py-3 pl-9 pr-3 text-sm outline-none placeholder:text-white/40 focus:ring-2 focus:ring-[#93C5FD]"
             />
           </div>
-          <button className="rounded-2xl bg-leaf px-5 text-sm font-extrabold text-forest">{L.check}</button>
+          <button className="rounded-2xl bg-[#3B82F6] px-5 text-sm font-extrabold text-white">{L.check}</button>
         </form>
       </main>
     </div>

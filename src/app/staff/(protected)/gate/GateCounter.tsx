@@ -9,7 +9,8 @@ import { addGateEntry } from "./actions";
 import { cn } from "@/lib/utils/cn";
 
 /** Big-button tally for the entrance gate. Counts update instantly; the server write follows. */
-export function GateCounter({ initial, locale, embedded = false }: { initial: Record<string, number>; locale: string; /** Inside the admin shell (sidebar menu) instead of full screen. */ embedded?: boolean }) {
+export function GateCounter({ initial, locale, embedded = false, tone }: { initial: Record<string, number>; locale: string; /** Inside the admin shell (sidebar menu) instead of full screen. */ embedded?: boolean; /** "blue": the staff area look (white cards, blue buttons) */ tone?: "blue" }) {
+  const blue = embedded && tone === "blue";
   const km = locale === "km";
   const [totals, setTotals] = useState(initial);
   const [bump, setBump] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function GateCounter({ initial, locale, embedded = false }: { initial: Re
   const today = formatFullDate(zooToday() + "T12:00:00", km ? "km" : "en");
 
   return (
-    <div className={embedded ? "rounded-[2rem] bg-gradient-to-b from-forest to-[#0B3B21] pb-6 pt-1 text-white shadow-lift" : "min-h-screen bg-gradient-to-b from-forest to-[#0B3B21] pb-10 text-white"}>
+    <div className={blue ? "pb-2 text-ink" : embedded ? "rounded-[2rem] bg-gradient-to-b from-forest to-[#0B3B21] pb-6 pt-1 text-white shadow-lift" : "min-h-screen bg-gradient-to-b from-forest to-[#0B3B21] pb-10 text-white"}>
       <header className={cn("mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 pt-5", embedded && "hidden")}>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-leaf">{km ? "រាប់ភ្ញៀវចូល" : "Gate counter"}</p>
@@ -58,13 +59,13 @@ export function GateCounter({ initial, locale, embedded = false }: { initial: Re
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4">
-        <div className="mt-5 rounded-[2rem] bg-white/10 p-5 text-center ring-1 ring-white/15 backdrop-blur">
-          <p className="text-sm text-white/60">{km ? "ភ្ញៀវសរុបថ្ងៃនេះ" : "Visitors today"}</p>
+      <div className={blue ? "" : "mx-auto max-w-2xl px-4"}>
+        <div className={blue ? "rounded-[2rem] bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] p-5 text-center text-white shadow-lift" : "mt-5 rounded-[2rem] bg-white/10 p-5 text-center ring-1 ring-white/15 backdrop-blur"}>
+          <p className="text-sm text-white/70">{km ? "ភ្ញៀវសរុបថ្ងៃនេះ" : "Visitors today"}</p>
           <p className="font-display text-6xl font-extrabold tabular-nums">{total}</p>
           <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-white/10">
             {GATE_CATEGORIES.map((c) => (
-              <span key={c.key} className="h-full transition-all duration-500" style={{ width: total ? `${(totals[c.key] / total) * 100}%` : 0, background: c.color }} />
+              <span key={c.key} className="h-full border-r border-white/30 transition-all duration-500 last:border-0" style={{ width: total ? `${(totals[c.key] / total) * 100}%` : 0, background: blue ? "#fff" : c.color }} />
             ))}
           </div>
         </div>
@@ -73,11 +74,11 @@ export function GateCounter({ initial, locale, embedded = false }: { initial: Re
           <button
             onClick={undo}
             disabled={history.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold transition hover:bg-white/20 disabled:opacity-30"
+            className={cn("inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition disabled:opacity-30", blue ? "bg-white text-[#1E3A8A] shadow-soft hover:bg-[#EEF2FF]" : "bg-white/10 hover:bg-white/20")}
           >
             <Undo2 size={15} /> {km ? "ត្រឡប់វិញ" : "Undo"}
             {history.length > 0 && (
-              <span className="text-white/60">
+              <span className={blue ? "text-ink/50" : "text-white/60"}>
                 ({history[history.length - 1].delta > 0 ? "+" : ""}
                 {history[history.length - 1].delta} {GATE_CATEGORIES.find((c) => c.key === history[history.length - 1].key)?.emoji})
               </span>
@@ -93,13 +94,13 @@ export function GateCounter({ initial, locale, embedded = false }: { initial: Re
 
         <div className="mt-4 grid gap-3">
           {GATE_CATEGORIES.map((c) => (
-            <div key={c.key} className="flex items-center gap-3 rounded-3xl bg-white p-3 text-ink shadow-lift">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl text-3xl" style={{ background: `${c.color}1f` }}>
+            <div key={c.key} className={cn("flex items-center gap-3 rounded-3xl bg-white p-3 text-ink", blue ? "shadow-soft ring-1 ring-black/5" : "shadow-lift")}>
+              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl text-3xl" style={{ background: blue ? "#EEF2FF" : `${c.color}1f` }}>
                 {c.emoji}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold text-forest">{km ? c.km : c.en}</p>
-                <p className={`font-display text-3xl font-extrabold tabular-nums transition-transform ${bump?.startsWith(c.key) ? "scale-125" : ""}`} style={{ color: c.color }}>
+                <p className={`font-display text-3xl font-extrabold tabular-nums transition-transform ${bump?.startsWith(c.key) ? "scale-125" : ""}`} style={{ color: blue ? "#1E3A8A" : c.color }}>
                   {totals[c.key]}
                 </p>
               </div>
@@ -114,7 +115,7 @@ export function GateCounter({ initial, locale, embedded = false }: { initial: Re
               <button
                 onClick={() => change(c.key, 5)}
                 className="hidden h-12 rounded-2xl px-3 text-sm font-extrabold text-white active:scale-90 sm:block"
-                style={{ background: `${c.color}b3` }}
+                style={{ background: blue ? "#93C5FD" : `${c.color}b3` }}
               >
                 +5
               </button>
@@ -122,14 +123,14 @@ export function GateCounter({ initial, locale, embedded = false }: { initial: Re
                 onClick={() => change(c.key, 1)}
                 aria-label={`+1 ${c.en}`}
                 className="flex h-14 w-16 items-center justify-center rounded-2xl text-white shadow-soft active:scale-90"
-                style={{ background: c.color }}
+                style={{ background: blue ? "#1D4ED8" : c.color }}
               >
                 <Plus size={28} strokeWidth={3} />
               </button>
             </div>
           ))}
         </div>
-        <p className="mt-4 text-center text-xs text-white/45">
+        <p className={cn("mt-4 text-center text-xs", blue ? "text-ink/45" : "text-white/45")}>
           {km ? "ចុច + ពេលភ្ញៀវម្នាក់ចូល។ ចុច − ដើម្បីកែកំហុស។" : "Tap + for every visitor who walks in. Tap − to fix a mistake."}
         </p>
       </div>

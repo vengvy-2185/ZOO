@@ -9,13 +9,17 @@ import { getCachedRole } from "@/lib/auth/role";
 
 export const STAFF_EMAIL_DOMAIN = "staff.greenwildzoo.local";
 export const staffEmail = (staffNo: string) => `${staffNo.toLowerCase()}@${STAFF_EMAIL_DOMAIN}`;
-export const isStaffNo = (s: string) => /^GWZ-S-\d{4,6}$/i.test(s.trim());
+/** A Staff ID: the automatic GWZ-S-0001 style, or one typed by the admin (letters, numbers, dashes). */
+export const isStaffNo = (s: string) => /^[A-Z0-9][A-Z0-9-]{2,19}$/i.test(s.trim());
 
-export type Permission = "tickets" | "animals" | "reports";
+export type Permission = "tickets" | "animals" | "reports" | "guide" | "cleaning";
+export const ALL_PERMISSIONS: Permission[] = ["tickets", "animals", "reports", "guide", "cleaning"];
 export const PERMISSIONS: { key: Permission; en: string; km: string }[] = [
   { key: "tickets", en: "Tickets & gate (scanner, counter, check-in)", km: "សំបុត្រ និងច្រកចូល (ស្កេន បញ្ជរ ចូល)" },
   { key: "animals", en: "Animal care log", km: "កំណត់ត្រាថែសត្វ" },
-  { key: "reports", en: "Today's numbers", km: "តួលេខថ្ងៃនេះ" },
+  { key: "reports", en: "Reports", km: "របាយការណ៍" },
+  { key: "guide", en: "Tour guide (today's programme)", km: "មគ្គុទ្ទេសក៍ (កម្មវិធីថ្ងៃនេះ)" },
+  { key: "cleaning", en: "Cleaning checklist", km: "បញ្ជីសម្អាត" },
 ];
 export type PayType = "monthly" | "daily" | "hourly";
 export const PAY_TYPE: Record<PayType, { en: string; km: string; unit: { en: string; km: string } }> = {
@@ -58,7 +62,7 @@ export async function getStaff(userId?: string): Promise<StaffRow[]> {
  */
 export async function staffAccess(userId: string) {
   const { role } = await getCachedRole(userId);
-  if (role === "admin") return { ok: true, admin: true, staff: null as StaffRow | null, perms: new Set<Permission>(["tickets", "animals", "reports"]) };
+  if (role === "admin") return { ok: true, admin: true, staff: null as StaffRow | null, perms: new Set<Permission>(ALL_PERMISSIONS) };
   if (role !== "staff") return { ok: false, admin: false, staff: null, perms: new Set<Permission>() };
   const [staff] = await getStaff(userId);
   if (!staff || staff.status !== "active") return { ok: false, admin: false, staff: staff ?? null, perms: new Set<Permission>() };

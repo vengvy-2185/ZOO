@@ -3,21 +3,25 @@ import { Utensils, Stethoscope, Sparkles, Brush, StickyNote } from "lucide-react
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
 import { SubmitButton } from "@/components/admin/ui-client";
-import { addCareLog } from "../actions";
+import { addCareLog, markFed } from "../actions";
+import { zooToday } from "@/lib/data/gate";
+import { cn } from "@/lib/utils/cn";
+import { Search, CheckCircle2, ClipboardList, LayoutGrid } from "lucide-react";
 import { StaffShell } from "@/components/staff/StaffShell";
 
 export const dynamic = "force-dynamic";
 
 const KIND = {
-  feeding: { icon: Utensils, en: "Feeding", km: "ឲ្យចំណី", color: "#D97706" },
-  health: { icon: Stethoscope, en: "Health", km: "សុខភាព", color: "#DC2626" },
-  cleaning: { icon: Brush, en: "Cleaning", km: "សម្អាត", color: "#0284C7" },
-  enrichment: { icon: Sparkles, en: "Enrichment", km: "លេងកម្សាន្ត", color: "#7C3AED" },
+  feeding: { icon: Utensils, en: "Feeding", km: "ឲ្យចំណី", color: "#1D4ED8" },
+  health: { icon: Stethoscope, en: "Health", km: "សុខភាព", color: "#1E3A8A" },
+  cleaning: { icon: Brush, en: "Cleaning", km: "សម្អាត", color: "#2563EB" },
+  enrichment: { icon: Sparkles, en: "Enrichment", km: "លេងកម្សាន្ត", color: "#3B82F6" },
   note: { icon: StickyNote, en: "Note", km: "កំណត់ចំណាំ", color: "#475569" },
 } as const;
 
 /** Keepers and vets write what they did for an animal; the latest notes show for everyone on the team. */
-export default async function AnimalCarePage({ searchParams }: { searchParams: { a?: string } }) {
+export default async function AnimalCarePage({ searchParams }: { searchParams: { a?: string; tab?: string; q?: string } }) {
+  const tab = searchParams.tab === "board" ? "board" : "log";
   const { locale } = getI18n();
   const km = locale === "km";
   const db = createServiceRoleClient();
@@ -25,6 +29,12 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
     db.from("animals").select("id, name, khmer_name, animal_code, main_image_url").eq("status", "active").order("name"),
     db.from("animal_care_logs").select("id, kind, note, created_at, user_id, animal:animals(name, khmer_name, animal_code, main_image_url)").order("created_at", { ascending: false }).limit(40),
   ]);
+  // Board: when each animal was last fed today
+  const { data: fedRows } = await db.from("animal_care_logs").select("animal_id, created_at").eq("kind", "feeding").gte("created_at", `${zooToday()}T00:00:00+07:00`).order("created_at", { ascending: false });
+  const fedAt = new Map<string, string>();
+  for (const r of fedRows ?? []) if (!fedAt.has(r.animal_id)) fedAt.set(r.animal_id, r.created_at);
+  const q = (searchParams.q ?? "").trim().toLowerCase();
+  const board = (animals ?? []).filter((a: any) => !q || a.name.toLowerCase().includes(q) || (a.khmer_name ?? "").includes(q) || a.animal_code.toLowerCase().includes(q)).sort((a: any, b: any) => Number(fedAt.has(a.id)) - Number(fedAt.has(b.id)));
   // who wrote each note (staff name; admins show as "Admin")
   const ids = [...new Set((logs ?? []).map((l: any) => l.user_id).filter(Boolean))];
   const { data: authors } = ids.length ? await db.from("staff_members").select("user_id, full_name").in("user_id", ids) : { data: [] as any[] };
@@ -37,6 +47,49 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
 
   return (
     <StaffShell active="animals" title={L.title} subtitle={L.sub}>
+      <div className="flex gap-2">
+        {[
+          ["log", ClipboardList, km ? "កំណត់ត្រា" : "Care log"],
+          ["board", LayoutGrid, km ? `ផ្ទាំងចំណី (${fedAt.size}/${(animals ?? []).length})` : `Feeding board (${fedAt.size}/${(animals ?? []).length})`],
+        ].map(([k, Icon, label]: any) => (
+          <Link key={k} href={`/staff/animals?tab=${k}`} className={cn("inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold shadow-soft", tab === k ? "bg-[#1D4ED8] text-white" : "bg-white text-[#1E3A8A]")}>
+            <Icon size={15} /> {label}
+          </Link>
+        ))}
+      </div>
+
+      {tab === "board" ? (
+        <>
+          <form className="relative" action="/staff/animals">
+            <input type="hidden" name="tab" value="board" />
+            <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
+            <input name="q" defaultValue={searchParams.q} placeholder={km ? "ស្វែងរកសត្វ…" : "Find an animal…"} className="w-full rounded-2xl border border-black/10 bg-white py-3 pl-11 pr-4 text-sm text-ink shadow-soft outline-none focus:border-[#2563EB]" />
+          </form>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {board.map((a: any) => {
+              const at = fedAt.get(a.id);
+              return (
+                <div key={a.id} className={cn("card flex items-center gap-3 p-2.5", at && "bg-[#F8FAFF]")}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={a.main_image_url ?? "/icon.svg"} alt="" className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-forest">{(km && a.khmer_name) || a.name}</p>
+                    <p className={cn("text-xs font-bold", at ? "text-[#1D4ED8]" : "text-red-500")}>
+                      {at ? `${km ? "ឲ្យចំណីម៉ោង" : "Fed at"} ${when(at).split(", ").pop()}` : km ? "មិនទាន់ឲ្យចំណីថ្ងៃនេះ" : "Not fed today"}
+                    </p>
+                  </div>
+                  <form action={markFed.bind(null, a.id)}>
+                    <button className={cn("flex h-11 items-center gap-1 rounded-xl px-3 text-xs font-extrabold transition", at ? "bg-[#EEF2FF] text-[#1D4ED8]" : "bg-[#1D4ED8] text-white hover:bg-[#1E40AF]")}>
+                      <CheckCircle2 size={15} /> {km ? "ឲ្យចំណី" : "Fed"}
+                    </button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
         <form action={addCareLog} className="card space-y-3 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
@@ -95,6 +148,8 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
             })}
           </ul>
         )}
+        </>
+      )}
     </StaffShell>
   );
 }
