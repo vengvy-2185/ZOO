@@ -12,7 +12,7 @@ const refresh = () => {
 };
 
 export type CheckInResult =
-  | { ok: true; session: Session; late: number; time: string; distance: number | null; already?: boolean }
+  | { ok: true; session: Session; late: number; time: string; distance: number | null; already?: boolean; clockIn?: string }
   | { ok: false; error: "signin" | "not-staff" | "qr" | "location" | "far" | "closed"; distance?: number; radius?: number };
 
 /**
@@ -49,8 +49,31 @@ export async function checkInAttendance(token: string, lat: number | null, lng: 
 
   const at = new Date().toISOString();
   await db.from("staff_session_checks").insert({ user_id: id, day, session: now.session, checked_at: at, late_minutes: now.late, lat: hasFix ? lat : null, lng: hasFix ? lng : null, distance_m: distance, method: "qr" });
+
+  // Clock in for working hours at the same moment. A shift left open from an
+  // earlier session (e.g. the morning) is closed at that session's end time.
+  const { data: open } = await db.from("staff_attendance").select("id, clock_in").eq("user_id", id).is("clock_out", null).maybeSingle();
+  let clockIn = at;
+  // local "HH:MM" on a day → a real time (Cambodia is UTC+7, no daylight saving)
+  const at7 = (d: string, hm: string) => new Date(`${d}T${hm}:00+07:00`).getTime();
+  if (open) {
+    const sessionStart = at7(day, now.session === "morning" ? s.morning_start : s.afternoon_start);
+    if (Date.parse(open.clock_in) >= sessionStart - 3600e3) {
+      clockIn = open.clock_in; // already clocked in for this session
+    } else {
+      // close the old shift at the end of the session it belonged to (never in the future)
+      const openDay = localDay(new Date(open.clock_in));
+      const wasMorning = Date.parse(open.clock_in) < at7(openDay, s.afternoon_start) - 3600e3;
+      const endAt = at7(openDay, wasMorning ? s.morning_end : s.afternoon_end);
+      const closeAt = endAt > Date.parse(open.clock_in) && endAt < Date.now() ? endAt : Date.now();
+      await db.from("staff_attendance").update({ clock_out: new Date(closeAt).toISOString() }).eq("id", open.id);
+      await db.from("staff_attendance").insert({ user_id: id, clock_in: at });
+    }
+  } else {
+    await db.from("staff_attendance").insert({ user_id: id, clock_in: at });
+  }
   refresh();
-  return { ok: true, session: now.session, late: now.late, time: fmt(at), distance };
+  return { ok: true, session: now.session, late: now.late, time: fmt(at), distance, clockIn: fmt(clockIn) };
 }
 
 // ── For admins and managers ───────────────────────────────────────────

@@ -176,6 +176,11 @@ export function CheckInScanner({ km, initialToken }: { km: boolean; initialToken
                 <p className="mt-3 text-sm font-bold uppercase tracking-[0.2em] text-white/75">{result.session === "morning" ? L.morning : L.afternoon}</p>
                 <p className="font-display text-3xl font-extrabold">{result.already ? L.already : result.late > 0 ? L.late(result.late) : L.onTime}</p>
                 <p className="mt-1 text-lg font-bold text-white/90">{L.at} {result.time}</p>
+                {result.clockIn && (
+                  <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-4 py-1.5 text-sm font-extrabold">
+                    <Clock size={15} /> {km ? `ម៉ោងចូលធ្វើការ ${result.clockIn} ✓` : `Clocked in at ${result.clockIn} ✓`}
+                  </p>
+                )}
                 {result.distance != null && <p className="mt-1 text-xs text-white/70"><MapPin size={11} className="-mt-0.5 inline" /> {result.distance} {L.meters}</p>}
               </>
             ) : (
