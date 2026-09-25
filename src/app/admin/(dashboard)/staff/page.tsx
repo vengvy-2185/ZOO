@@ -7,8 +7,6 @@ import { getI18n } from "@/lib/i18n/server";
 import { getPositions, payroll, thisMonth, PERMISSIONS, PAY_TYPE, type PayLine, type Position } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
 import { AttendanceManager, type AttTab } from "@/components/staff/AttendanceManager";
-import { KioskQR } from "@/components/staff/KioskQR";
-import { kioskSchedule } from "@/lib/server/attendance";
 import { ClipboardCheck } from "lucide-react";
 import { AddStaffForm, ResetPassword } from "./StaffClient";
 import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
@@ -154,7 +152,6 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
         </div>
       )}
 
-      {tab === "attendance" && <KioskQR km={km} {...(await kioskSchedule(km))} overlayOnly />}
       {tab === "attendance" && (
         <AttendanceManager
           tab={(["today", "month", "rules"].includes(searchParams.at ?? "") ? searchParams.at : "today") as AttTab}
