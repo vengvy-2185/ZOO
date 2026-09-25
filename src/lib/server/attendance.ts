@@ -94,7 +94,7 @@ export function sessionFor(s: AttendanceSettings, minutes = localMinutes()): { s
 }
 
 // ── Monthly summary ───────────────────────────────────────────────────
-export type DayMark = { morning: "ok" | "late" | "absent" | "off" | "leave" | "holiday" | "future" | "none"; afternoon: DayMark["morning"]; lateMin: number; mIn?: string; aIn?: string };
+export type DayMark = { morning: "ok" | "late" | "absent" | "off" | "leave" | "holiday" | "future" | "none"; afternoon: DayMark["morning"]; lateMin: number; mIn?: string; aIn?: string; mLate?: number; aLate?: number };
 export type PersonMonth = {
   userId: string;
   name: string;
@@ -151,7 +151,7 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
         const cm = mine.find((x: any) => x.day === d && x.session === "morning");
         const ca = mine.find((x: any) => x.day === d && x.session === "afternoon");
         const lateMin = (cm?.late_minutes ?? 0) + (ca?.late_minutes ?? 0);
-        out.days[d] = { morning: m, afternoon: a, lateMin, mIn: cm ? time(cm.checked_at) : undefined, aIn: ca ? time(ca.checked_at) : undefined };
+        out.days[d] = { morning: m, afternoon: a, lateMin, mIn: cm ? time(cm.checked_at) : undefined, aIn: ca ? time(ca.checked_at) : undefined, mLate: cm?.late_minutes, aLate: ca?.late_minutes };
         for (const x of [m, a]) {
           if (x === "ok" || x === "late") out.present++;
           if (x === "late") out.late++;

@@ -3,7 +3,7 @@ import { CalendarDays, CheckCircle2, Clock, MapPin, Monitor, Printer, Settings2,
 import { attendanceMonth, localDay, type DayMark, type PersonMonth } from "@/lib/server/attendance";
 import { thisMonth } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
-import { addHoliday, markSession, removeHoliday, saveAttendanceSettings } from "@/app/staff/(protected)/attendance-actions";
+import { addHoliday, markLeaveToday, markSession, removeHoliday, saveAttendanceSettings } from "@/app/staff/(protected)/attendance-actions";
 import { GeoFill } from "./GeoFill";
 
 export type AttTab = "today" | "month" | "rules";
@@ -66,50 +66,81 @@ export async function AttendanceManager({ tab, month, km, base }: { tab: AttTab;
 
       {tab === "today" && (() => {
         const t = people.map((p) => ({ p, d: p.days[today] })).filter((x) => x.d && x.d.morning !== "none");
-        const count = (k: "morning" | "afternoon") => t.filter((x) => x.d[k] === "ok" || x.d[k] === "late").length;
+        const n = (f: (k: DayMark["morning"]) => boolean) => t.reduce((c, x) => c + (f(x.d.morning) ? 1 : 0) + (f(x.d.afternoon) ? 1 : 0), 0);
+        const came = (k: "morning" | "afternoon") => t.filter((x) => x.d[k] === "ok" || x.d[k] === "late").length;
+        const tiles: [string, string, string][] = [
+          [L.morning, `${came("morning")}/${t.length}`, "from-[#1E3A8A] to-[#2563EB] text-white"],
+          [L.afternoon, `${came("afternoon")}/${t.length}`, "from-[#1D4ED8] to-[#3B82F6] text-white"],
+          [L.late, String(n((k) => k === "late")), "from-amber-50 to-amber-100 text-amber-800"],
+          [L.leave, String(t.filter((x) => x.d.morning === "leave").length), "from-violet-50 to-violet-100 text-violet-800"],
+          [L.absent, String(n((k) => k === "absent")), "from-red-50 to-red-100 text-red-700"],
+        ];
+        // one status chip for a half day: colour + words + time
+        const chip = (k: DayMark["morning"], time?: string, late?: number) => {
+          const S: Record<string, [string, string]> = {
+            ok: ["bg-[#1D4ED8] text-white", `✓ ${time ?? ""} · ${km ? "ទាន់ម៉ោង" : "on time"}`],
+            late: ["bg-amber-400 text-amber-950", `⏰ ${time ?? ""} · ${km ? `យឺត ${late ?? 0}′` : `late ${late ?? 0}′`}`],
+            absent: ["bg-red-500 text-white", `✗ ${L.absent}`],
+            leave: ["bg-violet-500 text-white", `📝 ${L.leave}`],
+            off: ["bg-slate-200 text-slate-600", km ? "ថ្ងៃសម្រាក" : "Rest day"],
+            holiday: ["bg-slate-300 text-slate-700", km ? "ថ្ងៃបុណ្យ" : "Holiday"],
+            future: ["bg-white text-ink/50 ring-1 ring-inset ring-black/10", L.waiting],
+            none: ["bg-white text-ink/40", "—"],
+          };
+          const [cls, text] = S[k];
+          return <span className={cn("block truncate rounded-xl px-2.5 py-1.5 text-center text-xs font-extrabold", cls)}>{text}</span>;
+        };
         return (
           <>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                [L.morning, `${count("morning")} / ${t.length}`],
-                [L.afternoon, `${count("afternoon")} / ${t.length}`],
-                [L.late, String(t.reduce((n, x) => n + (x.d.morning === "late" ? 1 : 0) + (x.d.afternoon === "late" ? 1 : 0), 0))],
-              ].map(([k, v], i) => (
-                <div key={k} className={i === 0 ? "rounded-3xl bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] p-4 text-white shadow-lift" : "card p-4"}>
-                  <p className={i === 0 ? "text-xs text-white/75" : "text-xs text-ink/55"}>{k}</p>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+              {tiles.map(([k, v, cls]) => (
+                <div key={k} className={cn("rounded-3xl bg-gradient-to-br p-4 shadow-soft", cls)}>
+                  <p className="text-xs font-bold opacity-80">{k}</p>
                   <p className="font-display text-2xl font-extrabold">{v}</p>
                 </div>
               ))}
             </div>
-            <div className="card divide-y divide-black/5">
+            <div className="card overflow-hidden">
               {t.length === 0 && <p className="p-6 text-center text-sm text-ink/55">{L.none}</p>}
-              {t.map(({ p, d }) => (
-                <div key={p.userId} className="flex flex-wrap items-center gap-3 p-3.5">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF2FF] font-display font-extrabold text-[#1D4ED8]">{[...p.name][0]?.toUpperCase()}</span>
-                  <span className="min-w-[8rem] flex-1">
-                    <span className="block truncate font-bold text-forest">{p.name}</span>
-                    <span className="block text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
-                  </span>
-                  {(["morning", "afternoon"] as const).map((sess) => {
-                    const k = d[sess];
-                    const c = cell(k, km);
-                    const time = sess === "morning" ? d.mIn : d.aIn;
-                    const done = k === "ok" || k === "late";
-                    return (
-                      <div key={sess} className="flex items-center gap-2 rounded-2xl bg-[#F8FAFF] px-2.5 py-1.5 ring-1 ring-[#2563EB]/10">
-                        <span className={cn("h-3 w-3 rounded-full", c.cls)} />
-                        <span className="text-xs">
-                          <b className="text-[#1E3A8A]">{sess === "morning" ? L.morning : L.afternoon}</b>
-                          <span className="block text-ink/55">{done ? `${time ?? ""} ${k === "late" ? `· ${L.late}` : ""}` : c.label || L.waiting}</span>
-                        </span>
-                        <form action={markSession.bind(null, p.userId, today, sess, !done)}>
-                          <button className={cn("rounded-lg px-2 py-1 text-[11px] font-bold", done ? "text-ink/40 hover:text-red-600" : "bg-[#1D4ED8] text-white")}>{done ? L.undo : L.mark}</button>
-                        </form>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+              {t.map(({ p, d }, i) => {
+                const onLeave = d.morning === "leave";
+                return (
+                  <div key={p.userId} className={cn("space-y-2.5 p-3.5", i > 0 && "border-t border-black/5")}>
+                    {/* who + leave, then two equal boxes: morning | afternoon */}
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF2FF] font-display font-extrabold text-[#1D4ED8]">{[...p.name][0]?.toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-bold text-forest">{p.name}</span>
+                        <span className="block truncate text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
+                      </span>
+                      <form action={markLeaveToday.bind(null, p.userId, today, !onLeave)} className="flex-shrink-0">
+                        <button className={cn("rounded-full px-3.5 py-2 text-xs font-extrabold", onLeave ? "bg-violet-100 text-violet-700 hover:bg-violet-200" : "bg-white text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50")}>
+                          {onLeave ? (km ? "ដកច្បាប់" : "Remove leave") : km ? "📝 ឲ្យច្បាប់ថ្ងៃនេះ" : "📝 Leave today"}
+                        </button>
+                      </form>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["morning", "afternoon"] as const).map((sess) => {
+                        const k = d[sess];
+                        const done = k === "ok" || k === "late";
+                        const canMark = !done && !["leave", "off", "holiday"].includes(k);
+                        return (
+                          <div key={sess} className="rounded-2xl bg-[#F8FAFF] p-2 ring-1 ring-[#2563EB]/10">
+                            <p className="mb-1.5 flex items-center justify-between px-1 text-[11px] font-bold text-[#1E3A8A]">
+                              <span>{sess === "morning" ? L.morning : L.afternoon}</span>
+                              <span className="font-normal text-ink/45">{sess === "morning" ? s.morning_start : s.afternoon_start}</span>
+                            </p>
+                            {chip(k, sess === "morning" ? d.mIn : d.aIn, sess === "morning" ? d.mLate : d.aLate)}
+                            <form action={markSession.bind(null, p.userId, today, sess, !done)} className="mt-1.5">
+                              <button disabled={!done && !canMark} className={cn("w-full rounded-lg py-1 text-[11px] font-bold disabled:invisible", done ? "text-ink/40 hover:bg-red-50 hover:text-red-600" : "bg-white text-[#1D4ED8] ring-1 ring-[#2563EB]/25 hover:bg-[#EEF2FF]")}>{done ? L.undo : L.mark}</button>
+                            </form>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         );

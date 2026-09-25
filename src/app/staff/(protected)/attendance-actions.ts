@@ -120,3 +120,15 @@ export async function markSession(userId: string, day: string, session: Session,
   refresh();
 }
 
+
+/** "Leave today" from the attendance board: an approved one-day leave (or remove it again). */
+export async function markLeaveToday(userId: string, day: string, on: boolean) {
+  const by = await manager();
+  const db = createServiceRoleClient();
+  if (on) {
+    await db.from("staff_leave_requests").insert({ user_id: userId, kind: "personal", start_date: day, end_date: day, reason: "Marked on the attendance board", status: "approved", decided_by: by, decided_at: new Date().toISOString() });
+  } else {
+    await db.from("staff_leave_requests").update({ status: "cancelled" }).eq("user_id", userId).eq("status", "approved").lte("start_date", day).gte("end_date", day);
+  }
+  refresh();
+}
