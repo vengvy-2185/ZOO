@@ -6,6 +6,7 @@ import jsQR from "jsqr";
 import { CheckCircle2, XCircle, AlertTriangle, Users, CalendarDays, Keyboard, UserRoundPlus, Loader2, ScanLine } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
+import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
 
 type Verdict = "ok" | "already" | "unpaid" | "cancelled" | "wrong_date" | "invalid";
 type ScanResult = {
@@ -86,6 +87,9 @@ function beep(good: boolean) {
   }
 }
 
+
+type PayHere = { code: string; key: string; token: string; img?: string; amount?: number; currency?: string; merchant?: string; expiresAt?: string; state: "loading" | "waiting" | "paid" | "error" };
+
 export default function ScannerPage() {
   const { locale } = useI18n();
   const L = TEXT[locale === "km" ? "km" : "en"];
@@ -98,6 +102,32 @@ export default function ScannerPage() {
   const [loading, setLoading] = useState(false);
   const [manual, setManual] = useState("");
   const [count, setCount] = useState(0);
+  const [pay, setPay] = useState<PayHere | null>(null);
+  const km = locale === "km";
+
+  // Unpaid ticket at the counter: show a KHQR for it on this device, poll Bakong, then check it in.
+  async function startPayHere(token: string) {
+    const r = await fetch("/api/tickets/pay-here", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+    if (!r.ok) return setPay({ code: "", key: "", token, state: "error" });
+    const { code, key } = await r.json();
+    setPay({ code, key, token, state: "loading" });
+    const v = await fetch("/api/payments/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "booking", code, key, regenerate: true }) }).then((x) => x.json()).catch(() => null);
+    if (!v?.qr) return setPay({ code, key, token, state: "error" });
+    const img = await drawKhqr(v.qr, v.logo, v.currency);
+    setPay({ code, key, token, img, amount: v.amount, currency: v.currency, merchant: v.merchantName, expiresAt: v.expiresAt, state: "waiting" });
+  }
+  useEffect(() => {
+    if (pay?.state !== "waiting") return;
+    const id = setInterval(async () => {
+      const v = await fetch("/api/payments/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "booking", code: pay.code, key: pay.key }) }).then((x) => x.json()).catch(() => null);
+      if (v?.status === "paid") {
+        clearInterval(id);
+        setPay(null);
+        scan(pay.token); // now paid: check in → green
+      }
+    }, 2500);
+    return () => clearInterval(id);
+  }, [pay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scan = useCallback(async (token: string, force = false) => {
     busy.current = true;
@@ -266,6 +296,11 @@ export default function ScannerPage() {
                 </div>
               )}
               <div className="mt-5 flex w-full gap-2">
+                {result.verdict === "unpaid" && (
+                  <button onClick={() => startPayHere(result.token)} className="flex-1 rounded-2xl bg-white py-3 font-extrabold text-red-700">
+                    {km ? "បង់នៅទីនេះ (KHQR)" : "Pay here (KHQR)"}
+                  </button>
+                )}
                 {result.verdict === "wrong_date" && (
                   <button onClick={() => scan(result.token, true)} className="flex-1 rounded-2xl bg-white/25 py-3 font-bold">
                     {L.allow}
@@ -278,6 +313,33 @@ export default function ScannerPage() {
             </div>
           )}
         </div>
+
+        {/* Pay-at-the-counter KHQR */}
+        {pay && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <div className="w-full max-w-sm">
+              {pay.state === "waiting" && pay.img ? (
+                <>
+                  <KhqrCard merchant={pay.merchant ?? "Green Wild Zoo"} amount={pay.amount} currency={pay.currency}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={pay.img} alt="KHQR" className="w-full" />
+                  </KhqrCard>
+                  <p className="mt-3 flex items-center justify-center gap-2 text-center text-sm font-bold text-white">
+                    <Loader2 size={16} className="animate-spin text-leaf" /> {km ? "ឲ្យភ្ញៀវស្កេនបង់ · រង់ចាំ Bakong បញ្ជាក់…" : "Let the visitor scan and pay · waiting for Bakong…"}
+                  </p>
+                  <p className="mt-1 text-center font-mono text-xs text-white/60">{pay.code}</p>
+                </>
+              ) : pay.state === "error" ? (
+                <p className="rounded-2xl bg-red-600 p-5 text-center font-bold text-white">{km ? "មិនអាចបង្កើត KHQR បានទេ (ពិនិត្យការកំណត់ Bakong)។" : "Couldn't make a KHQR (check the Bakong settings)."}</p>
+              ) : (
+                <div className="flex justify-center"><Loader2 size={44} className="animate-spin text-leaf" /></div>
+              )}
+              <button onClick={() => setPay(null)} className="mt-4 w-full rounded-2xl bg-white/15 py-3 font-bold text-white">
+                {km ? "បិទ" : "Close"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Manual entry */}
         <form

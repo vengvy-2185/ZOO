@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { startKhqr } from "@/lib/server/payments";
 import { checkDiscount, redeemDiscount, subtotalFor } from "@/lib/server/discounts";
 import { cookies } from "next/headers";
 import { REF_COOKIE, isReferralCode } from "@/lib/server/points";
@@ -135,12 +134,8 @@ export async function POST(req: Request) {
   // app. The booking stays "pending" until Bakong confirms the transfer.
   // Paid tickets are NEVER confirmed here: the booking stays "pending" and the
   // pay page shows the KHQR (or "not available yet" until Bakong is set up).
+  // The QR itself is made on the pay page, only if the visitor chooses to pay now.
   if (amountUsd > 0) {
-    try {
-      await startKhqr("booking", booking.id, amountUsd, booking.booking_code);
-    } catch (e: any) {
-      return NextResponse.json({ error: e?.message ?? "Could not create the KHQR payment." }, { status: 502 });
-    }
     return NextResponse.json({ bookingCode: booking.booking_code, accessKey: booking.qr_token, total: amountUsd, payWith: "khqr" });
   }
 

@@ -23,16 +23,18 @@ export interface PaymentView {
   merchantName?: string;
   canVerify?: boolean;
   logo?: string;
+  /** the visitor chose "pay at the counter when I arrive" */
+  payLater?: boolean;
 }
 
 async function loadTarget(kind: PayKind, code: string, key: string) {
   const db = serviceClient();
   if (kind === "booking") {
-    const { data } = await db.from("bookings").select("id, booking_code, total_usd, status").eq("booking_code", code).eq("qr_token", key).maybeSingle();
-    return data ? { id: data.id, amountUsd: Number(data.total_usd), paid: data.status === "confirmed", bill: data.booking_code } : null;
+    const { data } = await db.from("bookings").select("id, booking_code, total_usd, status, pay_later").eq("booking_code", code).eq("qr_token", key).maybeSingle();
+    return data ? { id: data.id, amountUsd: Number(data.total_usd), paid: data.status === "confirmed", bill: data.booking_code, payLater: Boolean(data.pay_later) } : null;
   }
   const { data } = await db.from("adoptions").select("id, code, amount_usd, status").eq("code", code).eq("access_key", key).maybeSingle();
-  return data ? { id: data.id, amountUsd: Number(data.amount_usd), paid: data.status === "paid", bill: data.code } : null;
+  return data ? { id: data.id, amountUsd: Number(data.amount_usd), paid: data.status === "paid", bill: data.code, payLater: false } : null;
 }
 
 /** Creates (or re-creates after expiry) the KHQR for this booking/adoption. */
@@ -59,7 +61,7 @@ export async function startKhqr(kind: PayKind, targetId: string, amountUsd: numb
 }
 
 /** Current state for the payment page; also finalises the payment when Bakong reports it paid. */
-export async function pollKhqr(kind: PayKind, code: string, key: string, opts: { regenerate?: boolean } = {}): Promise<PaymentView | null> {
+export async function pollKhqr(kind: PayKind, code: string, key: string, opts: { regenerate?: boolean; skipCheck?: boolean } = {}): Promise<PaymentView | null> {
   const target = await loadTarget(kind, code, key);
   if (!target) return null;
   if (target.paid) return { status: "paid" };
@@ -78,8 +80,9 @@ export async function pollKhqr(kind: PayKind, code: string, key: string, opts: {
     qr = { ...(data ?? { khqr: null, md5: null, expires_at: null }), currency: settings.currency ?? "USD" };
   }
 
-  // Paid? (checked even just after expiry — the payer may have scanned in time)
-  if (qr.md5 && canVerify) {
+  // Paid? (checked even just after expiry — the payer may have scanned in time).
+  // The first page render skips it so the page opens instantly; the browser polls right after.
+  if (qr.md5 && canVerify && !opts.skipCheck) {
     const check = await checkTransaction(settings, qr.md5);
     if (check.paid) {
       const expected = (settings.currency === "KHR" ? Math.round(target.amountUsd * (settings.usd_to_khr || 4100)) : target.amountUsd);
@@ -93,14 +96,21 @@ export async function pollKhqr(kind: PayKind, code: string, key: string, opts: {
 
   const expired = !qr.khqr || !qr.expires_at || new Date(qr.expires_at).getTime() < Date.now();
   if (expired) {
-    if (!opts.regenerate) return { status: "expired" };
+    if (!opts.regenerate) return { status: "expired", payLater: target.payLater, logo: khqrLogo(settings) };
     const fresh = await startKhqr(kind, target.id, target.amountUsd, target.bill);
     if (!fresh) return { status: "unavailable" };
-    return { status: "pending", qr: fresh.qr, amount: fresh.amount, currency: fresh.currency, expiresAt: fresh.expiresAt.toISOString(), merchantName: fresh.merchantName, canVerify, logo: khqrLogo(settings) };
+    return { status: "pending", qr: fresh.qr, amount: fresh.amount, currency: fresh.currency, expiresAt: fresh.expiresAt.toISOString(), merchantName: fresh.merchantName, canVerify, logo: khqrLogo(settings), payLater: target.payLater };
   }
 
   const amount = settings.currency === "KHR" ? Math.round(target.amountUsd * (settings.usd_to_khr || 4100)) : target.amountUsd;
-  return { status: "pending", qr: qr.khqr!, amount, currency: qr.currency ?? "USD", expiresAt: qr.expires_at!, merchantName: settings.merchant_name, canVerify, logo: khqrLogo(settings) };
+  return { status: "pending", qr: qr.khqr!, amount, currency: qr.currency ?? "USD", expiresAt: qr.expires_at!, merchantName: settings.merchant_name, canVerify, logo: khqrLogo(settings), payLater: target.payLater };
+}
+
+/** The visitor will pay at the counter on arrival (booking stays pending until Bakong confirms there). */
+export async function choosePayLater(code: string, key: string, later: boolean) {
+  const db = serviceClient();
+  const { data } = await db.from("bookings").update({ pay_later: later }).eq("booking_code", code).eq("qr_token", key).eq("status", "pending").select("id").maybeSingle();
+  return Boolean(data);
 }
 
 async function markPaid(kind: PayKind, targetId: string, paymentId: string | undefined, hash?: string, from?: string) {

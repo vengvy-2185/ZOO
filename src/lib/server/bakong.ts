@@ -13,7 +13,7 @@ import { getPrivateSetting, type PaymentSettings } from "./private-settings";
 //   2. API token — register at https://api-bakong.nbc.gov.kh/register
 //      (the token is renewed every 90 days).
 
-export const QR_MINUTES = 10;
+export const QR_MINUTES = 5;
 
 /** The logo drawn in the middle of the QR: "khqr" (standard red mark) or an image URL. */
 export function khqrLogo(s: PaymentSettings): string {
@@ -68,7 +68,7 @@ export async function checkTransaction(s: PaymentSettings, md5: string): Promise
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.api_token}` },
       body: JSON.stringify({ md5 }),
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(6_000),
     });
     const json = await res.json().catch(() => null);
     // responseCode 0 = found (paid); 1 = not found yet.

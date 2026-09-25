@@ -30,7 +30,7 @@ export default async function AdoptionPage({ params, searchParams }: { params: {
   const species = (locale === "km" && animal?.species?.khmer_name) || animal?.species?.common_name;
 
   if (adoption.status !== "paid") {
-    const view = await pollKhqr("adoption", params.code, key);
+    const view = await pollKhqr("adoption", params.code, key, { skipCheck: true });
     if (view && view.status !== "paid") {
       return (
         <div className="min-h-screen pb-24 md:pb-10">

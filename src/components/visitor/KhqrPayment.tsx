@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
-import { CheckCircle2, Download, Loader2, RefreshCw, Smartphone, TimerOff, Store } from "lucide-react";
+import { CheckCircle2, Download, Loader2, RefreshCw, Smartphone, TimerOff, Store, QrCode, Zap, Ticket, ArrowRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 
 export interface KhqrView {
@@ -15,7 +15,39 @@ export interface KhqrView {
   merchantName?: string;
   canVerify?: boolean;
   logo?: string;
+  payLater?: boolean;
 }
+
+const CHOICE = {
+  en: {
+    how: "How would you like to pay?",
+    total: "Total",
+    now: "Pay now with KHQR",
+    nowText: "Scan with ABA, ACLEDA, Wing or any bank app. Your ticket is ready at once and you walk straight in.",
+    fastest: "Fastest",
+    later: "Pay at the counter when I arrive",
+    laterText: "Your ticket is saved. Show it at the ticket counter and pay there by KHQR.",
+    chosen: "Your choice",
+    openTicket: "Open my ticket",
+    expired: "The QR code expired. Choose again:",
+    instead: "Pay at the counter instead",
+    making: "Making your QR…",
+  },
+  km: {
+    how: "តើអ្នកចង់បង់ប្រាក់របៀបណា?",
+    total: "សរុប",
+    now: "បង់ឥឡូវនេះតាម KHQR",
+    nowText: "ស្កេនដោយ ABA, ACLEDA, Wing ឬ app ធនាគារណាមួយ។ សំបុត្ររួចរាល់ភ្លាម ហើយចូលបានតែម្តង។",
+    fastest: "លឿនបំផុត",
+    later: "បង់នៅបញ្ជរ ពេលមកដល់",
+    laterText: "សំបុត្ររបស់អ្នកត្រូវបានរក្សាទុក។ បង្ហាញវានៅបញ្ជរលក់សំបុត្រ ហើយបង់ទីនោះតាម KHQR។",
+    chosen: "ជម្រើសរបស់អ្នក",
+    openTicket: "បើកសំបុត្ររបស់ខ្ញុំ",
+    expired: "QR ផុតកំណត់ហើយ។ សូមជ្រើសម្តងទៀត៖",
+    instead: "បង់នៅបញ្ជរជំនួសវិញ",
+    making: "កំពុងបង្កើត QR…",
+  },
+};
 
 // KHQR payment card (styled after the official KHQR layout: red header,
 // merchant, amount, QR). Polls the server every 3 s; the server asks Bakong
@@ -26,20 +58,33 @@ export function KhqrPayment({
   accessKey,
   initial,
   successHref,
+  ticketHref,
+  total,
+  autoNow = false,
 }: {
   kind: "booking" | "adoption";
   code: string;
   accessKey: string;
   initial: KhqrView;
   successHref: string;
+  /** where "pay at the counter" leads (bookings only) */
+  ticketHref?: string;
+  total?: number;
+  /** skip the question and make the QR straight away */
+  autoNow?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const C = CHOICE[locale === "km" ? "km" : "en"];
   const router = useRouter();
   const [view, setView] = useState<KhqrView>(initial);
   const [img, setImg] = useState<string | null>(null);
   const [left, setLeft] = useState(0);
   const [busy, setBusy] = useState(false);
   const stopped = useRef(false);
+  const hadQr = useRef(Boolean(initial.qr));
+  const [making, setMaking] = useState(false);
+  const [laterBusy, setLaterBusy] = useState(false);
+  const canLater = kind === "booking" && Boolean(ticketHref);
 
   const poll = useCallback(
     async (regenerate = false) => {
@@ -57,7 +102,10 @@ export function KhqrPayment({
 
   // QR image
   useEffect(() => {
-    if (view.qr) drawKhqr(view.qr, view.logo, view.currency).then(setImg);
+    if (view.qr) {
+      hadQr.current = true;
+      drawKhqr(view.qr, view.logo, view.currency).then(setImg);
+    }
   }, [view.qr, view.logo, view.currency]);
 
   // Countdown
@@ -72,7 +120,7 @@ export function KhqrPayment({
   // Poll while pending (also a little after expiry, in case it was paid at the last second)
   useEffect(() => {
     if (view.status !== "pending" || stopped.current) return;
-    const id = setInterval(() => poll(), 3000);
+    const id = setInterval(() => poll(), 2500);
     return () => clearInterval(id);
   }, [view.status, poll]);
 
@@ -90,6 +138,27 @@ export function KhqrPayment({
       return () => clearTimeout(id);
     }
   }, [view.status, router, successHref]);
+
+  async function payNow() {
+    setMaking(true);
+    if (view.payLater && canLater) {
+      fetch("/api/payments/later", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, key: accessKey, later: false }) }).catch(() => {});
+    }
+    await poll(true);
+    setMaking(false);
+  }
+
+  async function payLater() {
+    setLaterBusy(true);
+    await fetch("/api/payments/later", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, key: accessKey, later: true }) }).catch(() => {});
+    router.push(ticketHref!);
+  }
+
+  // Make the QR straight away when asked to (e.g. "Pay now" from the ticket page, or adoptions).
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if ((autoNow || !canLater) && !initial.qr && initial.status === "expired") payNow();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (view.status === "unavailable") {
     return (
@@ -115,6 +184,69 @@ export function KhqrPayment({
         <h2 className="mt-4 font-display text-2xl font-extrabold text-forest">{t.pay.paid}</h2>
         <p className="mt-1 text-sm text-ink/60">{t.pay.paidText}</p>
         <style>{`@keyframes payOk{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}`}</style>
+      </div>
+    );
+  }
+
+  // No live QR yet (or it ran out): ask how they want to pay.
+  if (!view.qr && view.status === "expired") {
+    const busyNow = making || ((autoNow || !canLater) && !hadQr.current);
+    return (
+      <div className="mx-auto max-w-2xl">
+        {hadQr.current && <p className="mb-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{C.expired}</p>}
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <h2 className="font-display text-2xl font-extrabold text-forest">{C.how}</h2>
+          {total != null && (
+            <span className="rounded-full bg-light-green px-4 py-1.5 font-display text-lg font-extrabold text-primary">
+              {C.total}: ${total.toFixed(2)}
+            </span>
+          )}
+        </div>
+        <div className={canLater ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
+          <button
+            type="button"
+            onClick={payNow}
+            disabled={busyNow || laterBusy}
+            className="group relative overflow-hidden rounded-[1.6rem] bg-gradient-to-br from-[#E1232E] to-[#B3141E] p-5 text-left text-white shadow-lift transition hover:-translate-y-0.5 disabled:opacity-90"
+          >
+            <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider">
+              <Zap size={12} /> {C.fastest}
+            </span>
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+              {busyNow ? <Loader2 size={24} className="animate-spin" /> : <QrCode size={24} />}
+            </span>
+            <span className="mt-3 block font-display text-xl font-extrabold">{busyNow ? C.making : C.now}</span>
+            <span className="mt-1 block text-sm text-white/85">{C.nowText}</span>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold">
+              KHQR <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+            </span>
+          </button>
+          {canLater && (
+            <button
+              type="button"
+              onClick={payLater}
+              disabled={busyNow || laterBusy}
+              className={`group relative rounded-[1.6rem] bg-white p-5 text-left shadow-soft ring-2 transition hover:-translate-y-0.5 ${view.payLater ? "ring-primary" : "ring-black/5 hover:ring-primary/40"}`}
+            >
+              {view.payLater && (
+                <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-extrabold text-white">
+                  <CheckCircle2 size={12} /> {C.chosen}
+                </span>
+              )}
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-light-green text-primary">
+                {laterBusy ? <Loader2 size={24} className="animate-spin" /> : <Store size={24} />}
+              </span>
+              <span className="mt-3 block font-display text-xl font-extrabold text-forest">{C.later}</span>
+              <span className="mt-1 block text-sm text-ink/60">{C.laterText}</span>
+              <span className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-primary">
+                <Ticket size={15} /> {C.openTicket} <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+              </span>
+            </button>
+          )}
+        </div>
+        <div className="mt-4 rounded-2xl bg-cream px-4 py-3 text-center text-sm text-ink/60">
+          {t.pay.orderRef}: <span className="font-mono font-bold text-forest">{code}</span>
+        </div>
       </div>
     );
   }
@@ -163,6 +295,11 @@ export function KhqrPayment({
         </div>
 
       </KhqrCard>
+      {canLater && !expired && (
+        <button type="button" onClick={payLater} disabled={laterBusy} className="mx-auto -mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline md:col-start-1">
+          {laterBusy ? <Loader2 size={15} className="animate-spin" /> : <Store size={15} />} {C.instead}
+        </button>
+      )}
 
       {/* Instructions + live status */}
       <div className="space-y-4">

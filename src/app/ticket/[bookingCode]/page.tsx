@@ -88,7 +88,7 @@ export default async function TicketPage({
       <Navbar />
       <main className="mx-auto max-w-md px-4 py-8">
         {gate ? (
-          <GateVerdict out={gate} km={km} time={time} forceHref={`${scanUrl}&force=1`} />
+          <GateVerdict out={gate} km={km} time={time} forceHref={`${scanUrl}&force=1`} payHref={`/pay/${booking.booking_code}?k=${booking.qr_token}&now=1`} />
         ) : (
           <RememberTicket code={booking.booking_code} k={booking.qr_token} />
         )}
@@ -103,7 +103,28 @@ export default async function TicketPage({
           </div>
         )}
 
-        {booking.status === "pending" && (
+        {booking.status === "pending" && booking.pay_later && (
+          <div className="mb-5 overflow-hidden rounded-3xl bg-white shadow-lift ring-2 ring-primary/20">
+            <div className="flex items-center gap-3 bg-light-green p-4">
+              <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary text-white">
+                <Wallet size={24} />
+              </span>
+              <div>
+                <div className="font-display text-lg font-extrabold text-forest">{km ? "បង់នៅបញ្ជរ ពេលមកដល់" : "Pay at the counter when you arrive"}</div>
+                <div className="text-sm text-ink/65">
+                  {km
+                    ? `បង្ហាញ QR សំបុត្រខាងក្រោមនៅបញ្ជរ។ បុគ្គលិកនឹងបង្ហាញ KHQR ឲ្យអ្នកស្កេនបង់ $${Number(booking.total_usd).toFixed(2)}។`
+                    : `Show the ticket QR below at the counter. Staff will show you a KHQR to pay $${Number(booking.total_usd).toFixed(2)}.`}
+                </div>
+              </div>
+            </div>
+            <Link href={`/pay/${booking.booking_code}?k=${booking.qr_token}&now=1`} className="flex items-center justify-between gap-2 px-4 py-3 text-sm font-extrabold text-[#E1232E] hover:bg-red-50">
+              {km ? "ឬបង់ឥឡូវនេះ ដើម្បីចូលលឿនជាង" : "Or pay now and skip the queue"} <span className="rounded-full bg-[#E1232E] px-3 py-1 text-xs text-white">KHQR</span>
+            </Link>
+          </div>
+        )}
+
+        {booking.status === "pending" && !booking.pay_later && (
           <Link
             href={`/pay/${booking.booking_code}?k=${booking.qr_token}`}
             className="mb-5 flex items-center gap-3 rounded-3xl bg-[#E1232E] p-4 text-white shadow-lift transition hover:brightness-110"
@@ -156,8 +177,8 @@ export default async function TicketPage({
           <div className="px-6 pb-3 pt-6 text-center">
             <div className="relative mx-auto w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrDataUrl} alt="Ticket QR code" className={`h-60 w-60 rounded-3xl p-3 ring-4 ${paid && !usedAt ? "ring-leaf" : "ring-black/10"} ${usedAt || !paid ? "opacity-35 grayscale" : ""}`} />
-              <span className={`pointer-events-none absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white shadow-soft ${usedAt || !paid ? "opacity-35 grayscale" : ""}`}>
+              <img src={qrDataUrl} alt="Ticket QR code" className={`h-60 w-60 rounded-3xl p-3 ring-4 ${paid && !usedAt ? "ring-leaf" : booking.pay_later && !usedAt ? "ring-primary/40" : "ring-black/10"} ${usedAt || (!paid && !booking.pay_later) ? "opacity-35 grayscale" : ""}`} />
+              <span className={`pointer-events-none absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white shadow-soft ${usedAt || (!paid && !booking.pay_later) ? "opacity-35 grayscale" : ""}`}>
                 <LogoMark className="h-11 w-11" />
               </span>
               {usedAt && (

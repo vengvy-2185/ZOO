@@ -45,7 +45,7 @@ const STYLE = {
 } as const;
 
 /** Big coloured answer shown to staff/admin who scanned a ticket with their phone camera. */
-export function GateVerdict({ out, km, time, forceHref }: { out: ScanOutcome; km: boolean; time: (iso: string) => string; forceHref: string }) {
+export function GateVerdict({ out, km, time, forceHref, payHref }: { out: ScanOutcome; km: boolean; time: (iso: string) => string; forceHref: string; payHref?: string }) {
   const L = TEXT[km ? "km" : "en"];
   const S = STYLE[out.verdict];
   return (
@@ -63,6 +63,11 @@ export function GateVerdict({ out, km, time, forceHref }: { out: ScanOutcome; km
           </p>
         )}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {out.verdict === "unpaid" && payHref && (
+            <Link href={payHref} className="rounded-full bg-white px-5 py-2.5 text-sm font-extrabold text-red-700">
+              {km ? "បង្ហាញ KHQR ឲ្យបង់នៅទីនេះ" : "Show KHQR to pay here"}
+            </Link>
+          )}
           {out.verdict === "wrong_date" && (
             <Link href={forceHref} className="rounded-full bg-white px-5 py-2.5 text-sm font-extrabold text-amber-700">
               {L.allow}
