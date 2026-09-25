@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { Check, Copy, KeyRound, Loader2, Printer, UserPlus } from "lucide-react";
-import { ImageUploadField } from "@/components/admin/ui-client";
+import { Camera, Check, Copy, KeyRound, Loader2, Printer, UserPlus, X } from "lucide-react";
 import { createStaff, resetStaffPassword, type CreateStaffState, type ResetState } from "./actions";
 
 type Pos = { id: string; name: string; name_km: string | null; pay_type: string; rate: number };
@@ -12,7 +11,7 @@ type Pos = { id: string; name: string; name_km: string | null; pay_type: string;
 function Submit({ label, busy }: { label: string; busy: string }) {
   const { pending } = useFormStatus();
   return (
-    <button disabled={pending} className="btn-primary px-5 py-2.5 text-sm">
+    <button disabled={pending} className="btn-primary w-full px-5 py-3 text-sm sm:w-auto">
       {pending ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />} {pending ? busy : label}
     </button>
   );
@@ -31,6 +30,57 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     >
       {ok ? <Check size={13} /> : <Copy size={13} />} {label}
     </button>
+  );
+}
+
+/** Round photo for the ID card: tap to choose (the phone camera works too). Sent as "photo_file". */
+function PhotoPicker({ km }: { km: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [src, setSrc] = useState<string | null>(null);
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={() => ref.current?.click()}
+        className="group relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#DBEAFE] to-[#EEF2FF] border-2 border-dashed border-[#2563EB]/30 transition hover:border-[#2563EB]"
+      >
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex flex-col items-center gap-1 text-[#2563EB]">
+            <Camera size={28} />
+            <span className="text-[11px] font-bold">{km ? "រូបថត" : "Photo"}</span>
+          </span>
+        )}
+        {src && <span className="absolute inset-x-0 bottom-0 bg-black/45 py-1 text-center text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">{km ? "ប្តូរ" : "Change"}</span>}
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        name="photo_file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          setSrc(file ? URL.createObjectURL(file) : null);
+        }}
+      />
+      {src ? (
+        <button
+          type="button"
+          onClick={() => {
+            if (ref.current) ref.current.value = "";
+            setSrc(null);
+          }}
+          className="inline-flex items-center gap-1 text-[11px] font-bold text-ink/45 hover:text-red-600"
+        >
+          <X size={12} /> {km ? "ដករូបចេញ" : "Remove"}
+        </button>
+      ) : (
+        <span className="max-w-[8rem] text-center text-[11px] leading-tight text-ink/45">{km ? "សម្រាប់កាតសម្គាល់ខ្លួន" : "For the ID card"}</span>
+      )}
+    </div>
   );
 }
 
@@ -82,8 +132,9 @@ export function AddStaffForm({ positions, km, today }: { positions: Pos[]; km: b
       <p className="flex items-center gap-2 font-display text-lg font-extrabold text-forest">
         <UserPlus size={20} className="text-primary" /> {L.title}
       </p>
-      <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-        <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+        <PhotoPicker km={km} />
+        <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <label className="block">
             <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-ink/50">{L.name} *</span>
             <input name="full_name" required className={field} placeholder="Sok Dara" autoComplete="off" />
@@ -115,10 +166,9 @@ export function AddStaffForm({ positions, km, today }: { positions: Pos[]; km: b
             <input name="allowance" type="number" min="0" step="0.5" defaultValue="0" className={field} />
           </label>
         </div>
-        <ImageUploadField name="photo" label={L.photo} uploadLabel={km ? "បង្ហោះរូប" : "Upload photo"} urlLabel={km ? "…ឬ link រូប" : "…or image link"} aspect="aspect-square" />
       </div>
       {!state.ok && state.error && <p className="rounded-2xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">{state.error}</p>}
-      <div className="flex justify-end">
+      <div className="flex justify-end border-t border-black/5 pt-4">
         <Submit label={L.add} busy={L.busy} />
       </div>
     </form>

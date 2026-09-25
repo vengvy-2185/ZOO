@@ -34,7 +34,10 @@ const SECTION: Record<string, ItemKey> = {
 export function AdminTopBar({ name, email, avatarUrl }: { name: string; email: string | null; avatarUrl: string | null }) {
   const pathname = usePathname();
   const { t } = useI18n();
-  const section = SECTION[pathname.split("/")[2] ?? ""];
+  // /admin/<section> or /admin/manage/<section>; any sidebar item name works
+  const parts = pathname.split("/");
+  const seg = (parts[2] === "manage" ? parts[3] : parts[2]) ?? "";
+  const section: ItemKey | undefined = SECTION[seg] ?? (seg in t.admin.items ? (seg as ItemKey) : undefined);
 
   return (
     <header className="sticky top-0 z-30 hidden h-16 items-center justify-between gap-4 border-b border-black/5 bg-white/85 px-8 backdrop-blur-lg md:flex">

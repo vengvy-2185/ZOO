@@ -76,7 +76,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
           {lines.length === 0 ? (
             <p className="card p-8 text-center text-ink/55">{L.none}</p>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
               {lines.map((l) => {
                 const s = l.staff;
                 const p = s.position;
@@ -142,116 +142,170 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
 
       {tab === "payroll" && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/admin/staff?tab=payroll&month=${shift(-1)}`} className="rounded-full bg-white px-4 py-2 text-sm font-bold ring-1 ring-black/10">←</Link>
-            <span className="rounded-full bg-forest px-5 py-2 font-display font-extrabold text-white">{monthLabel}</span>
-            <Link href={`/admin/staff?tab=payroll&month=${shift(1)}`} className="rounded-full bg-white px-4 py-2 text-sm font-bold ring-1 ring-black/10">→</Link>
+          <div className="flex items-center justify-center gap-2 sm:justify-start">
+            <Link href={`/admin/staff?tab=payroll&month=${shift(-1)}`} aria-label="previous month" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-forest ring-1 ring-black/10 hover:bg-light-green">←</Link>
+            <span className="min-w-[10rem] rounded-full bg-forest px-5 py-2 text-center font-display font-extrabold text-white">{monthLabel}</span>
+            <Link href={`/admin/staff?tab=payroll&month=${shift(1)}`} aria-label="next month" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-forest ring-1 ring-black/10 hover:bg-light-green">→</Link>
           </div>
           {lines.length === 0 && <p className="card p-8 text-center text-ink/55">{L.none}</p>}
-          {lines.map((l) => {
-            const p = l.staff.position;
-            return (
-              <div key={l.staff.user_id} className="card overflow-hidden">
-                <div className="flex flex-wrap items-center gap-3 p-4">
-                  <span className="h-10 w-1.5 rounded-full" style={{ background: p?.color ?? "#64748B" }} />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-display font-extrabold text-forest">{l.staff.full_name} <span className="font-mono text-xs text-ink/45">{l.staff.staff_no}</span></p>
-                    <p className="text-xs text-ink/55">
-                      {pn(p)} · {p ? `${km ? PAY_TYPE[p.pay_type].km : PAY_TYPE[p.pay_type].en} ${usd(p.rate)}` : "—"} · {units(l)}
-                    </p>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {lines.map((l) => {
+              const p = l.staff.position;
+              return (
+                <div key={l.staff.user_id} className="card overflow-hidden">
+                  {/* who + total */}
+                  <div className="flex items-start gap-3 p-4">
+                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl font-display text-lg font-extrabold text-white" style={{ background: p?.color ?? "#64748B" }}>
+                      {[...l.staff.full_name][0]?.toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-display font-extrabold text-forest">{l.staff.full_name}</p>
+                      <p className="truncate text-xs text-ink/55">
+                        <span className="font-mono font-bold text-primary">{l.staff.staff_no}</span> · {pn(p)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink/50">
+                        {p ? `${km ? PAY_TYPE[p.pay_type].km : PAY_TYPE[p.pay_type].en} ${usd(p.rate)}` : "—"} · {units(l)}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-ink/40">{L.gross}</p>
+                      <p className="font-display text-2xl font-extrabold leading-tight text-forest">{usd(l.payslip?.gross ?? l.gross)}</p>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-3 text-right text-xs">
-                    <div><p className="text-ink/45">{L.base}</p><p className="font-bold">{usd(l.base)}</p></div>
-                    <div><p className="text-ink/45">{L.allowance}</p><p className="font-bold">{usd(l.allowance)}</p></div>
-                    <div><p className="text-ink/45">{L.adj}</p><p className={cn("font-bold", l.adjTotal < 0 ? "text-red-600" : l.adjTotal > 0 ? "text-emerald-600" : "")}>{usd(l.adjTotal)}</p></div>
-                    <div><p className="text-ink/45">{L.gross}</p><p className="font-display text-base font-extrabold text-forest">{usd(l.payslip?.gross ?? l.gross)}</p></div>
+
+                  {/* breakdown */}
+                  <div className="mx-4 grid grid-cols-3 gap-2 rounded-2xl bg-cream p-2 text-center">
+                    {[
+                      [L.base, usd(l.base), ""],
+                      [L.allowance, usd(l.allowance), ""],
+                      [L.adj, `${l.adjTotal > 0 ? "+" : ""}${usd(l.adjTotal)}`, l.adjTotal < 0 ? "text-red-600" : l.adjTotal > 0 ? "text-emerald-600" : ""],
+                    ].map(([k, v, c]) => (
+                      <div key={k} className="rounded-xl bg-white px-2 py-2 shadow-soft">
+                        <p className="truncate text-[11px] text-ink/50">{k}</p>
+                        <p className={cn("font-display text-sm font-extrabold", c)}>{v}</p>
+                      </div>
+                    ))}
                   </div>
-                  {l.payslip ? (
-                    <form action={unmarkPaid.bind(null, l.staff.user_id, month)} className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-light-green px-3 py-1.5 text-xs font-extrabold text-primary">
-                        <CheckCircle2 size={14} /> {L.paidOn} {new Date(l.payslip.paid_at).toLocaleDateString("en-GB", { timeZone: "Asia/Phnom_Penh" })}
-                      </span>
-                      <button className="rounded-full p-1.5 text-ink/40 hover:text-red-600" title={L.undo}><Undo2 size={15} /></button>
-                    </form>
-                  ) : (
-                    <form action={markPaid.bind(null, l.staff.user_id, month)}>
-                      <SubmitButton label={L.markPaid} pendingLabel="…" className="px-4 py-2 text-xs" />
-                    </form>
-                  )}
-                </div>
-                <div className="border-t border-black/5 bg-cream/60 px-4 py-3">
+
+                  {/* bonuses / deductions */}
                   {l.adjustments.length > 0 && (
-                    <ul className="mb-2 space-y-1 text-sm">
+                    <ul className="mx-4 mt-3 space-y-1.5">
                       {l.adjustments.map((a) => (
-                        <li key={a.id} className="flex items-center gap-2">
-                          <span className={cn("font-mono font-bold", a.amount < 0 ? "text-red-600" : "text-emerald-600")}>{a.amount > 0 ? "+" : ""}{usd(a.amount)}</span>
-                          <span className="flex-1 text-ink/65">{a.note}</span>
+                        <li key={a.id} className="flex items-center gap-2 rounded-xl bg-white px-3 py-1.5 text-sm ring-1 ring-black/5">
+                          <span className={cn("font-mono text-xs font-bold", a.amount < 0 ? "text-red-600" : "text-emerald-600")}>{a.amount > 0 ? "+" : ""}{usd(a.amount)}</span>
+                          <span className="min-w-0 flex-1 truncate text-ink/65">{a.note}</span>
                           {!l.payslip && (
                             <form action={removeAdjustment.bind(null, a.id)}>
-                              <button className="text-ink/35 hover:text-red-600"><Trash2 size={14} /></button>
+                              <button className="p-1 text-ink/35 hover:text-red-600" aria-label="remove"><Trash2 size={14} /></button>
                             </form>
                           )}
                         </li>
                       ))}
                     </ul>
                   )}
-                  {!l.payslip && (
-                    <form action={addAdjustment.bind(null, l.staff.user_id, month)} className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-ink/50">{L.bonus}</span>
-                      <select name="sign" className="rounded-xl border border-black/10 bg-white px-2 py-1.5 text-sm">
-                        <option value="+">+</option>
-                        <option value="-">−</option>
-                      </select>
-                      <input name="amount" type="number" step="0.5" min="0" placeholder="$" className="w-24 rounded-xl border border-black/10 bg-white px-3 py-1.5 text-sm" required />
-                      <input name="note" placeholder={L.note} className="min-w-[10rem] flex-1 rounded-xl border border-black/10 bg-white px-3 py-1.5 text-sm" required />
-                      <button className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white"><Plus size={13} /> {L.add}</button>
-                    </form>
-                  )}
+
+                  <div className="mt-4 border-t border-black/5 bg-cream/60 p-4">
+                    {!l.payslip && (
+                      <form action={addAdjustment.bind(null, l.staff.user_id, month)} className="mb-3 grid grid-cols-[3.75rem_5.5rem_1fr] gap-2 sm:grid-cols-[3.75rem_5.5rem_1fr_auto]">
+                        <select name="sign" className={input} aria-label={L.bonus}>
+                          <option value="+">+</option>
+                          <option value="-">−</option>
+                        </select>
+                        <input name="amount" type="number" step="0.5" min="0" placeholder="$" className={input} required />
+                        <input name="note" placeholder={L.note} className={input} required />
+                        <button className="col-span-3 inline-flex items-center justify-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white sm:col-span-1">
+                          <Plus size={13} /> {L.add}
+                        </button>
+                      </form>
+                    )}
+                    {l.payslip ? (
+                      <form action={unmarkPaid.bind(null, l.staff.user_id, month)} className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-light-green px-3 py-2 text-xs font-extrabold text-primary">
+                          <CheckCircle2 size={15} /> {L.paidOn} {new Date(l.payslip.paid_at).toLocaleDateString("en-GB", { timeZone: "Asia/Phnom_Penh" })}
+                        </span>
+                        <button className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-bold text-ink/45 hover:text-red-600"><Undo2 size={14} /> {L.undo}</button>
+                      </form>
+                    ) : (
+                      <form action={markPaid.bind(null, l.staff.user_id, month)}>
+                        <SubmitButton label={`${L.markPaid} · ${usd(l.gross)}`} pendingLabel="…" className="w-full py-2.5 text-sm" />
+                      </form>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
       {tab === "positions" && (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {[...positions, null].map((p) => (
-            <form key={p?.id ?? "new"} action={savePosition.bind(null, p?.id ?? null)} className={cn("card space-y-3 p-4", !p && "border-2 border-dashed border-primary/25 bg-light-green/30")}>
-              <div className="flex items-center gap-2">
-                <input type="color" name="color" defaultValue={p?.color ?? "#2563EB"} className="h-9 w-9 cursor-pointer rounded-lg border-0 bg-transparent p-0" />
-                <input name="name" defaultValue={p?.name ?? ""} placeholder={L.newPos} required className={cn(input, "font-bold")} />
-                <input name="name_km" defaultValue={p?.name_km ?? ""} placeholder="ឈ្មោះជាខ្មែរ" className={input} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs font-bold text-ink/50">
-                  {L.payType}
-                  <select name="pay_type" defaultValue={p?.pay_type ?? "monthly"} className={cn(input, "mt-1")}>
-                    {(Object.keys(PAY_TYPE) as (keyof typeof PAY_TYPE)[]).map((k) => (
-                      <option key={k} value={k}>{km ? PAY_TYPE[k].km : PAY_TYPE[k].en}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs font-bold text-ink/50">
-                  {L.rate} ($)
-                  <input name="rate" type="number" step="0.5" min="0" defaultValue={p?.rate ?? 0} className={cn(input, "mt-1")} />
-                </label>
-              </div>
-              <fieldset>
-                <legend className="mb-1 text-xs font-bold text-ink/50">{L.perms}</legend>
-                <div className="flex flex-wrap gap-2">
-                  {PERMISSIONS.map((x) => (
-                    <label key={x.key} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold ring-1 ring-black/10">
-                      <input type="checkbox" name="permissions" value={x.key} defaultChecked={p?.permissions.includes(x.key)} className="accent-[#176B3A]" />
-                      {km ? x.km : x.en}
-                    </label>
-                  ))}
+            <details key={p?.id ?? "new"} className={cn("group card overflow-hidden", !p && "border-2 border-dashed border-primary/25 bg-light-green/30")}>
+              <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
+                <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-white" style={{ background: p?.color ?? "#94A3B8" }}>
+                  {p ? <Briefcase size={20} /> : <Plus size={20} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-display font-extrabold text-forest">{p ? pn(p) : L.newPos}</span>
+                  {p && (
+                    <span className="block text-xs text-ink/55">
+                      {usd(p.rate)} · {km ? PAY_TYPE[p.pay_type].km : PAY_TYPE[p.pay_type].en}
+                    </span>
+                  )}
+                  {p && (
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {p.permissions.length === 0 ? (
+                        <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold text-ink/45">—</span>
+                      ) : (
+                        p.permissions.map((k) => {
+                          const x = PERMISSIONS.find((y) => y.key === k);
+                          return (
+                            <span key={k} className="rounded-full bg-light-green px-2 py-0.5 text-[10px] font-bold text-primary">
+                              {x ? (km ? x.km : x.en).split(" (")[0] : k}
+                            </span>
+                          );
+                        })
+                      )}
+                    </span>
+                  )}
+                </span>
+                <span className="flex-shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-primary ring-1 ring-black/10 group-open:bg-primary group-open:text-white">{p ? L.edit : L.add}</span>
+              </summary>
+              <form action={savePosition.bind(null, p?.id ?? null)} className="space-y-3 border-t border-black/5 bg-cream/50 p-4">
+                <div className="flex items-center gap-2">
+                  <input type="color" name="color" defaultValue={p?.color ?? "#2563EB"} className="h-10 w-10 flex-shrink-0 cursor-pointer rounded-xl border-0 bg-transparent p-0" aria-label="colour" />
+                  <input name="name" defaultValue={p?.name ?? ""} placeholder="Name" required className={cn(input, "font-bold")} />
                 </div>
-              </fieldset>
-              <div className="flex items-center justify-end gap-2">
-                <SubmitButton label={p ? L.save : L.add} pendingLabel={L.saving} className="px-4 py-2 text-xs" />
-              </div>
-            </form>
+                <input name="name_km" defaultValue={p?.name_km ?? ""} placeholder="ឈ្មោះជាខ្មែរ" className={input} />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs font-bold text-ink/50">
+                    {L.payType}
+                    <select name="pay_type" defaultValue={p?.pay_type ?? "monthly"} className={cn(input, "mt-1")}>
+                      {(Object.keys(PAY_TYPE) as (keyof typeof PAY_TYPE)[]).map((k) => (
+                        <option key={k} value={k}>{km ? PAY_TYPE[k].km : PAY_TYPE[k].en}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-bold text-ink/50">
+                    {L.rate} ($)
+                    <input name="rate" type="number" step="0.5" min="0" defaultValue={p?.rate ?? 0} className={cn(input, "mt-1")} />
+                  </label>
+                </div>
+                <fieldset>
+                  <legend className="mb-1.5 text-xs font-bold text-ink/50">{L.perms}</legend>
+                  <div className="space-y-1.5">
+                    {PERMISSIONS.map((x) => (
+                      <label key={x.key} className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold ring-1 ring-black/5">
+                        <input type="checkbox" name="permissions" value={x.key} defaultChecked={p?.permissions.includes(x.key)} className="h-4 w-4 accent-[#176B3A]" />
+                        {km ? x.km : x.en}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <SubmitButton label={p ? L.save : L.add} pendingLabel={L.saving} className="w-full py-2.5 text-sm" />
+              </form>
+            </details>
           ))}
         </div>
       )}
