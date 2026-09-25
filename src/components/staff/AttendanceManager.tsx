@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, CalendarDays, CheckCircle2, Clock, FileText, MapPin, Monitor, MoreHorizontal, Printer, Search, Settings2, Sun, Sunset, Trash2, UserCheck, Users, XCircle } from "lucide-react";
+import { BarChart3, CalendarDays, CheckCircle2, Clock, FileText, MapPin, Monitor, Moon, Printer, Search, Settings2, Sun, Sunset, Trash2, UserCheck, Users, XCircle } from "lucide-react";
 import { attendanceMonth, localDay, localMinutes as localMinutesNow, toMin as toMinutes, type DayMark, type PersonMonth } from "@/lib/server/attendance";
 import { thisMonth } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
@@ -37,8 +37,8 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
   const data = await attendanceMonth(m);
   const { settings: s, people, today } = data;
   const L = km
-    ? { today: "ថ្ងៃនេះ", month: "សរុបប្រចាំខែ", rules: "ច្បាប់ និងថ្ងៃសម្រាក", kiosk: "បើកអេក្រង់ QR", morning: "ព្រឹក", afternoon: "រសៀល", mark: "កត់ថាមក", undo: "ដកចេញ", none: "មិនទាន់មានបុគ្គលិក។", present: "មក", late: "យឺត", lateMin: "នាទីយឺត", absent: "អវត្តមាន", leave: "ច្បាប់", deduct: "កាត់ប្រាក់", print: "បោះពុម្ព", staff: "បុគ្គលិក", times: "ម៉ោងធ្វើការ", start: "ចាប់ផ្តើម", end: "បញ្ចប់", grace: "អនុគ្រោះ (នាទី)", openBefore: "បើកស្កេនមុន (នាទី)", restDays: "ថ្ងៃសម្រាកប្រចាំសប្តាហ៍", location: "ទីតាំងសួនសត្វ", lat: "Latitude", lng: "Longitude", radius: "ចម្ងាយអនុញ្ញាត (ម៉ែត្រ)", requireLoc: "ត្រូវតែបើក Location ពេលស្កេន", fees: "ការកាត់ប្រាក់ (ក្នុងប្រាក់ខែ)", lateFee: "ក្នុងមួយដងយឺត ($)", absFee: "ក្នុងមួយវេនអវត្តមាន ($)", save: "រក្សាទុក", holidays: "ថ្ងៃបុណ្យ / ថ្ងៃឈប់", holName: "ឈ្មោះថ្ងៃបុណ្យ", add: "បន្ថែម", noHol: "មិនទាន់មាន។", noLoc: "មិនទាន់កំណត់ទីតាំងសួនសត្វ៖ ពេលនេះមិនពិនិត្យចម្ងាយទេ។", manual: "កត់ដោយដៃ", checkedIn: "ស្កេនហើយ", waiting: "រង់ចាំ" }
-    : { today: "Today", month: "Monthly summary", rules: "Rules & days off", kiosk: "Open QR screen", morning: "Morning", afternoon: "Afternoon", mark: "Mark present", undo: "Undo", none: "No staff yet.", present: "Present", late: "Late", lateMin: "Late min", absent: "Absent", leave: "Leave", deduct: "Deduction", print: "Print", staff: "Staff", times: "Working hours", start: "Start", end: "End", grace: "Grace (min)", openBefore: "Scan opens early (min)", restDays: "Weekly rest days", location: "Zoo location", lat: "Latitude", lng: "Longitude", radius: "Allowed distance (m)", requireLoc: "Location must be on to scan", fees: "Deductions (from pay)", lateFee: "Per late arrival ($)", absFee: "Per missed session ($)", save: "Save", holidays: "Holidays / days off", holName: "Holiday name", add: "Add", noHol: "None yet.", noLoc: "The zoo's location isn't set yet: distance isn't checked for now.", manual: "by hand", checkedIn: "Checked in", waiting: "Waiting" };
+    ? { today: "ថ្ងៃនេះ", month: "សរុបប្រចាំខែ", rules: "ច្បាប់ និងថ្ងៃសម្រាក", kiosk: "បើកអេក្រង់ QR", morning: "ព្រឹក", afternoon: "រសៀល", mark: "កត់ថាមក", undo: "ដកចេញ", none: "មិនទាន់មានបុគ្គលិក។", present: "មក", late: "យឺត", lateMin: "នាទីយឺត", absent: "អវត្តមាន", leave: "ច្បាប់", deduct: "កាត់ប្រាក់", print: "បោះពុម្ព", staff: "បុគ្គលិក", times: "ម៉ោងធ្វើការ", start: "ចាប់ផ្តើម", end: "បញ្ចប់", grace: "អនុគ្រោះ (នាទី)", openBefore: "QR លោតមុនម៉ោងចូល (នាទី) · 0 = ចំម៉ោង", restDays: "ថ្ងៃសម្រាកប្រចាំសប្តាហ៍", location: "ទីតាំងសួនសត្វ", lat: "Latitude", lng: "Longitude", radius: "ចម្ងាយអនុញ្ញាត (ម៉ែត្រ)", requireLoc: "ត្រូវតែបើក Location ពេលស្កេន", fees: "ការកាត់ប្រាក់ (ក្នុងប្រាក់ខែ)", lateFee: "ក្នុងមួយដងយឺត ($)", absFee: "ក្នុងមួយវេនអវត្តមាន ($)", save: "រក្សាទុក", holidays: "ថ្ងៃបុណ្យ / ថ្ងៃឈប់", holName: "ឈ្មោះថ្ងៃបុណ្យ", add: "បន្ថែម", noHol: "មិនទាន់មាន។", noLoc: "មិនទាន់កំណត់ទីតាំងសួនសត្វ៖ ពេលនេះមិនពិនិត្យចម្ងាយទេ។", manual: "កត់ដោយដៃ", checkedIn: "ស្កេនហើយ", waiting: "រង់ចាំ" }
+    : { today: "Today", month: "Monthly summary", rules: "Rules & days off", kiosk: "Open QR screen", morning: "Morning", afternoon: "Afternoon", mark: "Mark present", undo: "Undo", none: "No staff yet.", present: "Present", late: "Late", lateMin: "Late min", absent: "Absent", leave: "Leave", deduct: "Deduction", print: "Print", staff: "Staff", times: "Working hours", start: "Start", end: "End", grace: "Grace (min)", openBefore: "QR pops up early (min) · 0 = on the minute", restDays: "Weekly rest days", location: "Zoo location", lat: "Latitude", lng: "Longitude", radius: "Allowed distance (m)", requireLoc: "Location must be on to scan", fees: "Deductions (from pay)", lateFee: "Per late arrival ($)", absFee: "Per missed session ($)", save: "Save", holidays: "Holidays / days off", holName: "Holiday name", add: "Add", noHol: "None yet.", noLoc: "The zoo's location isn't set yet: distance isn't checked for now.", manual: "by hand", checkedIn: "Checked in", waiting: "Waiting" };
 
   const tabs: [AttTab, string][] = [["today", L.today], ["month", L.month], ["rules", L.rules]];
   const shift = (d: number) => {
@@ -79,6 +79,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
         const AV = ["from-emerald-400 to-emerald-600", "from-violet-400 to-violet-600", "from-sky-400 to-blue-600", "from-amber-400 to-orange-500", "from-rose-400 to-pink-600", "from-teal-400 to-cyan-600"];
 
         /** one of the four boxes (arrived / late / leave / absent) for a half day */
+        const WORD = { arrived: km ? "មក" : "In", late: km ? "យឺត" : "Late", leave: km ? "ច្បាប់" : "Leave", absent: km ? "អវត្តមាន" : "Absent" };
         const box = (p: PersonMonth, x: "morning" | "afternoon", kind: BoxKind, d: DayMark) => {
           const k = d[x];
           const time = x === "morning" ? d.mIn : d.aIn;
@@ -86,30 +87,30 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
           const on = kind === "arrived" ? k === "ok" : kind === "late" ? k === "late" : kind === "leave" ? k === "leave" : k === "absent";
           const locked = !on && (k === "off" || k === "holiday");
           const Icon = kind === "arrived" ? CheckCircle2 : kind === "late" ? Clock : kind === "leave" ? FileText : XCircle;
-          const onCls = { arrived: "bg-emerald-500 text-white", late: "bg-amber-400 text-amber-950", leave: "bg-sky-500 text-white", absent: "bg-red-500 text-white" }[kind];
-          const hoverCls = { arrived: "hover:bg-emerald-50 hover:text-emerald-600 hover:ring-emerald-200", late: "hover:bg-amber-50 hover:text-amber-600 hover:ring-amber-200", leave: "hover:bg-sky-50 hover:text-sky-600 hover:ring-sky-200", absent: "hover:bg-red-50 hover:text-red-500 hover:ring-red-200" }[kind];
-          const label = { arrived: T.arrived, late: T.late, leave: T.leave, absent: T.absent }[kind];
+          const onCls = { arrived: "bg-emerald-100 text-emerald-700 ring-emerald-300", late: "bg-amber-100 text-amber-700 ring-amber-300", leave: "bg-sky-100 text-sky-700 ring-sky-300", absent: "bg-rose-100 text-rose-600 ring-rose-300" }[kind];
+          const hoverCls = { arrived: "hover:bg-emerald-50 hover:text-emerald-600", late: "hover:bg-amber-50 hover:text-amber-600", leave: "hover:bg-sky-50 hover:text-sky-600", absent: "hover:bg-rose-50 hover:text-rose-500" }[kind];
+          const label = WORD[kind];
           return (
             <form action={setSessionStatus.bind(null, p.userId, today, x, kind)}>
               <button
                 disabled={locked}
                 title={on ? (km ? `ចុចម្តងទៀតដើម្បីដក "${label}"` : `Tap again to clear "${label}"`) : km ? `កត់ថា "${label}"` : `Mark "${label}"`}
                 className={cn(
-                  "group/b flex h-12 w-full flex-col items-center justify-center rounded-xl text-[11px] font-extrabold transition active:scale-95 disabled:cursor-default disabled:opacity-40",
-                  on ? cn(onCls, "shadow-sm hover:brightness-95") : cn("bg-slate-50/80 text-slate-300 ring-1 ring-transparent", !locked && hoverCls)
+                  "group/b flex h-11 w-full flex-col items-center justify-center rounded-2xl px-1 text-xs font-extrabold transition active:scale-95 disabled:cursor-default disabled:opacity-40",
+                  on ? cn(onCls, "ring-1") : cn("bg-slate-100/70 text-slate-300", !locked && hoverCls)
                 )}
               >
                 {on ? (
                   <>
-                    <Icon size={16} strokeWidth={2.5} />
-                    <span className="mt-0.5 leading-none tabular-nums">
-                      {kind === "arrived" ? time ?? "✓" : kind === "late" ? <>{time} <span className="opacity-75">+{lateMin}′</span></> : label}
-                    </span>
+                    <span className="flex items-center gap-1 whitespace-nowrap"><Icon size={14} strokeWidth={2.5} /> {label}</span>
+                    {(kind === "arrived" || kind === "late") && time && (
+                      <span className="mt-0.5 text-[10px] font-bold leading-none tabular-nums opacity-80">{time}{kind === "late" && lateMin ? ` · +${lateMin}′` : ""}</span>
+                    )}
                   </>
                 ) : (
                   <>
-                    <span className="text-sm leading-none group-hover/b:hidden">–</span>
-                    <Icon size={16} className="hidden group-hover/b:block" />
+                    <span className="leading-none group-hover/b:hidden">–</span>
+                    <span className="hidden items-center gap-1 whitespace-nowrap group-hover/b:flex"><Icon size={13} /> {label}</span>
                   </>
                 )}
               </button>
@@ -157,8 +158,34 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
         );
         const qs = (o: Record<string, string>) => href({ at: "today", ...(q ? { q } : {}), ...(sess ? { sess } : {}), ...o });
 
+        const sessCount = (x: "morning" | "afternoon", k: DayMark["morning"][]) => all.filter((r) => k.includes(r.d[x])).length;
         return (
           <div className="space-y-3">
+            {/* morning / afternoon at a glance */}
+            <div className="grid gap-3 lg:grid-cols-2">
+              {(["morning", "afternoon"] as const).map((x) => (
+                <div key={x} className={cn("flex items-stretch gap-2 rounded-[1.5rem] bg-white p-2 shadow-soft ring-1", nowSess === x ? "ring-[#2563EB]/40" : "ring-black/5")}>
+                  <div className={cn("flex w-32 flex-shrink-0 flex-col justify-center rounded-2xl px-3 py-2", x === "morning" ? "bg-gradient-to-br from-sky-50 to-blue-100" : "bg-gradient-to-br from-violet-50 to-indigo-100")}>
+                    {x === "morning" ? <Sun size={24} className="text-amber-500" /> : <Moon size={22} className="text-indigo-500" />}
+                    <span className="mt-1 font-display text-sm font-extrabold text-[#1E3A8A]">{km ? (x === "morning" ? "ពេលព្រឹក" : "ពេលរសៀល") : sessName(x)}</span>
+                    <span className="text-[10px] font-bold text-ink/45">{x === "morning" ? `${s.morning_start} – ${s.morning_end}` : `${s.afternoon_start} – ${s.afternoon_end}`}</span>
+                  </div>
+                  {([
+                    [CheckCircle2, WORD.arrived, ["ok"], "bg-emerald-50 text-emerald-700"],
+                    [Clock, WORD.late, ["late"], "bg-amber-50 text-amber-700"],
+                    [XCircle, WORD.absent, ["absent"], "bg-rose-50 text-rose-600"],
+                    [FileText, WORD.leave, ["leave"], "bg-sky-50 text-sky-700"],
+                  ] as const).map(([Icon, label, ks, cls]) => (
+                    <div key={label} className={cn("flex flex-1 flex-col items-center justify-center rounded-2xl py-2", cls)}>
+                      <Icon size={18} />
+                      <span className="mt-0.5 text-[11px] font-bold">{label}</span>
+                      <span className="font-display text-xl font-extrabold leading-none">{sessCount(x, [...ks])}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
             {/* header: title · date · morning/afternoon · search */}
             <div className="flex flex-wrap items-center gap-3 rounded-[1.75rem] bg-white p-2.5 shadow-soft ring-1 ring-black/5">
               <div className="flex items-center gap-3 rounded-[1.4rem] bg-gradient-to-r from-[#1D4ED8] to-[#3B82F6] py-2.5 pl-4 pr-8 text-white [clip-path:polygon(0_0,100%_0,calc(100%-1.25rem)_100%,0_100%)]">
@@ -184,7 +211,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
 
             {/* the table (computers): header and rows use the same grid, so everything lines up */}
             <div className={cn("hidden overflow-hidden rounded-[1.75rem] bg-white shadow-soft ring-1 ring-black/5", !compact && "xl:block")}>
-              <div className={cn("grid items-end gap-x-2 border-b border-black/5 bg-[#F8FAFF] px-4 pb-2 pt-3", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)]")}>
+              <div className={cn("grid items-end gap-x-2 border-b border-black/5 bg-[#F8FAFF] px-4 pb-2 pt-3", "grid-cols-[2rem_minmax(11rem,1.3fr)_repeat(4,minmax(4.6rem,1fr))_1px_repeat(4,minmax(4.6rem,1fr))_minmax(9.5rem,1fr)]")}>
                 {/* every heading has a fixed column + row, matching the cells below */}
                 <span className="col-start-1 row-span-2 row-start-1 self-center text-center text-sm font-bold text-ink/40">#</span>
                 <span className="col-start-2 row-span-2 row-start-1 flex items-center gap-2 self-center font-display font-extrabold text-[#1E3A8A]"><Users size={17} /> {T.name}</span>
@@ -212,7 +239,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
               {rows.map(({ p, d }, i) => {
                 const sm = summary(d);
                 return (
-                  <div key={p.userId} className={cn("grid items-center gap-x-2 px-4 py-2.5 transition hover:bg-[#F8FAFF]", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)]", i > 0 && "border-t border-black/5")}>
+                  <div key={p.userId} className={cn("grid items-center gap-x-2 px-4 py-2.5 transition hover:bg-[#F8FAFF]", "grid-cols-[2rem_minmax(11rem,1.3fr)_repeat(4,minmax(4.6rem,1fr))_1px_repeat(4,minmax(4.6rem,1fr))_minmax(9.5rem,1fr)]", i > 0 && "border-t border-black/5")}>
                     <span className="text-center text-sm font-bold text-ink/40">{i + 1}</span>
                     <div className="flex min-w-0 items-center gap-3">
                       {avatar(p, i, "h-11 w-11 text-lg")}
@@ -319,6 +346,14 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                 <label className="text-xs font-bold text-ink/55">{L.grace}<input type="number" name="grace_minutes" min={0} max={120} defaultValue={s.grace_minutes} className={cn(input, "mt-1")} /></label>
                 <label className="text-xs font-bold text-ink/55">{L.openBefore}<input type="number" name="open_before_minutes" min={0} max={240} defaultValue={s.open_before_minutes} className={cn(input, "mt-1")} /></label>
               </div>
+              {/* when the QR will pop up with the saved rules */}
+              <p className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-[#EEF2FF] px-3 py-2 text-xs font-bold text-[#1E3A8A]">
+                <Monitor size={14} /> {km ? "QR លោតពេញអេក្រង់ដោយខ្លួនឯងនៅម៉ោង៖" : "The QR pops up full screen by itself at:"}
+                {([["morning", s.morning_start, s.morning_end], ["afternoon", s.afternoon_start, s.afternoon_end]] as const).map(([x, st, en]) => {
+                  const m = Math.max(0, toMinutes(st) - s.open_before_minutes);
+                  return <span key={x} className="rounded-full bg-white px-2.5 py-1">{x === "morning" ? L.morning : L.afternoon} {String(Math.floor(m / 60)).padStart(2, "0")}:{String(m % 60).padStart(2, "0")} → {en}</span>;
+                })}
+              </p>
             </fieldset>
             <fieldset>
               <legend className="mb-2 font-display font-extrabold text-forest">{L.restDays}</legend>

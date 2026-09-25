@@ -8,6 +8,7 @@ import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
 import { StaffNav, type StaffNavItem } from "./StaffNav";
+import { StaffBottomNav } from "./StaffBottomNav";
 
 /** Kept for the pages' `active` prop; the menu itself highlights from the address. */
 export type StaffNavKey = StaffNavItem["key"];
@@ -53,7 +54,7 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
     .map(([key, href, group]) => ({ key, href, group, label: T[key] }));
 
   return (
-    <div className="min-h-screen bg-[#F4F7FF] pb-14">
+    <div className="min-h-screen bg-[#F4F7FF] pb-28 md:pb-14">
       {/* pinned top bar + menu */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] text-white shadow-[0_8px_24px_-12px_rgba(30,58,138,0.6)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 md:px-8">
@@ -87,7 +88,10 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
             </SignOutButton>
           </div>
         </div>
-        <StaffNav items={items} />
+        {/* computers: tabs under the top bar · phones: a bar at the bottom */}
+        <div className="hidden md:block">
+          <StaffNav items={items} />
+        </div>
       </div>
 
       {/* page title */}
@@ -104,6 +108,7 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
       </header>
 
       <main className="relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>
+      <StaffBottomNav items={items} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />
     </div>
   );
 }

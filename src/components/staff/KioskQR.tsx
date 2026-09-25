@@ -36,7 +36,7 @@ export function KioskQR({ km, windows, dayOff, overlayOnly = false }: { km: bool
   }, []);
 
   const active = dayOff ? null : windows.find((w) => now >= w.openMin && now < w.endMin) ?? null;
-  const minKey = active ? `gwz_qr_min_${new Date().toDateString()}_${active.session}` : "";
+  const minKey = active ? `gwz_qr_min_${new Date().toDateString()}_${active.session}_${active.openMin}_${active.endMin}` : "";
   useEffect(() => {
     try {
       setMinimizedState(Boolean(minKey && sessionStorage.getItem(minKey)));
@@ -131,8 +131,8 @@ export function KioskQR({ km, windows, dayOff, overlayOnly = false }: { km: bool
   if (overlayOnly) {
     if (!active) return null;
     return (
-      <button type="button" onClick={() => setMinimized(false)} className="fixed bottom-5 right-5 z-[150] inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] px-5 py-3 font-extrabold text-white shadow-lift ring-4 ring-white animate-[gwzPop_.3s_ease]">
-        <Maximize2 size={18} /> {L.show} · {name(active.session)}
+      <button type="button" onClick={() => setMinimized(false)} className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] px-4 py-2.5 text-sm font-extrabold text-white shadow-lift ring-4 ring-white animate-[gwzPop_.3s_ease] md:bottom-5 md:right-5 md:px-5 md:py-3 md:text-base">
+        <Maximize2 size={18} /> <span className="md:hidden">QR · {name(active.session)}</span><span className="hidden md:inline">{L.show} · {name(active.session)}</span>
       </button>
     );
   }
