@@ -166,7 +166,7 @@ export function CheckInScanner({ km, initialToken }: { km: boolean; initialToken
       )}
 
       {step === "done" && result && (
-        <div className={cn("overflow-hidden rounded-[2rem] text-center text-white shadow-lift", result.ok ? (result.late > 0 ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-[#1E3A8A] to-[#2563EB]") : "bg-gradient-to-br from-red-600 to-rose-700")}>
+        <div className={cn("overflow-hidden rounded-[2rem] text-center text-white shadow-lift", result.ok ? (result.late > 0 ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-emerald-500 to-emerald-700") : "bg-gradient-to-br from-red-600 to-rose-700")}>
           <div className="p-7">
             <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/20 animate-[gwzPop_.3s_ease]">
               {result.ok ? result.late > 0 ? <Clock size={44} /> : <CheckCircle2 size={44} /> : <AlertTriangle size={44} />}

@@ -24,15 +24,15 @@ export default async function CheckInPage({ searchParams }: { searchParams: { t?
   const row = (sess: "morning" | "afternoon", start: string, end: string) => {
     const c: any = (mine ?? []).find((x: any) => x.session === sess);
     return (
-      <div key={sess} className={`card flex items-center gap-3 p-4 ${c ? "ring-2 ring-[#2563EB]/30" : ""}`}>
-        <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl ${c ? (c.late_minutes ? "bg-amber-100 text-amber-600" : "bg-[#1D4ED8] text-white") : "bg-[#EEF2FF] text-[#1D4ED8]"}`}>
+      <div key={sess} className={`card flex items-center gap-3 p-4 ${c ? (c.late_minutes ? "ring-2 ring-amber-300" : "ring-2 ring-emerald-300") : ""}`}>
+        <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl ${c ? (c.late_minutes ? "bg-amber-100 text-amber-600" : "bg-emerald-500 text-white") : "bg-[#EEF2FF] text-[#1D4ED8]"}`}>
           {c ? (c.late_minutes ? <Clock size={20} /> : <CheckCircle2 size={20} />) : <Clock size={20} />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-bold text-forest">{sess === "morning" ? L.morning : L.afternoon}</span>
           <span className="block text-xs text-ink/55">{start}–{end} · {L.grace(s.grace_minutes)}</span>
         </span>
-        <span className={`text-right text-sm font-extrabold ${c ? (c.late_minutes ? "text-amber-600" : "text-[#1D4ED8]") : "text-ink/40"}`}>
+        <span className={`text-right text-sm font-extrabold ${c ? (c.late_minutes ? "text-amber-600" : "text-emerald-600") : "text-ink/40"}`}>
           {c ? <>{time(c.checked_at)}<span className="block text-[11px]">{c.late_minutes ? L.late(c.late_minutes) : L.onTime}</span></> : L.waiting}
         </span>
       </div>
