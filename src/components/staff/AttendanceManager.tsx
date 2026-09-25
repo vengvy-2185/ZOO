@@ -81,42 +81,41 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
         /** one of the four boxes (arrived / late / leave / absent) for a half day */
         const box = (kind: "arrived" | "late" | "leave" | "absent", k: DayMark["morning"], time?: string, lateMin?: number) => {
           const on = kind === "arrived" ? k === "ok" : kind === "late" ? k === "late" : kind === "leave" ? k === "leave" : k === "absent";
-          const style = {
-            arrived: on ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-50 text-slate-300 ring-slate-100",
-            late: on ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-300 ring-slate-100",
-            leave: on ? "bg-sky-50 text-sky-700 ring-sky-200" : "bg-sky-50/40 text-sky-200 ring-sky-100/60",
-            absent: on ? "bg-red-50 text-red-600 ring-red-200" : "bg-red-50/40 text-red-200 ring-red-100/60",
-          }[kind];
+          if (!on) return <div className="flex h-12 items-center justify-center rounded-xl bg-slate-50/70 text-sm font-bold text-slate-300">–</div>;
+          const style = { arrived: "bg-emerald-500 text-white", late: "bg-amber-400 text-amber-950", leave: "bg-sky-500 text-white", absent: "bg-red-500 text-white" }[kind];
           const Icon = kind === "arrived" ? CheckCircle2 : kind === "late" ? Clock : kind === "leave" ? FileText : XCircle;
           return (
-            <div className={cn("flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl ring-1", style)}>
-              <Icon size={on ? 22 : 16} className={on ? (kind === "arrived" ? "fill-emerald-500 text-white" : kind === "absent" ? "fill-red-500 text-white" : "") : ""} />
-              <span className="text-xs font-extrabold tabular-nums">
-                {on ? (kind === "arrived" ? time : kind === "late" ? <>{time} <span className="font-bold opacity-70">+{lateMin}′</span></> : kind === "leave" ? T.leave : T.absent) : "–"}
+            <div className={cn("flex h-12 flex-col items-center justify-center rounded-xl shadow-sm", style)}>
+              <Icon size={16} strokeWidth={2.5} />
+              <span className="mt-0.5 text-[11px] font-extrabold leading-none tabular-nums">
+                {kind === "arrived" ? time : kind === "late" ? <>{time} <span className="opacity-75">+{lateMin}′</span></> : kind === "leave" ? T.leave : T.absent}
               </span>
             </div>
           );
         };
-        /** the "today" summary for a person */
+        /** the "today" summary for a person: one short line + n/2 */
         const summary = (d: DayMark) => {
           const ks = [d.morning, d.afternoon];
           const work = ks.filter((k) => !["off", "holiday", "none"].includes(k)).length;
           const n = ks.filter(came).length;
-          const which = (f: (k: DayMark["morning"]) => boolean) => (["morning", "afternoon"] as const).filter((x) => f(d[x])).map(sessName).join(", ");
-          if (d.morning === "holiday") return { cls: "bg-slate-100 text-slate-600", Icon: CalendarDays, text: T.holiday, n: "" };
-          if (d.morning === "off") return { cls: "bg-slate-100 text-slate-600", Icon: CalendarDays, text: T.off, n: "" };
-          if (ks.includes("absent")) return { cls: "bg-red-50 text-red-700", Icon: XCircle, text: T.absentIn(which((k) => k === "absent")), n: `${n}/${work}` };
-          if (ks.includes("late")) return { cls: "bg-amber-50 text-amber-800", Icon: Clock, text: T.lateIn(which((k) => k === "late")), n: `${n}/${work}` };
-          if (ks.includes("leave")) return { cls: "bg-sky-50 text-sky-700", Icon: FileText, text: T.onLeave, n: "" };
-          if (n === work && work > 0) return { cls: "bg-emerald-50 text-emerald-700", Icon: CheckCircle2, text: T.allIn, n: `${n}/${work}` };
-          if (n > 0) return { cls: "bg-emerald-50 text-emerald-700", Icon: CheckCircle2, text: T.working, n: `${n}/${work}` };
-          return { cls: "bg-slate-50 text-slate-500", Icon: Clock, text: T.waitingAll, n: `0/${work}` };
+          const which = (f: (k: DayMark["morning"]) => boolean) => {
+            const both = f(d.morning) && f(d.afternoon);
+            return both ? "" : ` · ${f(d.morning) ? L.morning : L.afternoon}`;
+          };
+          if (d.morning === "holiday") return { cls: "bg-slate-100 text-slate-600", dot: "bg-slate-400", text: T.holiday, n: "" };
+          if (d.morning === "off") return { cls: "bg-slate-100 text-slate-600", dot: "bg-slate-400", text: T.off, n: "" };
+          if (ks.includes("absent")) return { cls: "bg-red-50 text-red-700", dot: "bg-red-500", text: T.absent + which((k) => k === "absent"), n: `${n}/${work}` };
+          if (ks.includes("late")) return { cls: "bg-amber-50 text-amber-800", dot: "bg-amber-400", text: T.late + which((k) => k === "late"), n: `${n}/${work}` };
+          if (ks.includes("leave")) return { cls: "bg-sky-50 text-sky-700", dot: "bg-sky-500", text: T.onLeave, n: "" };
+          if (n === work && work > 0) return { cls: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500", text: T.allIn, n: `${n}/${work}` };
+          if (n > 0) return { cls: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500", text: T.working, n: `${n}/${work}` };
+          return { cls: "bg-slate-50 text-slate-500", dot: "bg-slate-300", text: T.waitingAll, n: `0/${work}` };
         };
         const menu = (p: PersonMonth, d: DayMark) => {
           const onLeave = d.morning === "leave";
           return (
             <details className="group relative">
-              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl bg-[#F1F5FF] text-[#1E3A8A] ring-1 ring-[#2563EB]/10 hover:bg-[#E0E7FF]" aria-label={T.actions}>
+              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl text-ink/50 outline-none transition hover:bg-[#EEF2FF] hover:text-[#1E3A8A] focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 group-open:bg-[#EEF2FF] group-open:text-[#1E3A8A] [&::-webkit-details-marker]:hidden" aria-label={T.actions}>
                 <MoreHorizontal size={18} />
               </summary>
               <div className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-2xl bg-white p-1.5 shadow-lift ring-1 ring-black/5">
@@ -187,50 +186,62 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
               </form>
             </div>
 
-            {/* the table (computers) */}
-            <div className={cn("hidden rounded-[1.75rem] bg-[#F1F5FF] p-2 ring-1 ring-[#2563EB]/10", !compact && "xl:block")}>
-              <div className="grid grid-cols-[2.25rem_minmax(11rem,1.1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(8.5rem,0.9fr)_2.5rem] items-end gap-3 px-2">
-                <span className="pb-3 text-center font-bold text-ink/50">#</span>
-                <span className="flex items-center gap-2 pb-3 font-display font-extrabold text-[#1E3A8A]"><Users size={18} /> {T.name}</span>
-                <SessHead x="morning" />
-                <SessHead x="afternoon" />
-                <span className="flex items-center justify-center gap-1.5 pb-3 font-display font-extrabold text-[#1E3A8A]"><BarChart3 size={18} className="text-[#1D4ED8]" /> {T.total}</span>
-                <span />
-              </div>
-              <div className="mt-2 space-y-2">
-                {rows.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-ink/55">{L.none}</p>}
-                {rows.map(({ p, d }, i) => {
-                  const sm = summary(d);
+            {/* the table (computers): header and rows use the same grid, so everything lines up */}
+            <div className={cn("hidden overflow-hidden rounded-[1.75rem] bg-white shadow-soft ring-1 ring-black/5", !compact && "xl:block")}>
+              <div className={cn("grid items-end gap-x-2 border-b border-black/5 bg-[#F8FAFF] px-4 pb-2 pt-3", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)_2.5rem]")}>
+                {/* every heading has a fixed column + row, matching the cells below */}
+                <span className="col-start-1 row-span-2 row-start-1 self-center text-center text-sm font-bold text-ink/40">#</span>
+                <span className="col-start-2 row-span-2 row-start-1 flex items-center gap-2 self-center font-display font-extrabold text-[#1E3A8A]"><Users size={17} /> {T.name}</span>
+                {(["morning", "afternoon"] as const).map((x) => (
+                  <p key={x} className={cn("col-span-4 row-start-1 flex items-center justify-center gap-2 whitespace-nowrap pb-1 font-display font-extrabold text-[#1E3A8A]", x === "morning" ? "col-start-3" : "col-start-8")}>
+                    {x === "morning" ? <Sun size={18} className="text-amber-500" /> : <Sunset size={18} className="text-orange-500" />}
+                    {sessName(x)}
+                    <span className="text-xs font-bold text-ink/40">{x === "morning" ? `${s.morning_start}–${s.morning_end}` : `${s.afternoon_start}–${s.afternoon_end}`}</span>
+                    {nowSess === x && <span className="rounded-full bg-[#1D4ED8] px-2 py-0.5 text-[10px] font-extrabold text-white">{km ? "ឥឡូវ" : "now"}</span>}
+                  </p>
+                ))}
+                <span className="col-start-7 row-span-2 row-start-1 h-full w-px justify-self-center bg-black/10" />
+                <span className="col-start-12 row-span-2 row-start-1 flex items-center justify-center gap-1.5 self-center whitespace-nowrap font-display font-extrabold text-[#1E3A8A]"><BarChart3 size={17} className="text-[#1D4ED8]" /> {T.total}</span>
+                {(["col-start-3", "col-start-4", "col-start-5", "col-start-6", "col-start-8", "col-start-9", "col-start-10", "col-start-11"] as const).map((col, j) => {
+                  const [Icon, label, c] = ([[CheckCircle2, T.arrived, "text-emerald-600"], [Clock, T.late, "text-amber-600"], [FileText, T.leave, "text-sky-600"], [XCircle, T.absent, "text-red-500"]] as const)[j % 4];
                   return (
-                    <div key={p.userId} className="grid grid-cols-[2.25rem_minmax(11rem,1.1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(8.5rem,0.9fr)_2.5rem] items-center gap-3 rounded-2xl bg-white p-2 shadow-soft ring-1 ring-black/5">
-                      <span className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F5FF] text-sm font-bold text-[#1E3A8A]">{i + 1}</span>
-                      <div className="flex min-w-0 items-center gap-3">
-                        {avatar(p, i)}
-                        <span className="min-w-0">
-                          <span className="block truncate font-display font-extrabold text-forest">{p.name}</span>
-                          <span className="block truncate text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
-                        </span>
-                      </div>
-                      {(["morning", "afternoon"] as const).map((x) => (
-                        <div key={x} className={cn("grid grid-cols-4 gap-2 rounded-2xl p-1", nowSess === x && "bg-[#F8FAFF]")}>
-                          {box("arrived", d[x], x === "morning" ? d.mIn : d.aIn)}
-                          {box("late", d[x], x === "morning" ? d.mIn : d.aIn, x === "morning" ? d.mLate : d.aLate)}
-                          {box("leave", d[x])}
-                          {box("absent", d[x])}
-                        </div>
-                      ))}
-                      <div className={cn("flex h-16 items-center gap-2 rounded-2xl px-3", sm.cls)}>
-                        <sm.Icon size={26} className="flex-shrink-0" />
-                        <span className="min-w-0 text-xs font-extrabold leading-tight">
-                          {sm.text}
-                          {sm.n && <span className="block text-sm">{sm.n}</span>}
-                        </span>
-                      </div>
-                      {menu(p, d)}
-                    </div>
+                    <span key={col} className={cn("row-start-2 flex items-center justify-center gap-1 whitespace-nowrap text-[11px] font-bold text-ink/55", col)}>
+                      <Icon size={12} className={c} /> {label}
+                    </span>
                   );
                 })}
               </div>
+              {rows.length === 0 && <p className="p-8 text-center text-sm text-ink/55">{L.none}</p>}
+              {rows.map(({ p, d }, i) => {
+                const sm = summary(d);
+                return (
+                  <div key={p.userId} className={cn("grid items-center gap-x-2 px-4 py-2.5 transition hover:bg-[#F8FAFF]", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)_2.5rem]", i > 0 && "border-t border-black/5")}>
+                    <span className="text-center text-sm font-bold text-ink/40">{i + 1}</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {avatar(p, i, "h-11 w-11 text-lg")}
+                      <span className="min-w-0">
+                        <span className="block truncate font-bold text-forest" title={p.name}>{p.name}</span>
+                        <span className="block truncate text-xs text-ink/45" title={`${p.staffNo} · ${(km && p.positionKm) || p.position}`}>{p.staffNo} · {(km && p.positionKm) || p.position}</span>
+                      </span>
+                    </div>
+                    {box("arrived", d.morning, d.mIn)}
+                    {box("late", d.morning, d.mIn, d.mLate)}
+                    {box("leave", d.morning)}
+                    {box("absent", d.morning)}
+                    <span className="h-10 w-px justify-self-center bg-black/10" />
+                    {box("arrived", d.afternoon, d.aIn)}
+                    {box("late", d.afternoon, d.aIn, d.aLate)}
+                    {box("leave", d.afternoon)}
+                    {box("absent", d.afternoon)}
+                    <div className={cn("flex h-12 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-xs font-extrabold", sm.cls)}>
+                      <span className={cn("h-2.5 w-2.5 flex-shrink-0 rounded-full", sm.dot)} />
+                      <span className="min-w-0 flex-1 truncate">{sm.text}</span>
+                      {sm.n && <span className="rounded-md bg-white/70 px-1.5 py-0.5 tabular-nums">{sm.n}</span>}
+                    </div>
+                    {menu(p, d)}
+                  </div>
+                );
+              })}
             </div>
 
             {/* cards (phones, tablets, narrow columns): the chosen session */}
@@ -259,7 +270,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                       {box("absent", d[nowSess])}
                     </div>
                     <div className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold sm:hidden", sm.cls)}>
-                      <sm.Icon size={16} /> {sm.text} {sm.n && <span className="ml-auto">{sm.n}</span>}
+                      <span className={cn("h-2.5 w-2.5 rounded-full", sm.dot)} /> {sm.text} {sm.n && <span className="ml-auto">{sm.n}</span>}
                     </div>
                   </div>
                 );
