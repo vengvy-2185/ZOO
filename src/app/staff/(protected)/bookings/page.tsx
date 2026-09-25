@@ -6,6 +6,8 @@ import { zooToday } from "@/lib/data/gate";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { cn } from "@/lib/utils/cn";
 import { BookingActions } from "@/components/staff/BookingActions";
+import { PaidToast } from "@/components/staff/PaidToast";
+import { catchUpPayments } from "@/lib/server/payments";
 
 import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
@@ -14,6 +16,8 @@ export const dynamic = "force-dynamic";
 export const generateMetadata = () => staffTitle("Bookings", "ការកក់");
 
 export default async function StaffBookingsPage({ searchParams }: { searchParams: { q?: string; d?: string; f?: string } }) {
+  // first visit of the day: confirm payments that Bakong couldn't be asked about yesterday
+  await catchUpPayments().catch(() => {});
   const { locale } = getI18n();
   const km = locale === "km";
   const day = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.d ?? "") ? searchParams.d! : zooToday();
@@ -45,6 +49,7 @@ export default async function StaffBookingsPage({ searchParams }: { searchParams
 
   return (
     <StaffShell title={L.title} subtitle={L.sub}>
+      <PaidToast km={km} paid={rows.filter((r) => r.status === "confirmed").map((r) => ({ code: r.booking_code, name: r.visitor_name, total: Number(r.total_usd) }))} />
       <div className="card space-y-3 p-4">
         <form className="flex gap-2" action="/staff/bookings">
           <input type="hidden" name="f" value={f} />

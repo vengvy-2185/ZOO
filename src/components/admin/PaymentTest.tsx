@@ -14,6 +14,7 @@ type State =
   | { step: "error"; message: string };
 
 const PROBLEM: Record<string, string> = {
+  limit: "Bakong daily check limit reached (about 100 checks a day on this token). Checks start again tomorrow; ask NBC for a higher limit if you need more.",
   token: "Bakong rejected the API token (expired or wrong). Paste a fresh token and save.",
   timeout: "This server couldn't reach the Bakong API in time. It may only accept connections from Cambodia.",
   network: "This server couldn't reach the Bakong API. It may only accept connections from Cambodia.",
@@ -48,7 +49,7 @@ export function PaymentTest() {
       } else {
         setS((cur) => (cur.step === "waiting" ? { ...cur, problem: c?.error ? PROBLEM[c.error] ?? c.error : undefined } : cur));
       }
-    }, 4000);
+    }, 12000);
   }
 
   return (
@@ -90,7 +91,7 @@ export function PaymentTest() {
             <p className="flex items-center gap-2 font-bold text-primary">
               <Loader2 size={16} className="animate-spin" /> Waiting for Bakong to confirm…
             </p>
-            <p className="text-xs text-ink/50">Checked every 4 seconds by the live server. The QR is valid for 10 minutes.</p>
+            <p className="text-xs text-ink/50">Checked every 12 seconds by the live server (Bakong allows about 100 checks a day). The QR is valid for 10 minutes.</p>
             {s.problem && (
               <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
                 <AlertTriangle size={15} className="mt-px flex-shrink-0" /> {s.problem}

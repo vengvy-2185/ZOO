@@ -16,6 +16,7 @@ export interface KhqrView {
   canVerify?: boolean;
   logo?: string;
   payLater?: boolean;
+  checkBlocked?: "limit" | "token";
 }
 
 const CHOICE = {
@@ -30,6 +31,9 @@ const CHOICE = {
     chosen: "Your choice",
     openTicket: "Open my ticket",
     expired: "The QR code expired. Choose again:",
+    checkNow: "I've paid · check now",
+    checking: "Checking…",
+    limit: "Your payment is received by the zoo's bank, but the automatic check is busy today. Your ticket will be confirmed automatically soon (no need to pay again). Keep your booking code.",
     instead: "Pay at the counter instead",
     making: "Making your QR…",
   },
@@ -44,6 +48,9 @@ const CHOICE = {
     chosen: "ជម្រើសរបស់អ្នក",
     openTicket: "បើកសំបុត្ររបស់ខ្ញុំ",
     expired: "QR ផុតកំណត់ហើយ។ សូមជ្រើសម្តងទៀត៖",
+    checkNow: "ខ្ញុំបានបង់រួច · ពិនិត្យឥឡូវ",
+    checking: "កំពុងពិនិត្យ…",
+    limit: "ប្រាក់របស់អ្នកបានចូលធនាគាររបស់សួនសត្វ ប៉ុន្តែការពិនិត្យស្វ័យប្រវត្តិរវល់ថ្ងៃនេះ។ សំបុត្រនឹងត្រូវបញ្ជាក់ដោយស្វ័យប្រវត្តិឆាប់ៗ (មិនបាច់បង់ម្តងទៀតទេ)។ សូមរក្សាលេខកូដកក់របស់អ្នក។",
     instead: "បង់នៅបញ្ជរជំនួសវិញ",
     making: "កំពុងបង្កើត QR…",
   },
@@ -84,14 +91,15 @@ export function KhqrPayment({
   const hadQr = useRef(Boolean(initial.qr));
   const [making, setMaking] = useState(false);
   const [laterBusy, setLaterBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
   const canLater = kind === "booking" && Boolean(ticketHref);
 
   const poll = useCallback(
-    async (regenerate = false) => {
+    async (regenerate = false, check = false) => {
       const res = await fetch("/api/payments/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, code, key: accessKey, regenerate }),
+        body: JSON.stringify({ kind, code, key: accessKey, regenerate, check }),
       });
       if (!res.ok) return;
       const next = (await res.json()) as KhqrView;
@@ -120,7 +128,7 @@ export function KhqrPayment({
   // Poll while pending (also a little after expiry, in case it was paid at the last second)
   useEffect(() => {
     if (view.status !== "pending" || stopped.current) return;
-    const id = setInterval(() => poll(), 2500);
+    const id = setInterval(() => poll(), 3000);
     return () => clearInterval(id);
   }, [view.status, poll]);
 
@@ -295,6 +303,23 @@ export function KhqrPayment({
         </div>
 
       </KhqrCard>
+      {!expired && (
+        <div className="space-y-2 md:col-start-1">
+          {view.checkBlocked === "limit" && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 ring-1 ring-amber-200">{C.limit}</p>}
+          <button
+            type="button"
+            disabled={checking}
+            onClick={async () => {
+              setChecking(true);
+              await poll(false, true);
+              setChecking(false);
+            }}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-extrabold text-primary shadow-soft ring-1 ring-primary/20 disabled:opacity-70"
+          >
+            {checking ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {checking ? C.checking : C.checkNow}
+          </button>
+        </div>
+      )}
       {canLater && !expired && (
         <button type="button" onClick={payLater} disabled={laterBusy} className="mx-auto -mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline md:col-start-1">
           {laterBusy ? <Loader2 size={15} className="animate-spin" /> : <Store size={15} />} {C.instead}

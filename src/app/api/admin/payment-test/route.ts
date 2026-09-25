@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
 import { getPrivateSetting, type PaymentSettings } from "@/lib/server/private-settings";
-import { checkTransaction, createKhqrIn, khqrLogo } from "@/lib/server/bakong";
+import { checkMany, createKhqrIn, khqrLogo } from "@/lib/server/bakong";
+import { serviceClient } from "@/lib/server/private-settings";
 
 // Admin-only "send 100៛ to yourself" test: makes a real KHQR with the saved
 // settings, then (polled by the page) asks Bakong from THIS server whether it
@@ -32,5 +33,12 @@ export async function GET(req: Request) {
   const md5 = new URL(req.url).searchParams.get("md5") ?? "";
   if (!/^[a-f0-9]{32}$/i.test(md5)) return NextResponse.json({ error: "bad md5" }, { status: 400 });
   const s = await getPrivateSetting<PaymentSettings>("payment");
-  return NextResponse.json(await checkTransaction(s, md5));
+  // same daily budget as real payments
+  const db = serviceClient();
+  const { data: n } = await db.rpc("bakong_take_call", { p_cap: 95 });
+  if (!Number(n)) return NextResponse.json({ paid: false, error: "limit" });
+  const r = await checkMany(s, [md5]);
+  if (r.error === "limit") await db.rpc("bakong_mark_limited");
+  const hit = r.paid.get(md5);
+  return NextResponse.json(hit ? { paid: true, ...hit } : { paid: false, error: r.error });
 }

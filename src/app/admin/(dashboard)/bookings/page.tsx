@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { catchUpPayments } from "@/lib/server/payments";
 import { ClipboardList, CheckCircle2, Minus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader, AdminTable } from "@/components/admin/ui";
@@ -14,6 +15,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default async function AdminBookingsPage({ searchParams }: { searchParams: { status?: string } }) {
+  await catchUpPayments().catch(() => {}); // confirm payments missed while Bakong checks were blocked
   const supabase = createClient();
   const { locale, t } = getI18n();
   let query = supabase

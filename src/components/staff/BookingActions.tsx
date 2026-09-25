@@ -7,7 +7,7 @@ import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
 import { cn } from "@/lib/utils/cn";
 
 type Item = { name: string; quantity: number };
-type Pay = { state: "loading" | "waiting" | "paid" | "error"; img?: string; amount?: number; currency?: string; merchant?: string; left?: number };
+type Pay = { state: "loading" | "waiting" | "paid" | "error"; img?: string; amount?: number; currency?: string; merchant?: string; left?: number; blocked?: string };
 
 /**
  * Everything a counter needs for one booking, on the same page: details,
@@ -19,9 +19,22 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
   const [pay, setPay] = useState<Pay | null>(null);
   const [expires, setExpires] = useState<number | null>(null);
   const [letting, setLetting] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [checking, setChecking] = useState(false);
+
+  async function checkNow() {
+    setChecking(true);
+    const v = await fetch("/api/payments/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "booking", code, key: accessKey, check: true }) })
+      .then((r) => r.json())
+      .catch(() => null);
+    setChecking(false);
+    if (v?.status === "paid") {
+      setPay({ state: "paid" });
+      router.refresh();
+    } else setPay((p) => (p ? { ...p, blocked: v?.checkBlocked } : p));
+  }
   const L = km
-    ? { details: "ព័ត៌មានលម្អិត", pay: "បង់ទីនេះ (KHQR)", letIn: "ឲ្យចូល", letting: "កំពុង…", in: "បានឲ្យចូល", scan: "ឲ្យភ្ញៀវស្កេនដោយ app ធនាគារ", wait: "រង់ចាំ Bakong បញ្ជាក់…", paid: "បានទទួលប្រាក់!", close: "បិទ", err: "មិនអាចបង្កើត KHQR បានទេ។", left: "នៅសល់", notInToday: "មិនអាចឲ្យចូលបានទេ (ពិនិត្យថ្ងៃ)" }
-    : { details: "Details", pay: "Pay here (KHQR)", letIn: "Let in", letting: "…", in: "Let in", scan: "Let the visitor scan with their bank app", wait: "Waiting for Bakong…", paid: "Payment received!", close: "Close", err: "Couldn't make a KHQR.", left: "left", notInToday: "Can't let in (check the date)" };
+    ? { checkNow: "ភ្ញៀវបង់រួចហើយ · ពិនិត្យឥឡូវ", checking: "កំពុងពិនិត្យ…", limit: "Bakong ឈានដល់ចំនួនពិនិត្យប្រចាំថ្ងៃ។ ប្រាក់បានចូលគណនីរបស់អ្នក ប៉ុន្តែប្រព័ន្ធនឹងបញ្ជាក់ដោយស្វ័យប្រវត្តិ ពេលពិនិត្យលើកដំបូងនៅថ្ងៃស្អែក។", details: "ព័ត៌មានលម្អិត", pay: "បង់ទីនេះ (KHQR)", letIn: "ឲ្យចូល", letting: "កំពុង…", in: "បានឲ្យចូល", scan: "ឲ្យភ្ញៀវស្កេនដោយ app ធនាគារ", wait: "រង់ចាំ Bakong បញ្ជាក់…", paid: "បានទទួលប្រាក់!", close: "បិទ", err: "មិនអាចបង្កើត KHQR បានទេ។", left: "នៅសល់", notInToday: "មិនអាចឲ្យចូលបានទេ (ពិនិត្យថ្ងៃ)" }
+    : { checkNow: "Visitor has paid · check now", checking: "Checking…", limit: "Bakong's daily check limit is reached. The money is in your account; the system confirms it automatically at the first check tomorrow.", details: "Details", pay: "Pay here (KHQR)", letIn: "Let in", letting: "…", in: "Let in", scan: "Let the visitor scan with their bank app", wait: "Waiting for Bakong…", paid: "Payment received!", close: "Close", err: "Couldn't make a KHQR.", left: "left", notInToday: "Can't let in (check the date)" };
 
   async function startPay() {
     setPay({ state: "loading" });
@@ -44,8 +57,8 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
       if (v?.status === "paid") {
         setPay({ state: "paid" });
         router.refresh();
-      }
-    }, 2500);
+      } else if (v) setPay((p) => (p && p.state === "waiting" ? { ...p, blocked: v.checkBlocked } : p));
+    }, 3000);
     return () => clearInterval(id);
   }, [pay?.state, code, accessKey, router]);
 
@@ -112,6 +125,10 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
                   <Loader2 size={14} className="animate-spin" /> {L.wait} · {String(Math.floor(secs / 60)).padStart(2, "0")}:{String(secs % 60).padStart(2, "0")} {L.left}
                 </p>
                 <p className="mt-1 text-center font-mono text-xs text-white/50">{code}</p>
+                {pay.blocked === "limit" && <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800">{L.limit}</p>}
+                <button type="button" onClick={checkNow} disabled={checking} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-extrabold text-[#1E3A8A] shadow-lift disabled:opacity-70">
+                  {checking ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {checking ? L.checking : L.checkNow}
+                </button>
               </>
             ) : pay.state === "paid" ? (
               <div className="rounded-3xl bg-white p-8 text-center shadow-lift">

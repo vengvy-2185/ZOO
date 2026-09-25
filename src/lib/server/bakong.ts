@@ -56,7 +56,7 @@ export function createKhqrIn(s: PaymentSettings, currency: "USD" | "KHR", amount
 
 export type BakongCheck =
   | { paid: true; hash?: string; fromAccountId?: string; amount?: number; currency?: string }
-  | { paid: false; error?: string };
+  | { paid: false; error?: "token" | "limit" | "timeout" | "network" | string };
 
 /** Asks the Bakong Open API whether the QR with this md5 has been paid. */
 export async function checkTransaction(s: PaymentSettings, md5: string): Promise<BakongCheck> {
@@ -75,7 +75,7 @@ export async function checkTransaction(s: PaymentSettings, md5: string): Promise
     if (json?.responseCode === 0 && json.data) {
       return { paid: true, hash: json.data.hash, fromAccountId: json.data.fromAccountId, amount: Number(json.data.amount), currency: json.data.currency };
     }
-    return { paid: false, error: res.status === 401 ? "token" : undefined };
+    return { paid: false, error: res.status === 401 ? "token" : /limit/i.test(String(json?.responseMessage ?? "")) ? "limit" : undefined };
   } catch (e: any) {
     return { paid: false, error: e?.name === "TimeoutError" ? "timeout" : "network" };
   }
@@ -107,4 +107,52 @@ export async function checkAccount(s: PaymentSettings): Promise<{ ok: boolean; m
   } catch {
     return { ok: false, message: "Could not reach the Bakong API from this server (it may only accept connections from Cambodia)." };
   }
+}
+
+export type ManyResult = {
+  paid: Map<string, { hash?: string; fromAccountId?: string; amount?: number; currency?: string }>;
+  error?: "limit" | "token" | "network";
+};
+const isLimit = (j: any) => /limit/i.test(String(j?.responseMessage ?? j?.message ?? ""));
+// Some tokens aren't allowed the list endpoint (403). Remember that for this server instance.
+let listBlockedUntil = 0;
+
+/**
+ * Checks up to 50 QRs in ONE Bakong request (check_transaction_by_md5_list),
+ * so everyone waiting to pay shares a single call from the daily budget.
+ * Falls back to the single-QR endpoint if the list endpoint isn't available.
+ */
+export async function checkMany(s: PaymentSettings, md5s: string[], opts: { singles?: number; takeCall?: () => Promise<boolean> } = {}): Promise<ManyResult> {
+  const paid: ManyResult["paid"] = new Map();
+  if (!s.api_token || md5s.length === 0) return { paid };
+  const base = (s.api_url || "https://api-bakong.nbc.gov.kh").replace(/\/$/, "");
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${s.api_token}` };
+  if (Date.now() > listBlockedUntil) try {
+    const res = await fetch(`${base}/v1/check_transaction_by_md5_list`, { method: "POST", headers, body: JSON.stringify(md5s.slice(0, 50)), cache: "no-store", signal: AbortSignal.timeout(8_000) });
+    if (res.status === 401) return { paid, error: "token" };
+    if (res.status === 403 || res.status === 404) listBlockedUntil = Date.now() + 6 * 3600e3;
+    const json = await res.json().catch(() => null);
+    if (isLimit(json)) return { paid, error: "limit" };
+    if (res.ok && Array.isArray(json?.data)) {
+      for (const item of json.data) {
+        const d = item?.data ?? null;
+        const ok = String(item?.status ?? "").toUpperCase() === "SUCCESS" || Boolean(d?.hash);
+        if (ok && item?.md5) paid.set(item.md5, { hash: d?.hash, fromAccountId: d?.fromAccountId, amount: d?.amount != null ? Number(d.amount) : undefined, currency: d?.currency });
+      }
+      return { paid };
+    }
+  } catch {
+    /* fall through to the single endpoint */
+  }
+  // Fallback: one QR per call. The first one is already paid for from the budget;
+  // any extra ones (catching up missed QRs) each take another call from it.
+  const n = Math.min(md5s.length, Math.max(1, opts.singles ?? 1));
+  for (let i = 0; i < n; i++) {
+    if (i > 0 && opts.takeCall && !(await opts.takeCall())) break;
+    const one = await checkTransaction(s, md5s[i]);
+    if (one.paid) paid.set(md5s[i], one);
+    else if (one.error === "token") return { paid, error: "token" };
+    else if (one.error === "limit") return { paid, error: "limit" };
+  }
+  return { paid };
 }

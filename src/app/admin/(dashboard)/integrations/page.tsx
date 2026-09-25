@@ -2,13 +2,14 @@ import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink,
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
 import { SubmitButton, ImageUploadField } from "@/components/admin/ui-client";
 import { PaymentTest } from "@/components/admin/PaymentTest";
+import { bakongUsage } from "@/lib/server/payments";
 import { getPrivateSetting, mask, type PaymentSettings, type TtsSettings } from "@/lib/server/private-settings";
 import { savePayment, saveTts, testPayment } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage({ searchParams }: { searchParams: { msg?: string; test?: string; detail?: string } }) {
-  const [pay, tts] = await Promise.all([getPrivateSetting<PaymentSettings>("payment"), getPrivateSetting<TtsSettings>("tts")]);
+  const [pay, tts, usage] = await Promise.all([getPrivateSetting<PaymentSettings>("payment"), getPrivateSetting<TtsSettings>("tts"), bakongUsage()]);
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -156,6 +157,12 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         <form action={testPayment} className="-mt-3 flex justify-end">
           <button className="btn-outline bg-white px-4 py-2 text-xs">Test KHQR & Bakong connection</button>
         </form>
+        {/* Bakong allows a limited number of checks a day: show how today is going */}
+        <div className={`-mt-2 flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 text-sm ring-1 ${usage.limited ? "bg-red-50 ring-red-200" : "bg-white ring-black/5"}`}>
+          <span className="font-bold text-forest">Bakong checks today: {Math.min(usage.calls, 100)} / ~100</span>
+          <span className="h-2 min-w-[8rem] flex-1 overflow-hidden rounded-full bg-black/5"><span className={`block h-full rounded-full ${usage.limited ? "bg-red-500" : "bg-primary"}`} style={{ width: `${Math.min(100, usage.calls)}%` }} /></span>
+          {usage.limited && <span className="w-full text-xs font-bold text-red-700">Limit reached: payments made now are confirmed automatically on the first check tomorrow. For busy days, ask NBC (api-bakong.nbc.gov.kh) for a higher daily limit.</span>}
+        </div>
         <PaymentTest />
 
         {/* ── Text to speech ─────────────────────────────── */}
