@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { getCachedRole } from "@/lib/auth/role";
+import { staffAccess } from "@/lib/server/staff";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { extractToken } from "@/lib/server/checkin";
 
@@ -10,8 +10,8 @@ import { extractToken } from "@/lib/server/checkin";
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  const { role } = await getCachedRole(user.id);
-  if (role !== "staff" && role !== "admin") return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  // admins, or active staff whose position includes ticket work
+  if (!(await staffAccess(user.id)).perms.has("tickets")) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const token = extractToken(String(body.token ?? ""));

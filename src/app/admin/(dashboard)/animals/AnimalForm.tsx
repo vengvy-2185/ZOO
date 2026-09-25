@@ -31,7 +31,14 @@ export function AnimalForm({
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={f.name} name="name" defaultValue={a.name} required placeholder="KOMA" />
           <Field label={f.khmerName} name="khmer_name" defaultValue={a.khmer_name} lang="km" className="font-khmer" placeholder="កូម៉ា" />
-          <Field label={f.code} name="animal_code" defaultValue={a.animal_code} required placeholder="LION-A-002" hint={f.codeHint} />
+          {/* The code is made by the database (SPEC-L-NNN) and never typed: it is printed in the animal's QR code. */}
+          <div>
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink/50">{f.code}</span>
+            <div className="flex h-[46px] items-center gap-2 rounded-full bg-light-green/70 px-4 font-mono text-sm font-bold text-primary ring-1 ring-primary/15">
+              {a.animal_code ?? (locale === "km" ? "បង្កើតដោយស្វ័យប្រវត្តិ ពេលរក្សាទុក" : "Made automatically when saved")}
+            </div>
+            <p className="mt-1 text-[11px] text-ink/45">{locale === "km" ? "ឧ. PAND-A-102៖ ឈ្មោះប្រភេទ + ប្រភេទសត្វ + លេខរៀង។ ប្រើក្នុង QR មិនអាចកែបានទេ។" : "e.g. PAND-A-102: species + category + number. Used in the QR code, so it can't be changed."}</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <SelectField label={f.gender} name="gender" defaultValue={a.gender ?? "unknown"}>
               <option value="unknown">{f.unknown}</option>

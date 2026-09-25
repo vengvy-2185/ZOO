@@ -1,6 +1,6 @@
 import { IdCard as IdCardIcon, CheckCircle2, Clock, PackageCheck, Footprints, Wallet } from "lucide-react";
 import { IdCard } from "@/components/IdCard";
-import { CARD_STYLE, TIERS, memberNo } from "@/lib/members";
+import { CARD_STYLE, TIERS, cardNo } from "@/lib/members";
 import type { MemberRow } from "@/lib/server/members";
 import { cn } from "@/lib/utils/cn";
 
@@ -55,8 +55,8 @@ export function MemberCardSection({ m, km, site }: { m: MemberRow; km: boolean; 
       {m.card && (
         <div className="mt-4">
           <IdCard
-            data={{ type: m.card, name: m.name, photo: m.avatar, memberNo: memberNo(m.id), since, site, verifyUrl: m.verifyToken ? `${site}/verify/${m.verifyToken}` : null }}
-            fileName={`green-wild-zoo-card-${memberNo(m.id)}`}
+            data={{ type: m.card, name: m.name, photo: m.avatar, memberNo: cardNo(m), since, site, verifyUrl: m.verifyToken ? `${site}/verify/${m.verifyToken}` : null, roleEn: m.positionEn, roleKm: m.positionKm }}
+            fileName={`green-wild-zoo-card-${cardNo(m)}`}
             labels={{ save: L.save, print: L.print, flip: km ? "បង្វិលកាត" : "Flip card", hint: km ? "ចុចលើកាតដើម្បីមើលខាងក្រោយ" : "Tap the card to see the back" }}
             width={240}
           />

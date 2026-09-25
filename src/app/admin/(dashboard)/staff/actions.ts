@@ -1,0 +1,182 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getVerifiedUserId } from "@/lib/auth/session";
+import { getCachedRole } from "@/lib/auth/role";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { resolveImage } from "@/lib/admin/upload";
+import { getMembers, ensureCard } from "@/lib/server/members";
+import { makePassword, staffEmail, monthRange, payroll, type Permission, type PayType } from "@/lib/server/staff";
+
+// Staff accounts are made here, and only here: an admin fills in the form,
+// the server creates the sign-in account (Staff ID + password), the staff
+// record, the "staff" role and the ID card in one go.
+
+async function requireAdmin() {
+  const id = getVerifiedUserId();
+  if (!id || (await getCachedRole(id)).role !== "admin") throw new Error("Admins only.");
+  return id;
+}
+const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
+const money = (f: FormData, k: string) => {
+  const n = Number(str(f, k) || 0);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+};
+const done = () => {
+  revalidatePath("/admin/staff", "layout");
+  revalidatePath("/staff", "layout");
+};
+
+export type CreateStaffState = { ok: false; error?: string } | { ok: true; staffNo: string; password: string; name: string; userId: string };
+
+export async function createStaff(_prev: CreateStaffState, formData: FormData): Promise<CreateStaffState> {
+  const adminId = await requireAdmin();
+  const name = str(formData, "full_name");
+  const positionId = str(formData, "position_id");
+  if (!name || !positionId) return { ok: false, error: "Name and position are required." };
+  const db = createServiceRoleClient();
+
+  let photo: string | null = null;
+  try {
+    photo = await resolveImage(formData, "photo", "staff");
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+
+  const { data: staffNo, error: seqErr } = await db.rpc("next_staff_no");
+  if (seqErr || !staffNo) return { ok: false, error: "Could not make a Staff ID." };
+  const password = makePassword();
+  const { data: created, error: authErr } = await db.auth.admin.createUser({
+    email: staffEmail(staffNo),
+    password,
+    email_confirm: true, // internal address: nothing is ever mailed
+    user_metadata: { full_name: name, display_name: name, ...(photo ? { custom_avatar_url: photo } : {}), staff_no: staffNo },
+  });
+  if (authErr || !created.user) return { ok: false, error: authErr?.message ?? "Could not create the account." };
+  const userId = created.user.id;
+
+  // The profile row is made by the auth trigger; give it the staff role.
+  await db.from("profiles").update({ role: "staff", full_name: name, ...(photo ? { avatar_url: photo } : {}) }).eq("id", userId);
+  const { error: staffErr } = await db.from("staff_members").insert({
+    user_id: userId,
+    staff_no: staffNo,
+    full_name: name,
+    full_name_km: str(formData, "full_name_km") || null,
+    position_id: positionId,
+    phone: str(formData, "phone") || null,
+    hired_on: str(formData, "hired_on") || undefined,
+    allowance: money(formData, "allowance"),
+    created_by: adminId,
+  });
+  if (staffErr) {
+    await db.auth.admin.deleteUser(userId);
+    return { ok: false, error: staffErr.message };
+  }
+
+  // ID card straight away (status "ready" = ready to print).
+  const [m] = await getMembers(userId);
+  if (m) await ensureCard(m);
+  done();
+  return { ok: true, staffNo, password, name, userId };
+}
+
+export async function updateStaff(userId: string, formData: FormData) {
+  await requireAdmin();
+  const db = createServiceRoleClient();
+  const status = str(formData, "status");
+  const name = str(formData, "full_name");
+  await db
+    .from("staff_members")
+    .update({
+      ...(name ? { full_name: name } : {}),
+      full_name_km: str(formData, "full_name_km") || null,
+      position_id: str(formData, "position_id") || null,
+      phone: str(formData, "phone") || null,
+      allowance: money(formData, "allowance"),
+      ...(["active", "suspended", "left"].includes(status) ? { status } : {}),
+    })
+    .eq("user_id", userId);
+  if (name) await db.from("profiles").update({ full_name: name }).eq("id", userId);
+  // Suspended / left: they can no longer sign in to the staff area (checked on every request)
+  // and their card's QR shows "not valid". Signing out other sessions right away:
+  if (status === "suspended" || status === "left") await db.auth.admin.signOut(userId).catch(() => {});
+  done();
+}
+
+export type ResetState = { password?: string; error?: string };
+export async function resetStaffPassword(userId: string, _prev: ResetState): Promise<ResetState> {
+  await requireAdmin();
+  const password = makePassword();
+  const { error } = await createServiceRoleClient().auth.admin.updateUserById(userId, { password });
+  return error ? { error: error.message } : { password };
+}
+
+// ── Positions ─────────────────────────────────────────────────────────
+function positionFields(f: FormData) {
+  const pay = str(f, "pay_type");
+  return {
+    name: str(f, "name"),
+    name_km: str(f, "name_km") || null,
+    pay_type: (["monthly", "daily", "hourly"].includes(pay) ? pay : "monthly") as PayType,
+    rate: money(f, "rate"),
+    permissions: f.getAll("permissions").map(String).filter((p): p is Permission => ["tickets", "animals", "reports"].includes(p)),
+    color: /^#[0-9a-f]{6}$/i.test(str(f, "color")) ? str(f, "color") : "#2563EB",
+  };
+}
+export async function savePosition(id: string | null, formData: FormData) {
+  await requireAdmin();
+  const row = positionFields(formData);
+  if (!row.name) return;
+  const db = createServiceRoleClient();
+  if (id) await db.from("staff_positions").update(row).eq("id", id);
+  else await db.from("staff_positions").insert({ ...row, sort: 99 });
+  done();
+}
+export async function deletePosition(id: string) {
+  await requireAdmin();
+  await createServiceRoleClient().from("staff_positions").delete().eq("id", id);
+  done();
+}
+
+// ── Payroll ───────────────────────────────────────────────────────────
+export async function addAdjustment(userId: string, month: string, formData: FormData) {
+  const adminId = await requireAdmin();
+  const amount = money(formData, "amount") * (str(formData, "sign") === "-" ? -1 : 1);
+  const note = str(formData, "note");
+  if (!amount || !note) return;
+  await createServiceRoleClient().from("staff_pay_adjustments").insert({ user_id: userId, month: monthRange(month).first, amount, note, created_by: adminId });
+  done();
+}
+export async function removeAdjustment(id: string) {
+  await requireAdmin();
+  await createServiceRoleClient().from("staff_pay_adjustments").delete().eq("id", id);
+  done();
+}
+/** Freezes this month's figures into a payslip, marked paid now. */
+export async function markPaid(userId: string, month: string) {
+  const adminId = await requireAdmin();
+  const [line] = await payroll(month, userId);
+  if (!line) return;
+  await createServiceRoleClient().from("staff_payslips").upsert(
+    {
+      user_id: userId,
+      month: monthRange(month).first,
+      pay_type: line.staff.position?.pay_type ?? "monthly",
+      rate: line.staff.position?.rate ?? 0,
+      units: line.units,
+      base: line.base,
+      allowance: line.allowance,
+      adjustments: line.adjTotal,
+      gross: line.gross,
+      paid_by: adminId,
+      paid_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,month" }
+  );
+  done();
+}
+export async function unmarkPaid(userId: string, month: string) {
+  await requireAdmin();
+  await createServiceRoleClient().from("staff_payslips").delete().eq("user_id", userId).eq("month", monthRange(month).first);
+  done();
+}

@@ -16,7 +16,6 @@ function animalFields(formData: FormData) {
   const row: Record<string, unknown> = {
     name: text(formData, "name"),
     khmer_name: text(formData, "khmer_name"),
-    animal_code: text(formData, "animal_code")?.toUpperCase(),
     species_id: text(formData, "species_id"),
     category_id: text(formData, "category_id"),
     gender: text(formData, "gender") ?? "unknown",
@@ -28,8 +27,9 @@ function animalFields(formData: FormData) {
     row[f] = text(formData, f);
     row[`${f}_km`] = text(formData, `${f}_km`);
   }
-  if (!row.name || !row.animal_code || !row.species_id || !row.category_id) {
-    throw new Error("Name, animal code, category and species are required.");
+  // animal_code is filled in by the database (fill_animal_code trigger) and never changed here.
+  if (!row.name || !row.species_id || !row.category_id) {
+    throw new Error("Name, category and species are required.");
   }
   return row;
 }

@@ -1,12 +1,13 @@
 import { AuthSplitLayout } from "@/components/visitor/AuthSplitLayout";
-import { TeamLoginForm } from "@/components/visitor/TeamLoginForm";
 import { getI18n } from "@/lib/i18n/server";
+import { StaffIdLoginForm } from "./StaffIdLoginForm";
 
+// Staff sign in with a Staff ID made by the admin, not an email like visitors.
 export default async function StaffLoginPage() {
-  const { t } = getI18n();
+  const { t, locale } = getI18n();
   return (
     <AuthSplitLayout eyebrow={t.auth.staffEyebrow} title="Green Wild Zoo" subtitle={t.auth.staffSubtitle}>
-      <TeamLoginForm role="staff" />
+      <StaffIdLoginForm km={locale === "km"} />
     </AuthSplitLayout>
   );
 }

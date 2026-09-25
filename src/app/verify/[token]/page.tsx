@@ -3,7 +3,7 @@ import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
 import { LogoMark } from "@/components/visitor/Logo";
 import { getCardByToken } from "@/lib/server/members";
-import { CARD_STYLE, memberNo } from "@/lib/members";
+import { CARD_STYLE, cardNo } from "@/lib/members";
 import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,8 @@ export default async function VerifyCardPage({ params }: { params: { token: stri
   const { locale } = getI18n();
   const km = locale === "km";
   const m = await getCardByToken(params.token);
-  const valid = !!m && !!m.card;
+  // a staff card stops being valid once the person is suspended or has left
+  const valid = !!m && !!m.card && (!m.staffNo || m.staffStatus === "active");
   const s = m?.card ? CARD_STYLE[m.card] : null;
   const now = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date());
 
@@ -66,15 +67,15 @@ export default async function VerifyCardPage({ params }: { params: { token: stri
             <div className="px-6 pb-6 pt-4 text-center">
               <p className="font-display text-3xl font-extrabold leading-tight text-forest">{m.name}</p>
               <span className="mt-2 inline-flex flex-col rounded-2xl px-5 py-1.5 text-white" style={{ background: `linear-gradient(135deg, ${s.from}, ${s.to})` }}>
-                <span className="text-xs font-extrabold uppercase tracking-[0.14em]">{s.en}</span>
+                <span className="text-xs font-extrabold uppercase tracking-[0.14em]">{m.positionEn || s.en}</span>
                 <span className="font-khmer text-xs" style={{ color: s.ink }}>
-                  {s.km}
+                  {m.positionKm || s.km}
                 </span>
               </span>
               <dl className="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-cream p-4 text-left text-sm">
                 <div>
                   <dt className="text-xs text-ink/50">ID No.</dt>
-                  <dd className="font-mono font-bold text-forest">{memberNo(m.id)}</dd>
+                  <dd className="font-mono font-bold text-forest">{cardNo(m)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-ink/50">{km ? "ជាសមាជិកតាំងពី" : "Member since"}</dt>

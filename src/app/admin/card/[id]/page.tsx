@@ -6,7 +6,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { getMembers, ensureCard } from "@/lib/server/members";
 import { getSiteUrl } from "@/lib/server/site-url";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { memberNo, CARD_STYLE } from "@/lib/members";
+import { cardNo, CARD_STYLE } from "@/lib/members";
 import { IdCard } from "@/components/IdCard";
 import { getI18n } from "@/lib/i18n/server";
 import { markPrinted, handOver, makeReplacement } from "./actions";
@@ -48,8 +48,8 @@ export default async function AdminCardPage({ params }: { params: { id: string }
 
         <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-[auto_minmax(0,1fr)]">
           <IdCard
-            data={{ type: card, name: m.name, photo: m.avatar, memberNo: memberNo(m.id), since: new Date(m.since).toISOString().slice(0, 7).replace("-", "."), site, verifyUrl: m.verifyToken ? `${site}/verify/${m.verifyToken}` : null }}
-            fileName={`card-${memberNo(m.id)}`}
+            data={{ type: card, name: m.name, photo: m.avatar, memberNo: cardNo(m), since: new Date(m.since).toISOString().slice(0, 7).replace("-", "."), site, verifyUrl: m.verifyToken ? `${site}/verify/${m.verifyToken}` : null, roleEn: m.positionEn, roleKm: m.positionKm }}
+            fileName={`card-${cardNo(m)}`}
             labels={{ save: L.save, print: L.print, flip: km ? "បង្វិលកាត" : "Flip card", hint: km ? "ចុចលើកាតដើម្បីមើលខាងក្រោយ។ រក្សាទុក និងបោះពុម្ពបានទាំងពីរផ្ទាំង។" : "Tap the card to see the back. Save and print include both sides." }}
             width={300}
           />

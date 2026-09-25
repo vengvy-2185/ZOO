@@ -225,9 +225,9 @@ export default function ScannerPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#0B1F14] text-white">
       <header className="flex items-center justify-between gap-2 px-4 py-3">
-        <div className="flex items-center gap-2 font-display text-lg font-extrabold">
+        <Link href="/staff" className="flex items-center gap-2 font-display text-lg font-extrabold">
           <ScanLine size={20} className="text-leaf" /> {L.title}
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <span className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold">
             {L.today}: <span className="text-leaf">{count}</span>

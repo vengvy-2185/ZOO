@@ -11,7 +11,7 @@ const W = 640;
 const H = 1015;
 const S = W / 280; // the layout below is designed on a 280 px wide card
 
-export type IdCardData = { type: CardType; name: string; photo: string | null; memberNo: string; since: string; site: string; verifyUrl: string | null };
+export type IdCardData = { type: CardType; name: string; photo: string | null; memberNo: string; since: string; site: string; verifyUrl: string | null; /** e.g. a staff position, shown instead of the card type */ roleEn?: string | null; roleKm?: string | null };
 
 function loadImg(src: string) {
   return new Promise<HTMLImageElement | null>((res) => {
@@ -155,9 +155,10 @@ async function drawCard(d: IdCardData): Promise<string> {
 
   // role pill
   ctx.font = `800 ${x(11)}px "Inter", system-ui, sans-serif`;
-  const roleEn = st.en.toUpperCase();
+  const roleEn = (d.roleEn || st.en).toUpperCase();
+  const roleKm = d.roleKm || st.km;
   ctx.font = `600 ${x(10.5)}px "Battambang", sans-serif`;
-  const pw = Math.max(ctx.measureText(st.km).width, (() => { ctx.font = `800 ${x(11)}px "Inter", system-ui, sans-serif`; return ctx.measureText(roleEn).width + roleEn.length * x(1.4); })()) + x(28);
+  const pw = Math.max(ctx.measureText(roleKm).width, (() => { ctx.font = `800 ${x(11)}px "Inter", system-ui, sans-serif`; return ctx.measureText(roleEn).width + roleEn.length * x(1.4); })()) + x(28);
   const rg = ctx.createLinearGradient(W / 2 - pw / 2, 0, W / 2 + pw / 2, 0);
   rg.addColorStop(0, st.from);
   rg.addColorStop(1, st.to);
@@ -172,7 +173,7 @@ async function drawCard(d: IdCardData): Promise<string> {
   (ctx as any).letterSpacing = "0px";
   ctx.fillStyle = st.ink;
   ctx.font = `600 ${x(10.5)}px "Battambang", sans-serif`;
-  ctx.fillText(st.km, W / 2, y + x(27));
+  ctx.fillText(roleKm, W / 2, y + x(27));
 
   // details (left) + QR (right)
   const top = H - x(34) - x(100);
@@ -293,7 +294,7 @@ async function drawBack(d: IdCardData): Promise<string> {
   ctx.fillStyle = st.ink;
   ctx.font = `700 ${x(8.5)}px "Inter", system-ui, sans-serif`;
   (ctx as any).letterSpacing = `${x(1.2)}px`;
-  ctx.fillText(st.en.toUpperCase(), W / 2, x(100));
+  ctx.fillText((d.roleEn || st.en).toUpperCase(), W / 2, x(100));
   (ctx as any).letterSpacing = "0px";
 
   // white panel

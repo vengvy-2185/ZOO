@@ -36,3 +36,6 @@ export function cardTypeFor(role: string | null | undefined, visits: number, spe
 
 /** A short, printable member number (not secret). */
 export const memberNo = (userId: string) => `GWZ-${userId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+
+/** The number printed on a card: the Staff ID for staff, otherwise the member number. */
+export const cardNo = (m: { id: string; staffNo?: string | null }) => m.staffNo ?? memberNo(m.id);

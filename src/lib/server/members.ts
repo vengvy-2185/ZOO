@@ -18,6 +18,11 @@ export type MemberRow = {
   verifyToken: string | null; // the secret in the card's QR
   issueCount: number; // how many printed cards were handed over (first + replacements)
   lastIssuedAt: string | null;
+  // staff only: the Staff ID printed on the card, and their position
+  staffNo: string | null;
+  positionEn: string | null;
+  positionKm: string | null;
+  staffStatus: string | null;
 };
 
 /** Visits, spending and card status for every account (or one account). */
@@ -29,10 +34,12 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
   if (onlyUserId) bookingsQ = bookingsQ.eq("visitor_id", onlyUserId);
   let cardsQ = db.from("member_cards").select("user_id, card_type, status, verify_token");
   if (onlyUserId) cardsQ = cardsQ.eq("user_id", onlyUserId);
+  let staffQ = db.from("staff_members").select("user_id, staff_no, full_name, status, position:staff_positions(name, name_km)");
+  if (onlyUserId) staffQ = staffQ.eq("user_id", onlyUserId);
   let issuesQ = db.from("member_card_issues").select("user_id, issued_at").order("issued_at", { ascending: false });
   if (onlyUserId) issuesQ = issuesQ.eq("user_id", onlyUserId);
 
-  const [{ data: profiles }, { data: bookings }, { data: cards }, { data: issues }, users] = await Promise.all([
+  const [{ data: profiles }, { data: bookings }, { data: cards }, { data: issues }, users, { data: staffRows }] = await Promise.all([
     profilesQ,
     bookingsQ,
     cardsQ,
@@ -40,7 +47,9 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
     onlyUserId
       ? db.auth.admin.getUserById(onlyUserId).then((r) => (r.data.user ? [r.data.user] : []))
       : db.auth.admin.listUsers({ perPage: 1000 }).then((r) => r.data?.users ?? []),
+    staffQ,
   ]);
+  const staffMap = new Map((staffRows ?? []).map((s: any) => [s.user_id, s]));
 
   const byUser = new Map<string, { visits: number; bookings: number; spent: number }>();
   for (const b of bookings ?? []) {
@@ -64,10 +73,12 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
     const meta = u?.user_metadata ?? {};
     const s = byUser.get(p.id) ?? { visits: 0, bookings: 0, spent: 0 };
     const c = cardMap.get(p.id);
+    const st: any = staffMap.get(p.id);
+    const internalEmail = (u?.email ?? "").endsWith("@staff.greenwildzoo.local");
     return {
       id: p.id,
-      name: meta.display_name || p.full_name || meta.full_name || meta.name || (u?.email ?? "").split("@")[0] || "Guest",
-      email: u?.email ?? null,
+      name: st?.full_name || meta.display_name || p.full_name || meta.full_name || meta.name || (u?.email ?? "").split("@")[0] || "Guest",
+      email: internalEmail ? null : u?.email ?? null,
       avatar: meta.custom_avatar_url || p.avatar_url || meta.avatar_url || meta.picture || null,
       role: p.role,
       since: p.created_at,
@@ -80,6 +91,10 @@ export async function getMembers(onlyUserId?: string): Promise<MemberRow[]> {
       verifyToken: c?.verify_token ?? null,
       issueCount: issueMap.get(p.id)?.n ?? 0,
       lastIssuedAt: issueMap.get(p.id)?.last ?? null,
+      staffNo: st?.staff_no ?? null,
+      positionEn: st?.position?.name ?? null,
+      positionKm: st?.position?.name_km ?? null,
+      staffStatus: st?.status ?? null,
     };
   });
 }
