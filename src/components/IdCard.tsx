@@ -387,7 +387,7 @@ async function drawBack(d: IdCardData): Promise<string> {
 type Labels = { save: string; print: string; flip?: string; hint?: string };
 
 /** The ID card (front and back) as sharp pictures: tap to flip, save both, print both. */
-export function IdCard({ data, fileName, labels, width = 280 }: { data: IdCardData; fileName: string; labels: Labels; width?: number }) {
+export function IdCard({ data, fileName, labels, width = 280, viewOnly = false }: { data: IdCardData; fileName: string; labels: Labels; width?: number; /** show only: no save / print (staff see their card; admins print it) */ viewOnly?: boolean }) {
   const [front, setFront] = useState<string | null>(null);
   const [back, setBack] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
@@ -456,14 +456,15 @@ export function IdCard({ data, fileName, labels, width = 280 }: { data: IdCardDa
         type="button"
         onClick={() => setFlipped((v) => !v)}
         aria-label={labels.flip ?? "Flip"}
-        className="relative cursor-pointer rounded-[18px] outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+        onContextMenu={viewOnly ? (e) => e.preventDefault() : undefined}
+        className={`relative cursor-pointer rounded-[18px] outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${viewOnly ? "select-none [-webkit-touch-callout:none]" : ""}`}
         style={{ width, height: h, perspective: "1400px" }}
       >
         <span className="absolute inset-0 block transition-transform duration-700 [transform-style:preserve-3d]" style={{ transform: flipped ? "rotateY(180deg)" : "none" }}>
           <span className="absolute inset-0 overflow-hidden rounded-[18px] shadow-lift ring-1 ring-black/10 [backface-visibility:hidden]">
             {front ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={front} alt="" className="h-full w-full" />
+              <img src={front} alt="" draggable={!viewOnly} className="h-full w-full" />
             ) : (
               <span className="flex h-full w-full items-center justify-center bg-cream">
                 <Loader2 className="animate-spin text-primary" />
@@ -472,7 +473,7 @@ export function IdCard({ data, fileName, labels, width = 280 }: { data: IdCardDa
           </span>
           <span className="absolute inset-0 overflow-hidden rounded-[18px] shadow-lift ring-1 ring-black/10 [backface-visibility:hidden] [transform:rotateY(180deg)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {back && <img src={back} alt="" className="h-full w-full" />}
+            {back && <img src={back} alt="" draggable={!viewOnly} className="h-full w-full" />}
           </span>
         </span>
       </button>
@@ -481,12 +482,16 @@ export function IdCard({ data, fileName, labels, width = 280 }: { data: IdCardDa
         <button onClick={() => setFlipped((v) => !v)} disabled={!ready} className="btn-outline bg-white disabled:opacity-50">
           <RotateCw size={16} /> {labels.flip ?? "Flip"}
         </button>
-        <button onClick={save} disabled={!ready} className="btn-primary hover:translate-y-0 disabled:opacity-50">
-          <Download size={16} /> {labels.save}
-        </button>
-        <button onClick={print} disabled={!ready} className="btn-outline bg-white disabled:opacity-50">
-          <Printer size={16} /> {labels.print}
-        </button>
+        {!viewOnly && (
+          <>
+            <button onClick={save} disabled={!ready} className="btn-primary hover:translate-y-0 disabled:opacity-50">
+              <Download size={16} /> {labels.save}
+            </button>
+            <button onClick={print} disabled={!ready} className="btn-outline bg-white disabled:opacity-50">
+              <Printer size={16} /> {labels.print}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

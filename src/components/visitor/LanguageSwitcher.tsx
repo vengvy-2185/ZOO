@@ -9,7 +9,7 @@ import { LOCALE_COOKIE, type Locale } from "@/lib/i18n/shared";
 
 // EN | ខ្មែរ toggle. Stores the choice in a cookie for a year and re-renders
 // the current page on the server in the new language.
-export function LanguageSwitcher({ tone = "light", className }: { tone?: "light" | "dark"; className?: string }) {
+export function LanguageSwitcher({ tone = "light", className }: { tone?: "light" | "dark" | "blue"; className?: string }) {
   const { locale, setLocale } = useI18n();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -45,7 +45,9 @@ export function LanguageSwitcher({ tone = "light", className }: { tone?: "light"
             locale === l
               ? tone === "light"
                 ? "bg-primary text-white shadow-sm"
-                : "bg-leaf text-forest"
+                : tone === "blue"
+                  ? "bg-white text-[#1E3A8A]"
+                  : "bg-leaf text-forest"
               : tone === "light"
                 ? "hover:bg-white"
                 : "hover:bg-white/10"

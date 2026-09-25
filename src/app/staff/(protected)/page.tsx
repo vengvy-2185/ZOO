@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Ticket, Map as MapIcon, Sparkles, ScanLine, UserRoundPlus, PawPrint, BarChart3, LogIn, LogOut, Clock, Wallet, ShieldAlert, BadgeCheck, CheckCircle2, CalendarOff, Megaphone, Pin, ChevronRight, Users } from "lucide-react";
+import { Wrench, Ticket, Map as MapIcon, Sparkles, ScanLine, UserRoundPlus, PawPrint, BarChart3, LogIn, LogOut, Clock, Wallet, ShieldAlert, BadgeCheck, CheckCircle2, CalendarOff, Megaphone, Pin, ChevronRight, Users } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, payroll, thisMonth, openShift } from "@/lib/server/staff";
+import { staffAccess, payroll, thisMonth, openShift, staffTitle } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 /** Staff home: clock in/out, this month's pay, notices, the tools their position allows, who's working. */
+export const generateMetadata = () => staffTitle("Home", "ទំព័រដើម");
+
 export default async function StaffHome({ searchParams }: { searchParams: { denied?: string } }) {
   const userId = getVerifiedUserId()!;
   const { locale } = getI18n();
@@ -39,6 +41,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
     showTeam ? db.from("staff_attendance").select("user_id, clock_in").is("clock_out", null) : Promise.resolve({ data: [] as any[] }),
   ]);
   const onShiftIds = (team.data ?? []).map((t: any) => t.user_id);
+  const { count: openIssues } = access.perms.has("reports") ? await db.from("staff_issues").select("id", { count: "exact", head: true }).neq("status", "done") : { count: 0 };
   const { data: teamRows } = onShiftIds.length ? await db.from("staff_members").select("user_id, full_name, position:staff_positions(name, name_km, color)").in("user_id", onShiftIds) : { data: [] as any[] };
   const inside = reports ? (reports[1].data ?? []).reduce((s: number, r: any) => s + (r.visitors_count ?? 0), 0) + (reports[2].data ?? []).reduce((s: number, r: any) => s + (r.count ?? 0), 0) : 0;
 
@@ -59,6 +62,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
     access.perms.has("guide") && { href: "/staff/schedule", icon: MapIcon, title: X.schedule, text: X.scheduleT },
     access.perms.has("cleaning") && { href: "/staff/cleaning", icon: Sparkles, title: X.cleaning, text: X.cleaningT },
     access.perms.has("reports") && { href: "/staff/reports", icon: BarChart3, title: X.reports, text: X.reportsT },
+    { href: "/staff/issues", icon: Wrench, title: km ? "រាយការណ៍បញ្ហា" : "Report a problem", text: access.perms.has("reports") && openIssues ? (km ? `${openIssues} បញ្ហាកំពុងរង់ចាំ` : `${openIssues} waiting to be fixed`) : km ? "អ្វីខូច កខ្វក់ ឬគ្រោះថ្នាក់" : "Broken, dirty or unsafe? Tell us" },
   ].filter(Boolean) as { href: string; icon: any; title: string; text: string }[];
   const time = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
   const date = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { day: "numeric", month: "short", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));

@@ -152,3 +152,38 @@ export async function markFed(animalId: string) {
   await createServiceRoleClient().from("animal_care_logs").insert({ animal_id: animalId, user_id: id, kind: "feeding", note: "Fed" });
   revalidatePath("/staff/animals");
 }
+
+// ── Report a problem ──────────────────────────────────────────────────
+export type IssueState = { ok?: boolean; error?: string };
+const ISSUE_CATS = ["repair", "cleaning", "animal", "safety", "visitor", "other"];
+export async function reportIssue(_prev: IssueState, formData: FormData): Promise<IssueState> {
+  const { id } = await me();
+  const category = String(formData.get("category") ?? "other");
+  const place = String(formData.get("place") ?? "").trim().slice(0, 120);
+  const note = String(formData.get("note") ?? "").trim().slice(0, 600);
+  if (!ISSUE_CATS.includes(category) || !place || !note) return { error: "invalid" };
+  const db = createServiceRoleClient();
+  let photo: string | null = null;
+  const file = formData.get("photo_file");
+  if (file instanceof File && file.size > 0) {
+    if (!IMAGE_TYPES.includes(file.type)) return { error: "type" };
+    if (file.size > 5 * 1024 * 1024) return { error: "size" };
+    const path = `issues/${Date.now()}-${id.slice(0, 8)}.${file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"}`;
+    const { error } = await db.storage.from("animal-images").upload(path, file, { contentType: file.type });
+    if (!error) photo = db.storage.from("animal-images").getPublicUrl(path).data.publicUrl;
+  }
+  const { error } = await db.from("staff_issues").insert({ user_id: id, category, place, note, urgent: formData.get("urgent") === "on", photo_url: photo });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/issues");
+  return { ok: true };
+}
+/** Managers (reports permission) and admins move a problem along: open → in progress → done. */
+export async function setIssueStatus(issueId: string, status: "open" | "in_progress" | "done") {
+  const { id, access } = await me();
+  if (!access.perms.has("reports")) throw new Error("Only managers can update problems.");
+  await createServiceRoleClient()
+    .from("staff_issues")
+    .update({ status, handled_by: status === "open" ? null : id, handled_at: status === "open" ? null : new Date().toISOString() })
+    .eq("id", issueId);
+  revalidatePath("/staff/issues");
+}

@@ -4,7 +4,10 @@ import { getI18n } from "@/lib/i18n/server";
 import { GateCounter } from "./GateCounter";
 import { StaffShell } from "@/components/staff/StaffShell";
 
+import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
+
+export const generateMetadata = () => staffTitle("Gate counter", "រាប់ភ្ញៀវ");
 
 export default async function GatePage() {
   const { locale } = getI18n();

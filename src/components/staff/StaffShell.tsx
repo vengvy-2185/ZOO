@@ -6,6 +6,7 @@ import { getMembers } from "@/lib/server/members";
 import { getI18n } from "@/lib/i18n/server";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
+import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
 import { StaffNav, type StaffNavItem } from "./StaffNav";
 
 /** Kept for the pages' `active` prop; the menu itself highlights from the address. */
@@ -26,12 +27,13 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
   const can = (p: Parameters<typeof access.perms.has>[0]) => access.perms.has(p);
 
   const T = km
-    ? { home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
-    : { home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
+    ? { issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
+    : { issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
 
   const items: StaffNavItem[] = (
     [
       ["home", "/staff", "main", true],
+      ["issues", "/staff/issues", "main", true],
       ["scanner", "/staff/scanner", "tools", can("tickets")],
       ["gate", "/staff/gate", "tools", can("tickets")],
       ["bookings", "/staff/bookings", "tools", can("tickets")],
@@ -61,6 +63,7 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
             </span>
           </Link>
           <div className="flex flex-shrink-0 items-center gap-2">
+            <LanguageSwitcher tone="blue" className="[&>svg]:hidden sm:[&>svg]:block" />
             {access.admin && (
               <Link href="/admin" className="hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-xs font-bold hover:bg-white/25 sm:inline-flex">
                 <ShieldCheck size={14} /> {T.admin}

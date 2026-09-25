@@ -1,14 +1,18 @@
 import Link from "next/link";
-import { Search, Users, CheckCircle2, Clock, Store, QrCode, Ticket, XCircle } from "lucide-react";
+import { Search, Users, CheckCircle2, Clock, Store, Ticket, XCircle } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { cn } from "@/lib/utils/cn";
+import { BookingActions } from "@/components/staff/BookingActions";
 
+import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
 
 /** Counter staff: every booking for a day, searchable, with who has paid, who pays here and who is in. */
+export const generateMetadata = () => staffTitle("Bookings", "ការកក់");
+
 export default async function StaffBookingsPage({ searchParams }: { searchParams: { q?: string; d?: string; f?: string } }) {
   const { locale } = getI18n();
   const km = locale === "km";
@@ -18,7 +22,7 @@ export default async function StaffBookingsPage({ searchParams }: { searchParams
 
   let query = createServiceRoleClient()
     .from("bookings")
-    .select("id, booking_code, qr_token, visitor_name, visitor_email, total_usd, status, pay_later, created_at, booking_items(quantity), visitor_checkins(checked_in_at)")
+    .select("id, booking_code, qr_token, visitor_name, visitor_email, total_usd, status, pay_later, created_at, booking_items(quantity, ticket_types(name, khmer_name)), visitor_checkins(checked_in_at)")
     .eq("visit_date", day)
     .neq("status", "cancelled")
     .order("created_at", { ascending: false })
@@ -86,12 +90,15 @@ export default async function StaffBookingsPage({ searchParams }: { searchParams
                   </p>
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <Link href={`/ticket/${b.booking_code}?k=${b.qr_token}`} className="flex-1 rounded-xl bg-[#EEF2FF] py-2 text-center text-xs font-bold text-[#1E3A8A] hover:bg-[#E0E7FF]">{L.ticket}</Link>
-                {!paid && (
-                  <Link href={`/pay/${b.booking_code}?k=${b.qr_token}&now=1`} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#1D4ED8] py-2 text-xs font-bold text-white"><QrCode size={13} /> {L.payHere}</Link>
-                )}
-              </div>
+              <BookingActions
+                code={b.booking_code}
+                accessKey={b.qr_token}
+                paid={paid}
+                inAt={b.inAt}
+                email={b.visitor_email}
+                km={km}
+                items={(b.booking_items ?? []).map((i: any) => ({ name: (km && i.ticket_types?.khmer_name) || i.ticket_types?.name || "—", quantity: i.quantity }))}
+              />
             </div>
           );
         })}

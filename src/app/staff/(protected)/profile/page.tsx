@@ -1,6 +1,6 @@
 import { BadgeCheck, Briefcase, CalendarDays, IdCard as IdCardIcon, Lock, Phone, UserRound } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
-import { staffAccess } from "@/lib/server/staff";
+import { staffAccess, staffTitle } from "@/lib/server/staff";
 import { getMembers, ensureCard } from "@/lib/server/members";
 import { getSiteUrl } from "@/lib/server/site-url";
 import { cardNo } from "@/lib/members";
@@ -12,6 +12,8 @@ import { PasswordForm, ProfileForm } from "@/components/staff/StaffForms";
 export const dynamic = "force-dynamic";
 
 /** Me: my details, my ID card, change photo/phone and password. */
+export const generateMetadata = () => staffTitle("My profile", "ព័ត៌មានខ្ញុំ");
+
 export default async function StaffProfilePage() {
   const userId = getVerifiedUserId()!;
   const { locale } = getI18n();
@@ -71,8 +73,9 @@ export default async function StaffProfilePage() {
             <IdCard
               data={{ type: member.card, name: member.name, photo: member.avatar, memberNo: cardNo(member), since: s.hired_on.slice(0, 7).replace("-", "."), site, verifyUrl: member.verifyToken ? `${site}/verify/${member.verifyToken}` : null, roleEn: member.positionEn, roleKm: member.positionKm }}
               fileName={`staff-card-${s.staff_no}`}
-              labels={km ? { save: "រក្សាទុកក្នុងទូរស័ព្ទ", print: "បោះពុម្ព", flip: "ត្រឡប់", hint: "ចុចលើកាតដើម្បីមើលខាងក្រោយ" } : { save: "Save to phone", print: "Print", flip: "Flip", hint: "Tap the card to see the back" }}
+              labels={km ? { save: "", print: "", flip: "ត្រឡប់", hint: "ចុចលើកាតដើម្បីមើលខាងក្រោយ។ កាតពិតបោះពុម្ពដោយអ្នកគ្រប់គ្រង។" } : { save: "", print: "", flip: "Flip", hint: "Tap the card to see the back. The real card is printed by the admin." }}
               width={240}
+              viewOnly
             />
           </section>
         )}

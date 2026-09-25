@@ -44,7 +44,8 @@ export function GateCounter({ initial, locale, embedded = false, tone }: { initi
 
   return (
     <div className={blue ? "pb-2 text-ink" : embedded ? "rounded-[2rem] bg-gradient-to-b from-forest to-[#0B3B21] pb-6 pt-1 text-white shadow-lift" : "min-h-screen bg-gradient-to-b from-forest to-[#0B3B21] pb-10 text-white"}>
-      <header className={cn("mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 pt-5", embedded && "hidden")}>
+      {!embedded && (
+      <header className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 pt-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-leaf">{km ? "រាប់ភ្ញៀវចូល" : "Gate counter"}</p>
           <p className="text-sm text-white/60">{today}</p>
@@ -58,6 +59,7 @@ export function GateCounter({ initial, locale, embedded = false, tone }: { initi
           </Link>
         </div>
       </header>
+      )}
 
       <div className={blue ? "" : "mx-auto max-w-2xl px-4"}>
         <div className={blue ? "rounded-[2rem] bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] p-5 text-center text-white shadow-lift" : "mt-5 rounded-[2rem] bg-white/10 p-5 text-center ring-1 ring-white/15 backdrop-blur"}>

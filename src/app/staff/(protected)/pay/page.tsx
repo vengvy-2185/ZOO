@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { CalendarDays, CheckCircle2, Wallet } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, payroll, thisMonth, PAY_TYPE } from "@/lib/server/staff";
+import { staffAccess, payroll, thisMonth, PAY_TYPE, staffTitle } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 
@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 /** This month's pay worked out line by line, and past payslips. */
+export const generateMetadata = () => staffTitle("Pay", "ប្រាក់ខែ");
+
 export default async function PayPage() {
   const userId = getVerifiedUserId()!;
   const access = await staffAccess(userId);

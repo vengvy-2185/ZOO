@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { CheckCircle2, Circle, MapPin, Timer } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
@@ -8,18 +7,25 @@ import { StaffShell } from "@/components/staff/StaffShell";
 import { cn } from "@/lib/utils/cn";
 import { toggleTask } from "../actions";
 
+import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
 
 /** Guides: today's shows and talks in order, what's on now, and a tick when each one is done. */
+export const generateMetadata = () => staffTitle("Today's programme", "កម្មវិធីថ្ងៃនេះ");
+
 export default async function SchedulePage() {
   const { locale } = getI18n();
   const km = locale === "km";
   const events = todaysEvents();
   const { data: ticks } = await createServiceRoleClient().from("staff_task_checks").select("ref").eq("kind", "event").eq("check_date", zooToday());
   const done = new Set((ticks ?? []).map((t: any) => t.ref));
+  // facts a guide can tell visitors about each show's animal (shown in place, no leaving the page)
+  const codes = events.map((e) => e.animalCode).filter(Boolean) as string[];
+  const { data: animals } = codes.length ? await createServiceRoleClient().from("animals").select("animal_code, name, khmer_name, interesting_facts, interesting_facts_km, favorite_food, favorite_food_km, species:species(common_name, khmer_name, conservation_status, conservation_status_km)").in("animal_code", codes) : { data: [] as any[] };
+  const byCode = new Map((animals ?? []).map((a: any) => [a.animal_code, a]));
   const L = km
-    ? { title: "កម្មវិធីថ្ងៃនេះ", sub: "កម្មវិធីសម្តែង និងការផ្តល់ចំណី តាមលំដាប់ម៉ោង។ ចុចធីកពេលធ្វើរួច។", now: "កំពុងដំណើរការ", next: "បន្ទាប់", in: (m: number) => `ក្នុង ${m} នាទី`, min: "នាទី", done: "រួចរាល់", mark: "ចុចពេលរួច", progress: "បានធ្វើរួច", animal: "មើលសត្វ" }
-    : { title: "Today's programme", sub: "Shows and feedings in time order. Tick each one when it's done.", now: "On now", next: "Next", in: (m: number) => `in ${m} min`, min: "min", done: "Done", mark: "Tick when done", progress: "Done today", animal: "See animal" };
+    ? { title: "កម្មវិធីថ្ងៃនេះ", sub: "កម្មវិធីសម្តែង និងការផ្តល់ចំណី តាមលំដាប់ម៉ោង។ ចុចធីកពេលធ្វើរួច។", now: "កំពុងដំណើរការ", next: "បន្ទាប់", in: (m: number) => `ក្នុង ${m} នាទី`, min: "នាទី", done: "រួចរាល់", mark: "ចុចពេលរួច", progress: "បានធ្វើរួច", animal: "រឿងសម្រាប់ប្រាប់ភ្ញៀវ" }
+    : { title: "Today's programme", sub: "Shows and feedings in time order. Tick each one when it's done.", now: "On now", next: "Next", in: (m: number) => `in ${m} min`, min: "min", done: "Done", mark: "Tick when done", progress: "Done today", animal: "Facts to tell visitors" };
   const finished = events.filter((e) => done.has(e.id)).length;
 
   return (
@@ -50,8 +56,21 @@ export default async function SchedulePage() {
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-ink/55">
                   <span className="inline-flex items-center gap-1"><MapPin size={12} /> {km ? e.place_km : e.place}</span>
                   <span className="inline-flex items-center gap-1"><Timer size={12} /> {e.minutes} {L.min}</span>
-                  {e.animalCode && <Link href={`/animals/${e.animalCode}`} className="font-bold text-[#1D4ED8] hover:underline">{L.animal}</Link>}
                 </p>
+                {e.animalCode && byCode.get(e.animalCode) && (() => {
+                  const a: any = byCode.get(e.animalCode!);
+                  return (
+                    <details className="group mt-1.5">
+                      <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-bold text-[#1D4ED8]">{L.animal}</summary>
+                      <div className="mt-2 space-y-1 rounded-xl bg-[#F8FAFF] p-2.5 text-xs text-ink/70 ring-1 ring-[#2563EB]/10">
+                        <p className="font-bold text-[#1E3A8A]">{(km && a.khmer_name) || a.name} · {(km && a.species?.khmer_name) || a.species?.common_name}</p>
+                        {(km ? a.interesting_facts_km : a.interesting_facts) && <p>💡 {km ? a.interesting_facts_km : a.interesting_facts}</p>}
+                        {(km ? a.favorite_food_km : a.favorite_food) && <p>🍽️ {km ? a.favorite_food_km : a.favorite_food}</p>}
+                        {a.species?.conservation_status && <p>🛡️ {(km && a.species.conservation_status_km) || a.species.conservation_status}</p>}
+                      </div>
+                    </details>
+                  );
+                })()}
               </div>
               <form action={toggleTask.bind(null, "event", e.id)} className="flex items-center pr-3">
                 <button className={cn("flex h-12 w-12 items-center justify-center rounded-2xl transition", ticked ? "bg-[#1D4ED8] text-white" : "bg-[#EEF2FF] text-[#93C5FD] hover:text-[#1D4ED8]")} title={ticked ? L.done : L.mark}>

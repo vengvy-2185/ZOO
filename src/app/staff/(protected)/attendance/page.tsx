@@ -3,13 +3,15 @@ import { redirect } from "next/navigation";
 import { CalendarDays, Clock, Timer } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, monthRange, thisMonth } from "@/lib/server/staff";
+import { staffAccess, monthRange, thisMonth, staffTitle } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 
 export const dynamic = "force-dynamic";
 
 /** Every shift this month (clock in → out), with the totals pay is worked out from. */
+export const generateMetadata = () => staffTitle("Hours", "ម៉ោងធ្វើការ");
+
 export default async function AttendancePage({ searchParams }: { searchParams: { month?: string } }) {
   const userId = getVerifiedUserId()!;
   const access = await staffAccess(userId);

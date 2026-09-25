@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn";
 import { Search, CheckCircle2, ClipboardList, LayoutGrid } from "lucide-react";
 import { StaffShell } from "@/components/staff/StaffShell";
 
+import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
 
 const KIND = {
@@ -20,6 +21,8 @@ const KIND = {
 } as const;
 
 /** Keepers and vets write what they did for an animal; the latest notes show for everyone on the team. */
+export const generateMetadata = () => staffTitle("Animal care", "ថែសត្វ");
+
 export default async function AnimalCarePage({ searchParams }: { searchParams: { a?: string; tab?: string; q?: string } }) {
   const tab = searchParams.tab === "board" ? "board" : "log";
   const { locale } = getI18n();
@@ -33,6 +36,10 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
   const { data: fedRows } = await db.from("animal_care_logs").select("animal_id, created_at").eq("kind", "feeding").gte("created_at", `${zooToday()}T00:00:00+07:00`).order("created_at", { ascending: false });
   const fedAt = new Map<string, string>();
   for (const r of fedRows ?? []) if (!fedAt.has(r.animal_id)) fedAt.set(r.animal_id, r.created_at);
+  // health notes in the last 3 days: flagged on the board so vets and keepers keep an eye
+  const { data: healthRows } = await db.from("animal_care_logs").select("animal_id, note, created_at").eq("kind", "health").gte("created_at", new Date(Date.now() - 3 * 864e5).toISOString()).order("created_at", { ascending: false });
+  const health = new Map<string, string>();
+  for (const r of healthRows ?? []) if (!health.has(r.animal_id)) health.set(r.animal_id, r.note);
   const q = (searchParams.q ?? "").trim().toLowerCase();
   const board = (animals ?? []).filter((a: any) => !q || a.name.toLowerCase().includes(q) || (a.khmer_name ?? "").includes(q) || a.animal_code.toLowerCase().includes(q)).sort((a: any, b: any) => Number(fedAt.has(a.id)) - Number(fedAt.has(b.id)));
   // who wrote each note (staff name; admins show as "Admin")
@@ -74,6 +81,7 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
                   <img src={a.main_image_url ?? "/icon.svg"} alt="" className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold text-forest">{(km && a.khmer_name) || a.name}</p>
+                    {health.has(a.id) && <p className="truncate text-[11px] font-bold text-red-600" title={health.get(a.id)}>🩺 {km ? "តាមដានសុខភាព" : "Health watch"}: {health.get(a.id)}</p>}
                     <p className={cn("text-xs font-bold", at ? "text-[#1D4ED8]" : "text-red-500")}>
                       {at ? `${km ? "ឲ្យចំណីម៉ោង" : "Fed at"} ${when(at).split(", ").pop()}` : km ? "មិនទាន់ឲ្យចំណីថ្ងៃនេះ" : "Not fed today"}
                     </p>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { CalendarOff, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess } from "@/lib/server/staff";
+import { staffAccess, staffTitle } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { StaffShell } from "@/components/staff/StaffShell";
@@ -20,6 +20,8 @@ const STATUS = {
 const KIND = { annual: { en: "Annual leave", km: "ច្បាប់ប្រចាំឆ្នាំ" }, sick: { en: "Sick", km: "ឈឺ" }, personal: { en: "Personal", km: "កិច្ចការផ្ទាល់ខ្លួន" }, other: { en: "Other", km: "ផ្សេងៗ" } } as const;
 
 /** Ask for time off and follow what the admin decided. */
+export const generateMetadata = () => staffTitle("Leave", "សុំច្បាប់");
+
 export default async function LeavePage() {
   const userId = getVerifiedUserId()!;
   const access = await staffAccess(userId);

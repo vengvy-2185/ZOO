@@ -156,3 +156,10 @@ export async function openShift(userId: string) {
   const { data } = await createServiceRoleClient().from("staff_attendance").select("id, clock_in").eq("user_id", userId).is("clock_out", null).maybeSingle();
   return data;
 }
+
+/** Browser-tab title for a staff page, e.g. "Bookings · GWZ Staff", in the chosen language. */
+export async function staffTitle(en: string, km: string) {
+  const { getI18n } = await import("@/lib/i18n/server");
+  const isKm = getI18n().locale === "km";
+  return { title: `${isKm ? km : en} · ${isKm ? "បុគ្គលិក GWZ" : "GWZ Staff"}` };
+}

@@ -4,9 +4,12 @@ import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { StaffShell } from "@/components/staff/StaffShell";
 
+import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
 
 /** Managers / vets: today's numbers and the last 7 days of visitors, at a glance. */
+export const generateMetadata = () => staffTitle("Reports", "របាយការណ៍");
+
 export default async function ReportsPage() {
   const { locale } = getI18n();
   const km = locale === "km";

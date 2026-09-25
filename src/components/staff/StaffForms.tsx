@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Camera, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, LogIn, LogOut, Save, Send, ShieldCheck } from "lucide-react";
-import { changeMyPassword, requestLeave, updateMyProfile, type LeaveState, type PasswordState, type ProfileState } from "@/app/staff/(protected)/actions";
+import { changeMyPassword, reportIssue, requestLeave, updateMyProfile, type IssueState, type LeaveState, type PasswordState, type ProfileState } from "@/app/staff/(protected)/actions";
 import { cn } from "@/lib/utils/cn";
 
 const field = "w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15";
@@ -197,5 +197,63 @@ export function ClockButton({ onShift, label }: { onShift: boolean; label: strin
     >
       {pending ? <Loader2 size={20} className="animate-spin" /> : <Icon size={20} />} {label}
     </button>
+  );
+}
+
+// ── Report a problem ──────────────────────────────────────────────────
+export function IssueForm({ km, defaultCategory = "repair" }: { km: boolean; defaultCategory?: string }) {
+  const [state, action] = useFormState<IssueState, FormData>(reportIssue, {});
+  const ref = useRef<HTMLFormElement>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
+  useEffect(() => {
+    if (state.ok) {
+      ref.current?.reset();
+      setPhoto(null);
+    }
+  }, [state]);
+  const CATS = km
+    ? { repair: "ជួសជុល", cleaning: "សម្អាត", animal: "សត្វ", safety: "សុវត្ថិភាព", visitor: "ភ្ញៀវ", other: "ផ្សេងៗ" }
+    : { repair: "Repair", cleaning: "Cleaning", animal: "Animal", safety: "Safety", visitor: "Visitor", other: "Other" };
+  const L = km
+    ? { cat: "ប្រភេទបញ្ហា", place: "កន្លែង", placeHint: "ឧ. បង្គន់តំបន់ B, ទ្រុងសិង្ហ", note: "ពិពណ៌នា", urgent: "បន្ទាន់", photo: "ថតរូប (ស្រេចចិត្ត)", send: "រាយការណ៍", busy: "កំពុងផ្ញើ…", done: "បានរាយការណ៍ហើយ។ អ្នកគ្រប់គ្រងនឹងដោះស្រាយ។", invalid: "សូមបំពេញកន្លែង និងការពិពណ៌នា។" }
+    : { cat: "Type of problem", place: "Where", placeHint: "e.g. Zone B toilets, lion enclosure", note: "What's wrong", urgent: "Urgent", photo: "Photo (optional)", send: "Report", busy: "Sending…", done: "Reported. A manager will take care of it.", invalid: "Please fill in where and what's wrong." };
+  return (
+    <form ref={ref} action={action} className="space-y-4">
+      <fieldset>
+        <legend className={label}>{L.cat}</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {(Object.keys(CATS) as (keyof typeof CATS)[]).map((k) => (
+            <label key={k} className="cursor-pointer">
+              <input type="radio" name="category" value={k} defaultChecked={k === defaultCategory} className="peer sr-only" />
+              <span className="flex items-center justify-center rounded-2xl bg-white px-2 py-2.5 text-center text-sm font-bold text-ink/60 ring-1 ring-black/10 transition peer-checked:bg-[#1D4ED8] peer-checked:text-white peer-checked:ring-0">{CATS[k]}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <label className="block">
+        <span className={label}>{L.place}</span>
+        <input name="place" required maxLength={120} placeholder={L.placeHint} className={field} />
+      </label>
+      <label className="block">
+        <span className={label}>{L.note}</span>
+        <textarea name="note" required maxLength={600} rows={3} className={cn(field, "resize-none")} />
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#1E3A8A] ring-1 ring-black/10">
+          <Camera size={16} /> {L.photo}
+          <input type="file" name="photo_file" accept="image/png,image/jpeg,image/webp" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; setPhoto(f ? URL.createObjectURL(f) : null); }} />
+        </label>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {photo && <img src={photo} alt="" className="h-12 w-12 rounded-xl object-cover ring-1 ring-black/10" />}
+        <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-sm font-bold text-red-600">
+          <input type="checkbox" name="urgent" className="h-4 w-4 accent-red-600" /> {L.urgent}
+        </label>
+      </div>
+      {state.ok && <Done text={L.done} />}
+      {state.error && <Err text={state.error === "invalid" ? L.invalid : state.error} />}
+      <div className="flex justify-end">
+        <Submit text={L.send} busy={L.busy} icon={Send} />
+      </div>
+    </form>
   );
 }

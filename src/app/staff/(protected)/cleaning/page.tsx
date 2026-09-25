@@ -6,6 +6,7 @@ import { StaffShell } from "@/components/staff/StaffShell";
 import { cn } from "@/lib/utils/cn";
 import { toggleTask } from "../actions";
 
+import { staffTitle } from "@/lib/server/staff";
 export const dynamic = "force-dynamic";
 
 const TYPE: Record<string, { en: string; km: string }> = {
@@ -25,6 +26,8 @@ const TYPE: Record<string, { en: string; km: string }> = {
 };
 
 /** Cleaners: every zone and facility, ticked off as it's cleaned today (by anyone on the team). */
+export const generateMetadata = () => staffTitle("Cleaning", "សម្អាត");
+
 export default async function CleaningPage() {
   const { locale } = getI18n();
   const km = locale === "km";
