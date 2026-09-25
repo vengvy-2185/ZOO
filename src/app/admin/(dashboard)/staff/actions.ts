@@ -180,3 +180,36 @@ export async function unmarkPaid(userId: string, month: string) {
   await createServiceRoleClient().from("staff_payslips").delete().eq("user_id", userId).eq("month", monthRange(month).first);
   done();
 }
+
+// ── Leave requests ────────────────────────────────────────────────────
+export async function decideLeave(id: string, formData: FormData) {
+  const adminId = await requireAdmin();
+  const status = str(formData, "decision");
+  if (!["approved", "rejected"].includes(status)) return;
+  await createServiceRoleClient()
+    .from("staff_leave_requests")
+    .update({ status, admin_note: str(formData, "admin_note") || null, decided_by: adminId, decided_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "pending");
+  done();
+}
+
+// ── Notices ───────────────────────────────────────────────────────────
+export async function postNotice(formData: FormData) {
+  const adminId = await requireAdmin();
+  const title = str(formData, "title").slice(0, 120);
+  const body = str(formData, "body").slice(0, 2000);
+  if (!title || !body) return;
+  await createServiceRoleClient().from("staff_announcements").insert({ title, body, pinned: formData.get("pinned") === "on", created_by: adminId });
+  done();
+}
+export async function deleteNotice(id: string) {
+  await requireAdmin();
+  await createServiceRoleClient().from("staff_announcements").delete().eq("id", id);
+  done();
+}
+export async function togglePin(id: string, pinned: boolean) {
+  await requireAdmin();
+  await createServiceRoleClient().from("staff_announcements").update({ pinned }).eq("id", id);
+  done();
+}

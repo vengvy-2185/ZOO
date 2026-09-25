@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, PawPrint, Utensils, Stethoscope, Sparkles, Brush, StickyNote } from "lucide-react";
+import { Utensils, Stethoscope, Sparkles, Brush, StickyNote } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { addCareLog } from "../actions";
+import { StaffShell } from "@/components/staff/StaffShell";
 
 export const dynamic = "force-dynamic";
 
@@ -35,15 +36,8 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
   const field = "w-full rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-primary";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-light-green to-background pb-16">
-      <main className="mx-auto max-w-3xl px-4 py-6">
-        <Link href="/staff" className="inline-flex items-center gap-1.5 text-sm font-bold text-primary"><ArrowLeft size={16} /> {L.back}</Link>
-        <h1 className="mt-3 flex items-center gap-3 font-display text-3xl font-extrabold text-forest">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15803D] text-white"><PawPrint size={24} /></span> {L.title}
-        </h1>
-        <p className="mt-1 text-sm text-ink/60">{L.sub}</p>
-
-        <form action={addCareLog} className="card mt-5 space-y-3 p-5">
+    <StaffShell active="animals" title={L.title} subtitle={L.sub}>
+        <form action={addCareLog} className="card space-y-3 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-ink/50">{L.animal}</span>
@@ -77,7 +71,7 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
           </div>
         </form>
 
-        <h2 className="mb-3 mt-7 font-display text-xl font-extrabold text-forest">{L.latest}</h2>
+        <h2 className="mb-3 mt-2 font-display text-xl font-extrabold text-forest">{L.latest}</h2>
         {(logs ?? []).length === 0 ? (
           <p className="card p-5 text-sm text-ink/55">{L.none}</p>
         ) : (
@@ -101,7 +95,6 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
             })}
           </ul>
         )}
-      </main>
-    </div>
+    </StaffShell>
   );
 }

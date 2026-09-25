@@ -6,7 +6,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { getI18n } from "@/lib/i18n/server";
 
 export function SiteFooter() {
-  const { t } = getI18n();
+  const { t, locale } = getI18n();
   return (
     <footer className="relative mt-20 overflow-hidden bg-forest text-white">
       {/* Leafy silhouette edge */}
@@ -77,6 +77,9 @@ export function SiteFooter() {
           <span className="flex items-center gap-3">
             <Link href="/credits" className="hover:text-leaf">
               {t.common.photoCredits}
+            </Link>
+            <Link href="/staff/login" className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 font-bold text-white/70 hover:bg-white/20 hover:text-leaf">
+              {locale === "km" ? "ចូលសម្រាប់បុគ្គលិក" : "Staff sign-in"}
             </Link>
             {t.footer.slogan}
           </span>

@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { BadgeCheck, Briefcase, Wallet, Users, Printer, Clock, Trash2, CheckCircle2, Undo2, Plus } from "lucide-react";
+import { BadgeCheck, Briefcase, Wallet, Users, Printer, Clock, Trash2, CheckCircle2, Undo2, Plus, CalendarOff, Megaphone, Pin, PinOff, XCircle } from "lucide-react";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { getI18n } from "@/lib/i18n/server";
 import { getPositions, payroll, thisMonth, PERMISSIONS, PAY_TYPE, type PayLine, type Position } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
 import { AddStaffForm, ResetPassword } from "./StaffClient";
-import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid } from "./actions";
+import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["people", "payroll", "positions"] as const;
+const TABS = ["people", "payroll", "leave", "notices", "positions"] as const;
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const input = "w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary";
 
@@ -19,7 +20,15 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
   const km = locale === "km";
   const tab = (TABS as readonly string[]).includes(searchParams.tab ?? "") ? searchParams.tab! : "people";
   const month = /^\d{4}-\d{2}$/.test(searchParams.month ?? "") ? searchParams.month! : thisMonth();
-  const [positions, lines] = await Promise.all([getPositions(), payroll(month)]);
+  const db = createServiceRoleClient();
+  const [positions, lines, { data: leaves }, { data: notices }] = await Promise.all([
+    getPositions(),
+    payroll(month),
+    db.from("staff_leave_requests").select("*").order("status", { ascending: false }).order("start_date", { ascending: false }).limit(60),
+    db.from("staff_announcements").select("*").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(30),
+  ]);
+  const pendingLeaves = (leaves ?? []).filter((r: any) => r.status === "pending");
+  const staffName = (id: string) => lines.find((l) => l.staff.user_id === id)?.staff.full_name ?? "—";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
   const pn = (p: Position | null) => (p ? (km && p.name_km) || p.name : "—");
   const active = lines.filter((l) => l.staff.status === "active");
@@ -34,8 +43,8 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
   };
 
   const L = km
-    ? { title: "បុគ្គលិក និងប្រាក់ខែ", sub: "មានតែអ្នកគ្រប់គ្រងទេដែលបង្កើតគណនីបុគ្គលិក។ បុគ្គលិកម្នាក់ៗទទួលបានលេខសម្គាល់ (GWZ-S-…) សម្រាប់ចូលប្រើ និងកាតសម្គាល់ភ្លាមៗ។", tabs: { people: "បុគ្គលិក", payroll: "ប្រាក់ខែ", positions: "តួនាទី និងអត្រា" }, staff: "បុគ្គលិកសកម្ម", shift: "កំពុងធ្វើការឥឡូវ", total: "ប្រាក់ខែសរុបខែនេះ", paid: "បានបើករួច", pos: "តួនាទី", status: "ស្ថានភាព", st: { active: "សកម្ម", suspended: "ផ្អាក", left: "លាឈប់" }, month: "ខែនេះ", card: "កាត", edit: "កែប្រែ", save: "រក្សាទុក", saving: "កំពុងរក្សាទុក…", none: "មិនទាន់មានបុគ្គលិកទេ។ បន្ថែមម្នាក់ខាងលើ។", days: "ថ្ងៃ", hours: "ម៉ោង", base: "ប្រាក់គោល", allowance: "ឧបត្ថម្ភ", adj: "បន្ថែម/កាត់", gross: "សរុប", markPaid: "បានបើកប្រាក់", undo: "មិនទាន់", paidOn: "បានបើក", bonus: "ប្រាក់រង្វាន់ / កាត់", note: "មូលហេតុ", add: "បន្ថែម", rate: "អត្រា", payType: "របៀបគិតប្រាក់", perms: "អាចប្រើ", newPos: "តួនាទីថ្មី", del: "លុប", phone: "ទូរស័ព្ទ", allowanceM: "ឧបត្ថម្ភ/ខែ", onShiftNow: "កំពុងធ្វើការ" }
-    : { title: "Staff and payroll", sub: "Only admins create staff accounts. Each person gets a Staff ID (GWZ-S-…) to sign in with and an ID card straight away.", tabs: { people: "Staff", payroll: "Payroll", positions: "Positions and pay" }, staff: "Active staff", shift: "Working right now", total: "Payroll this month", paid: "Already paid", pos: "Position", status: "Status", st: { active: "Active", suspended: "Suspended", left: "Left" }, month: "This month", card: "Card", edit: "Edit", save: "Save", saving: "Saving…", none: "No staff yet. Add someone above.", days: "days", hours: "hours", base: "Base", allowance: "Allowance", adj: "Bonus/deduction", gross: "Total", markPaid: "Mark paid", undo: "Undo", paidOn: "Paid", bonus: "Bonus / deduction", note: "Reason", add: "Add", rate: "Rate", payType: "Pay type", perms: "Can use", newPos: "New position", del: "Delete", phone: "Phone", allowanceM: "Allowance/month", onShiftNow: "On shift" };
+    ? { title: "បុគ្គលិក និងប្រាក់ខែ", sub: "មានតែអ្នកគ្រប់គ្រងទេដែលបង្កើតគណនីបុគ្គលិក។ បុគ្គលិកម្នាក់ៗទទួលបានលេខសម្គាល់ (GWZ-S-…) សម្រាប់ចូលប្រើ និងកាតសម្គាល់ភ្លាមៗ។", tabs: { people: "បុគ្គលិក", payroll: "ប្រាក់ខែ", leave: "ច្បាប់", notices: "ជូនដំណឹង", positions: "តួនាទី និងអត្រា" }, staff: "បុគ្គលិកសកម្ម", shift: "កំពុងធ្វើការឥឡូវ", total: "ប្រាក់ខែសរុបខែនេះ", paid: "បានបើករួច", pos: "តួនាទី", status: "ស្ថានភាព", st: { active: "សកម្ម", suspended: "ផ្អាក", left: "លាឈប់" }, month: "ខែនេះ", card: "កាត", edit: "កែប្រែ", save: "រក្សាទុក", saving: "កំពុងរក្សាទុក…", none: "មិនទាន់មានបុគ្គលិកទេ។ បន្ថែមម្នាក់ខាងលើ។", days: "ថ្ងៃ", hours: "ម៉ោង", base: "ប្រាក់គោល", allowance: "ឧបត្ថម្ភ", adj: "បន្ថែម/កាត់", gross: "សរុប", markPaid: "បានបើកប្រាក់", undo: "មិនទាន់", paidOn: "បានបើក", bonus: "ប្រាក់រង្វាន់ / កាត់", note: "មូលហេតុ", add: "បន្ថែម", rate: "អត្រា", payType: "របៀបគិតប្រាក់", perms: "អាចប្រើ", newPos: "តួនាទីថ្មី", del: "លុប", phone: "ទូរស័ព្ទ", allowanceM: "ឧបត្ថម្ភ/ខែ", onShiftNow: "កំពុងធ្វើការ" }
+    : { title: "Staff and payroll", sub: "Only admins create staff accounts. Each person gets a Staff ID (GWZ-S-…) to sign in with and an ID card straight away.", tabs: { people: "Staff", payroll: "Payroll", leave: "Leave", notices: "Notices", positions: "Positions and pay" }, staff: "Active staff", shift: "Working right now", total: "Payroll this month", paid: "Already paid", pos: "Position", status: "Status", st: { active: "Active", suspended: "Suspended", left: "Left" }, month: "This month", card: "Card", edit: "Edit", save: "Save", saving: "Saving…", none: "No staff yet. Add someone above.", days: "days", hours: "hours", base: "Base", allowance: "Allowance", adj: "Bonus/deduction", gross: "Total", markPaid: "Mark paid", undo: "Undo", paidOn: "Paid", bonus: "Bonus / deduction", note: "Reason", add: "Add", rate: "Rate", payType: "Pay type", perms: "Can use", newPos: "New position", del: "Delete", phone: "Phone", allowanceM: "Allowance/month", onShiftNow: "On shift" };
 
   const units = (l: PayLine) => {
     const t = l.staff.position?.pay_type;
@@ -61,11 +70,12 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
         ))}
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
         {TABS.map((k) => (
-          <Link key={k} href={`/admin/staff?tab=${k}&month=${month}`} className={cn("rounded-full px-4 py-2 text-sm font-bold", tab === k ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10 hover:bg-light-green")}>
-            {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
+          <Link key={k} href={`/admin/staff?tab=${k}&month=${month}`} className={cn("flex-shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold", tab === k ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10 hover:bg-light-green")}>
+            {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "leave" ? <CalendarOff size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "notices" ? <Megaphone size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
             {L.tabs[k]}
+            {k === "leave" && pendingLeaves.length > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-xs font-extrabold text-forest">{pendingLeaves.length}</span>}
           </Link>
         ))}
       </div>
@@ -234,6 +244,71 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {tab === "leave" && (() => {
+        const K = km ? { annual: "ច្បាប់ប្រចាំឆ្នាំ", sick: "ឈឺ", personal: "កិច្ចការផ្ទាល់ខ្លួន", other: "ផ្សេងៗ" } : { annual: "Annual leave", sick: "Sick", personal: "Personal", other: "Other" };
+        const S = km ? { pending: "កំពុងរង់ចាំ", approved: "បានអនុញ្ញាត", rejected: "មិនអនុញ្ញាត", cancelled: "បានបោះបង់" } : { pending: "Waiting", approved: "Approved", rejected: "Not approved", cancelled: "Cancelled" };
+        const nDays = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1;
+        const d = (x: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC", numberingSystem: "latn" }).format(new Date(`${x}T00:00:00Z`));
+        return (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {(leaves ?? []).length === 0 && <p className="card p-8 text-center text-ink/55 lg:col-span-2">{km ? "មិនទាន់មានសំណើសុំច្បាប់ទេ។" : "No leave requests yet."}</p>}
+            {(leaves ?? []).map((r: any) => (
+              <div key={r.id} className={cn("card p-4", r.status === "pending" && "ring-2 ring-amber-300")}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-display font-extrabold text-forest">{staffName(r.user_id)}</span>
+                  <span className="rounded-full bg-[#EEF2FF] px-2.5 py-0.5 text-xs font-bold text-[#1E3A8A]">{K[r.kind as keyof typeof K]}</span>
+                  <span className={cn("ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold", r.status === "pending" ? "bg-amber-50 text-amber-700" : r.status === "approved" ? "bg-emerald-50 text-emerald-700" : r.status === "rejected" ? "bg-red-50 text-red-700" : "bg-black/5 text-ink/50")}>{S[r.status as keyof typeof S]}</span>
+                </div>
+                <p className="mt-1 text-sm font-bold text-ink/70">{d(r.start_date)}{r.end_date !== r.start_date && ` → ${d(r.end_date)}`} · {nDays(r.start_date, r.end_date)} {L.days}</p>
+                <p className="mt-1 text-sm text-ink/60">{r.reason}</p>
+                {r.admin_note && r.status !== "pending" && <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink/60">{r.admin_note}</p>}
+                {r.status === "pending" && (
+                  <form action={decideLeave.bind(null, r.id)} className="mt-3 space-y-2">
+                    <input name="admin_note" placeholder={km ? "កំណត់ចំណាំ (ស្រេចចិត្ត)" : "Note to staff (optional)"} className={input} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button name="decision" value="approved" className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"><CheckCircle2 size={16} /> {km ? "អនុញ្ញាត" : "Approve"}</button>
+                      <button name="decision" value="rejected" className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white py-2.5 text-sm font-bold text-red-600 ring-1 ring-red-200 hover:bg-red-50"><XCircle size={16} /> {km ? "មិនអនុញ្ញាត" : "Reject"}</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {tab === "notices" && (
+        <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.2fr]">
+          <form action={postNotice} className="card space-y-3 p-5">
+            <p className="flex items-center gap-2 font-display text-lg font-extrabold text-forest"><Megaphone size={20} className="text-primary" /> {km ? "សេចក្តីជូនដំណឹងថ្មី" : "New notice"}</p>
+            <input name="title" required maxLength={120} placeholder={km ? "ចំណងជើង" : "Title"} className={input} />
+            <textarea name="body" required maxLength={2000} rows={5} placeholder={km ? "ខ្លឹមសារ… (បុគ្គលិកទាំងអស់ឃើញនៅទំព័រដើម)" : "Message… (every staff member sees it on their home page)"} className={cn(input, "resize-none")} />
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink/70">
+              <input type="checkbox" name="pinned" className="h-4 w-4 accent-[#176B3A]" /> <Pin size={14} className="text-amber-500" /> {km ? "ខ្ទាស់នៅខាងលើ" : "Pin to the top"}
+            </label>
+            <SubmitButton label={km ? "ផ្សាយ" : "Post"} pendingLabel="…" className="w-full py-2.5 text-sm" />
+          </form>
+          <div className="space-y-2">
+            {(notices ?? []).length === 0 && <p className="card p-8 text-center text-ink/55">{km ? "មិនទាន់មានទេ។" : "Nothing posted yet."}</p>}
+            {(notices ?? []).map((n: any) => (
+              <div key={n.id} className={cn("card p-4", n.pinned && "ring-2 ring-amber-300")}>
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 font-display font-extrabold text-forest">{n.pinned && <Pin size={14} className="-mt-0.5 mr-1 inline text-amber-500" />}{n.title}</p>
+                  <form action={togglePin.bind(null, n.id, !n.pinned)}>
+                    <button className="rounded-full p-1.5 text-ink/40 hover:text-amber-600" title={n.pinned ? "unpin" : "pin"}>{n.pinned ? <PinOff size={15} /> : <Pin size={15} />}</button>
+                  </form>
+                  <form action={deleteNotice.bind(null, n.id)}>
+                    <button className="rounded-full p-1.5 text-ink/40 hover:text-red-600" title="delete"><Trash2 size={15} /></button>
+                  </form>
+                </div>
+                <p className="mt-1 whitespace-pre-line text-sm text-ink/70">{n.body}</p>
+                <p className="mt-2 text-[11px] text-ink/40">{new Date(n.created_at).toLocaleString("en-GB", { timeZone: "Asia/Phnom_Penh", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}

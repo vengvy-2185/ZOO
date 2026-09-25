@@ -15,7 +15,7 @@ export function AccountLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   // Where to go after signing in (same-site paths only).
   const requested = searchParams.get("next") ?? "/account";
   const next = requested.startsWith("/") && !requested.startsWith("//") && !requested.startsWith("/\\") ? requested : "/account";
@@ -151,7 +151,10 @@ export function AccountLoginForm() {
           </>
         )}
       </p>
-      <p className="mt-4 text-center">
+      <Link href="/staff/login" className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-[#EEF2FF] px-4 py-2.5 text-xs font-bold text-[#1E3A8A] ring-1 ring-[#2563EB]/15 hover:bg-[#E0E7FF]">
+        {locale === "km" ? "ជាបុគ្គលិក? ចូលដោយលេខសម្គាល់បុគ្គលិក →" : "Zoo staff? Sign in with your Staff ID →"}
+      </Link>
+      <p className="mt-3 text-center">
         <Link href="/" className="text-xs text-ink/40 hover:underline">
           ← {t.common.backToZoo}
         </Link>
