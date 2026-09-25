@@ -3,7 +3,7 @@ import { BarChart3, CalendarDays, CheckCircle2, Clock, FileText, MapPin, Monitor
 import { attendanceMonth, localDay, localMinutes as localMinutesNow, toMin as toMinutes, type DayMark, type PersonMonth } from "@/lib/server/attendance";
 import { thisMonth } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
-import { addHoliday, markLeaveToday, markSession, removeHoliday, saveAttendanceSettings } from "@/app/staff/(protected)/attendance-actions";
+import { addHoliday, removeHoliday, saveAttendanceSettings, setSessionStatus, type BoxKind } from "@/app/staff/(protected)/attendance-actions";
 import { GeoFill } from "./GeoFill";
 
 export type AttTab = "today" | "month" | "rules";
@@ -79,18 +79,41 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
         const AV = ["from-emerald-400 to-emerald-600", "from-violet-400 to-violet-600", "from-sky-400 to-blue-600", "from-amber-400 to-orange-500", "from-rose-400 to-pink-600", "from-teal-400 to-cyan-600"];
 
         /** one of the four boxes (arrived / late / leave / absent) for a half day */
-        const box = (kind: "arrived" | "late" | "leave" | "absent", k: DayMark["morning"], time?: string, lateMin?: number) => {
+        const box = (p: PersonMonth, x: "morning" | "afternoon", kind: BoxKind, d: DayMark) => {
+          const k = d[x];
+          const time = x === "morning" ? d.mIn : d.aIn;
+          const lateMin = x === "morning" ? d.mLate : d.aLate;
           const on = kind === "arrived" ? k === "ok" : kind === "late" ? k === "late" : kind === "leave" ? k === "leave" : k === "absent";
-          if (!on) return <div className="flex h-12 items-center justify-center rounded-xl bg-slate-50/70 text-sm font-bold text-slate-300">–</div>;
-          const style = { arrived: "bg-emerald-500 text-white", late: "bg-amber-400 text-amber-950", leave: "bg-sky-500 text-white", absent: "bg-red-500 text-white" }[kind];
+          const locked = !on && (k === "off" || k === "holiday");
           const Icon = kind === "arrived" ? CheckCircle2 : kind === "late" ? Clock : kind === "leave" ? FileText : XCircle;
+          const onCls = { arrived: "bg-emerald-500 text-white", late: "bg-amber-400 text-amber-950", leave: "bg-sky-500 text-white", absent: "bg-red-500 text-white" }[kind];
+          const hoverCls = { arrived: "hover:bg-emerald-50 hover:text-emerald-600 hover:ring-emerald-200", late: "hover:bg-amber-50 hover:text-amber-600 hover:ring-amber-200", leave: "hover:bg-sky-50 hover:text-sky-600 hover:ring-sky-200", absent: "hover:bg-red-50 hover:text-red-500 hover:ring-red-200" }[kind];
+          const label = { arrived: T.arrived, late: T.late, leave: T.leave, absent: T.absent }[kind];
           return (
-            <div className={cn("flex h-12 flex-col items-center justify-center rounded-xl shadow-sm", style)}>
-              <Icon size={16} strokeWidth={2.5} />
-              <span className="mt-0.5 text-[11px] font-extrabold leading-none tabular-nums">
-                {kind === "arrived" ? time : kind === "late" ? <>{time} <span className="opacity-75">+{lateMin}′</span></> : kind === "leave" ? T.leave : T.absent}
-              </span>
-            </div>
+            <form action={setSessionStatus.bind(null, p.userId, today, x, kind)}>
+              <button
+                disabled={locked}
+                title={on ? (km ? `ចុចម្តងទៀតដើម្បីដក "${label}"` : `Tap again to clear "${label}"`) : km ? `កត់ថា "${label}"` : `Mark "${label}"`}
+                className={cn(
+                  "group/b flex h-12 w-full flex-col items-center justify-center rounded-xl text-[11px] font-extrabold transition active:scale-95 disabled:cursor-default disabled:opacity-40",
+                  on ? cn(onCls, "shadow-sm hover:brightness-95") : cn("bg-slate-50/80 text-slate-300 ring-1 ring-transparent", !locked && hoverCls)
+                )}
+              >
+                {on ? (
+                  <>
+                    <Icon size={16} strokeWidth={2.5} />
+                    <span className="mt-0.5 leading-none tabular-nums">
+                      {kind === "arrived" ? time ?? "✓" : kind === "late" ? <>{time} <span className="opacity-75">+{lateMin}′</span></> : label}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm leading-none group-hover/b:hidden">–</span>
+                    <Icon size={16} className="hidden group-hover/b:block" />
+                  </>
+                )}
+              </button>
+            </form>
           );
         };
         /** the "today" summary for a person: one short line + n/2 */
@@ -106,37 +129,10 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
           if (d.morning === "off") return { cls: "bg-slate-100 text-slate-600", dot: "bg-slate-400", text: T.off, n: "" };
           if (ks.includes("absent")) return { cls: "bg-red-50 text-red-700", dot: "bg-red-500", text: T.absent + which((k) => k === "absent"), n: `${n}/${work}` };
           if (ks.includes("late")) return { cls: "bg-amber-50 text-amber-800", dot: "bg-amber-400", text: T.late + which((k) => k === "late"), n: `${n}/${work}` };
-          if (ks.includes("leave")) return { cls: "bg-sky-50 text-sky-700", dot: "bg-sky-500", text: T.onLeave, n: "" };
+          if (ks.includes("leave")) return { cls: "bg-sky-50 text-sky-700", dot: "bg-sky-500", text: T.onLeave + which((k) => k === "leave"), n: "" };
           if (n === work && work > 0) return { cls: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500", text: T.allIn, n: `${n}/${work}` };
           if (n > 0) return { cls: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500", text: T.working, n: `${n}/${work}` };
           return { cls: "bg-slate-50 text-slate-500", dot: "bg-slate-300", text: T.waitingAll, n: `0/${work}` };
-        };
-        const menu = (p: PersonMonth, d: DayMark) => {
-          const onLeave = d.morning === "leave";
-          return (
-            <details className="group relative">
-              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl text-ink/50 outline-none transition hover:bg-[#EEF2FF] hover:text-[#1E3A8A] focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 group-open:bg-[#EEF2FF] group-open:text-[#1E3A8A] [&::-webkit-details-marker]:hidden" aria-label={T.actions}>
-                <MoreHorizontal size={18} />
-              </summary>
-              <div className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-2xl bg-white p-1.5 shadow-lift ring-1 ring-black/5">
-                {(["morning", "afternoon"] as const).map((x) => {
-                  const done = came(d[x]);
-                  const can = done || !["leave", "off", "holiday"].includes(d[x]);
-                  if (!can) return null;
-                  return (
-                    <form key={x} action={markSession.bind(null, p.userId, today, x, !done)}>
-                      <button className={cn("w-full rounded-xl px-3 py-2 text-left text-sm font-bold", done ? "text-ink/60 hover:bg-red-50 hover:text-red-600" : "text-emerald-700 hover:bg-emerald-50")}>
-                        {x === "morning" ? (done ? T.undoM : T.markM) : done ? T.undoA : T.markA}
-                      </button>
-                    </form>
-                  );
-                })}
-                <form action={markLeaveToday.bind(null, p.userId, today, !onLeave)}>
-                  <button className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-sky-700 hover:bg-sky-50">{onLeave ? T.removeLeave : T.giveLeave}</button>
-                </form>
-              </div>
-            </details>
-          );
         };
         const avatar = (p: PersonMonth, i: number, size = "h-14 w-14 text-2xl") =>
           p.avatar ? (
@@ -188,7 +184,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
 
             {/* the table (computers): header and rows use the same grid, so everything lines up */}
             <div className={cn("hidden overflow-hidden rounded-[1.75rem] bg-white shadow-soft ring-1 ring-black/5", !compact && "xl:block")}>
-              <div className={cn("grid items-end gap-x-2 border-b border-black/5 bg-[#F8FAFF] px-4 pb-2 pt-3", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)_2.5rem]")}>
+              <div className={cn("grid items-end gap-x-2 border-b border-black/5 bg-[#F8FAFF] px-4 pb-2 pt-3", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)]")}>
                 {/* every heading has a fixed column + row, matching the cells below */}
                 <span className="col-start-1 row-span-2 row-start-1 self-center text-center text-sm font-bold text-ink/40">#</span>
                 <span className="col-start-2 row-span-2 row-start-1 flex items-center gap-2 self-center font-display font-extrabold text-[#1E3A8A]"><Users size={17} /> {T.name}</span>
@@ -211,11 +207,12 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                   );
                 })}
               </div>
+              <p className="border-b border-black/5 bg-[#F8FAFF] px-4 pb-2 text-center text-[11px] text-ink/45">{km ? "ចុចលើប្រអប់ ដើម្បីកត់ មកដល់ · យឺត · ច្បាប់ · អវត្តមាន — ចុចម្តងទៀតដើម្បីដកចេញ" : "Tap a box to mark arrived · late · leave · absent — tap it again to clear"}</p>
               {rows.length === 0 && <p className="p-8 text-center text-sm text-ink/55">{L.none}</p>}
               {rows.map(({ p, d }, i) => {
                 const sm = summary(d);
                 return (
-                  <div key={p.userId} className={cn("grid items-center gap-x-2 px-4 py-2.5 transition hover:bg-[#F8FAFF]", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)_2.5rem]", i > 0 && "border-t border-black/5")}>
+                  <div key={p.userId} className={cn("grid items-center gap-x-2 px-4 py-2.5 transition hover:bg-[#F8FAFF]", "grid-cols-[2rem_minmax(12rem,1.4fr)_repeat(4,minmax(3.4rem,1fr))_1px_repeat(4,minmax(3.4rem,1fr))_minmax(10.5rem,1.2fr)]", i > 0 && "border-t border-black/5")}>
                     <span className="text-center text-sm font-bold text-ink/40">{i + 1}</span>
                     <div className="flex min-w-0 items-center gap-3">
                       {avatar(p, i, "h-11 w-11 text-lg")}
@@ -224,21 +221,20 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                         <span className="block truncate text-xs text-ink/45" title={`${p.staffNo} · ${(km && p.positionKm) || p.position}`}>{p.staffNo} · {(km && p.positionKm) || p.position}</span>
                       </span>
                     </div>
-                    {box("arrived", d.morning, d.mIn)}
-                    {box("late", d.morning, d.mIn, d.mLate)}
-                    {box("leave", d.morning)}
-                    {box("absent", d.morning)}
+                    {box(p, "morning", "arrived", d)}
+                    {box(p, "morning", "late", d)}
+                    {box(p, "morning", "leave", d)}
+                    {box(p, "morning", "absent", d)}
                     <span className="h-10 w-px justify-self-center bg-black/10" />
-                    {box("arrived", d.afternoon, d.aIn)}
-                    {box("late", d.afternoon, d.aIn, d.aLate)}
-                    {box("leave", d.afternoon)}
-                    {box("absent", d.afternoon)}
+                    {box(p, "afternoon", "arrived", d)}
+                    {box(p, "afternoon", "late", d)}
+                    {box(p, "afternoon", "leave", d)}
+                    {box(p, "afternoon", "absent", d)}
                     <div className={cn("flex h-12 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-xs font-extrabold", sm.cls)}>
                       <span className={cn("h-2.5 w-2.5 flex-shrink-0 rounded-full", sm.dot)} />
                       <span className="min-w-0 flex-1 truncate">{sm.text}</span>
                       {sm.n && <span className="rounded-md bg-white/70 px-1.5 py-0.5 tabular-nums">{sm.n}</span>}
                     </div>
-                    {menu(p, d)}
                   </div>
                 );
               })}
@@ -258,16 +254,15 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                         <span className="block truncate text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
                       </span>
                       <span className={cn("hidden rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold sm:block", sm.cls)}>{sm.text} {sm.n}</span>
-                      {menu(p, d)}
                     </div>
                     <p className="flex items-center gap-1.5 text-xs font-bold text-[#1E3A8A]">
                       {nowSess === "morning" ? <Sun size={14} className="text-amber-500" /> : <Sunset size={14} className="text-orange-500" />} {sessName(nowSess)}
                     </p>
                     <div className="grid grid-cols-4 gap-1.5">
-                      {box("arrived", d[nowSess], nowSess === "morning" ? d.mIn : d.aIn)}
-                      {box("late", d[nowSess], nowSess === "morning" ? d.mIn : d.aIn, nowSess === "morning" ? d.mLate : d.aLate)}
-                      {box("leave", d[nowSess])}
-                      {box("absent", d[nowSess])}
+                      {box(p, nowSess, "arrived", d)}
+                      {box(p, nowSess, "late", d)}
+                      {box(p, nowSess, "leave", d)}
+                      {box(p, nowSess, "absent", d)}
                     </div>
                     <div className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold sm:hidden", sm.cls)}>
                       <span className={cn("h-2.5 w-2.5 rounded-full", sm.dot)} /> {sm.text} {sm.n && <span className="ml-auto">{sm.n}</span>}
@@ -291,7 +286,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                 <span className="text-[#1E3A8A]"><Users size={16} className="-mt-0.5 mr-1 inline" />{T.staff}: {all.length} {T.people}</span>
                 <span className="text-emerald-700">{T.arrived}: {count(came)}</span>
                 <span className="text-amber-700">{T.late}: {count((k) => k === "late")}</span>
-                <span className="text-sky-700">{T.leave}: {all.filter((x) => x.d.morning === "leave").length}</span>
+                <span className="text-sky-700">{T.leave}: {count((k) => k === "leave")}</span>
                 <span className="text-red-600">{T.absent}: {count((k) => k === "absent")}</span>
               </div>
             </div>

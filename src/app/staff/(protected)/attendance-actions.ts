@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess } from "@/lib/server/staff";
-import { distanceM, getAttendanceSettings, localDay, sessionFor, verifyQrToken, type Session } from "@/lib/server/attendance";
+import { distanceM, getAttendanceSettings, localDay, localMinutes, sessionFor, toMin, verifyQrToken, type Session } from "@/lib/server/attendance";
 
 const refresh = () => {
   revalidatePath("/staff", "layout");
@@ -42,9 +42,10 @@ export async function checkInAttendance(token: string, lat: number | null, lng: 
   if (!now) return { ok: false, error: "closed" };
   const day = localDay();
   const db = createServiceRoleClient();
-  const { data: existing } = await db.from("staff_session_checks").select("checked_at, late_minutes").eq("user_id", id).eq("day", day).eq("session", now.session).maybeSingle();
+  const { data: existing } = await db.from("staff_session_checks").select("checked_at, late_minutes, status").eq("user_id", id).eq("day", day).eq("session", now.session).maybeSingle();
   const fmt = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh" }).format(new Date(iso));
-  if (existing) return { ok: true, session: now.session, late: existing.late_minutes, time: fmt(existing.checked_at), distance, already: true };
+  if (existing && existing.status === "present") return { ok: true, session: now.session, late: existing.late_minutes, time: fmt(existing.checked_at), distance, already: true };
+  if (existing) await db.from("staff_session_checks").delete().eq("user_id", id).eq("day", day).eq("session", now.session);
 
   const at = new Date().toISOString();
   await db.from("staff_session_checks").insert({ user_id: id, day, session: now.session, checked_at: at, late_minutes: now.late, lat: hasFix ? lat : null, lng: hasFix ? lng : null, distance_m: distance, method: "qr" });
@@ -129,6 +130,41 @@ export async function markLeaveToday(userId: string, day: string, on: boolean) {
     await db.from("staff_leave_requests").insert({ user_id: userId, kind: "personal", start_date: day, end_date: day, reason: "Marked on the attendance board", status: "approved", decided_by: by, decided_at: new Date().toISOString() });
   } else {
     await db.from("staff_leave_requests").update({ status: "cancelled" }).eq("user_id", userId).eq("status", "approved").lte("start_date", day).gte("end_date", day);
+  }
+  refresh();
+}
+
+export type BoxKind = "arrived" | "late" | "leave" | "absent";
+/**
+ * Tap a box on the attendance list: arrived / late / leave / absent for one
+ * half day. Tapping the box that is already set clears it again.
+ */
+export async function setSessionStatus(userId: string, day: string, session: Session, kind: BoxKind) {
+  const by = await manager();
+  const db = createServiceRoleClient();
+  const { data: cur } = await db.from("staff_session_checks").select("status, late_minutes").eq("user_id", userId).eq("day", day).eq("session", session).maybeSingle();
+  const curKind: BoxKind | null = !cur ? null : cur.status === "leave" ? "leave" : cur.status === "absent" ? "absent" : cur.late_minutes > 0 ? "late" : "arrived";
+  if (curKind === kind) {
+    await db.from("staff_session_checks").delete().eq("user_id", userId).eq("day", day).eq("session", session);
+  } else {
+    const s = await getAttendanceSettings();
+    const start = toMin(session === "morning" ? s.morning_start : s.afternoon_start);
+    const end = toMin(session === "morning" ? s.morning_end : s.afternoon_end);
+    // during the session: minutes since it started; afterwards (or another day) we can't know, so just past the grace time
+    const lateBy = day === localDay() && localMinutes() < end ? Math.max(s.grace_minutes + 1, localMinutes() - start) : s.grace_minutes + 1;
+    await db.from("staff_session_checks").upsert(
+      {
+        user_id: userId,
+        day,
+        session,
+        status: kind === "leave" ? "leave" : kind === "absent" ? "absent" : "present",
+        late_minutes: kind === "late" ? lateBy : 0,
+        method: "manual",
+        marked_by: by,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,day,session" }
+    );
   }
   refresh();
 }

@@ -123,7 +123,7 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
   if (onlyUserId) staffQ = staffQ.eq("user_id", onlyUserId);
   const [{ data: staff }, { data: checks }, { data: holidays }, { data: leaves }] = await Promise.all([
     staffQ,
-    db.from("staff_session_checks").select("user_id, day, session, checked_at, late_minutes").gte("day", all[0]).lte("day", all[all.length - 1]),
+    db.from("staff_session_checks").select("user_id, day, session, checked_at, late_minutes, status").gte("day", all[0]).lte("day", all[all.length - 1]),
     db.from("staff_holidays").select("day, name").gte("day", all[0]).lte("day", all[all.length - 1]),
     db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", all[all.length - 1]).gte("end_date", all[0]),
   ]);
@@ -141,7 +141,7 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
       for (const d of all) {
         const mark = (session: Session): DayMark["morning"] => {
           const c = mine.find((x: any) => x.day === d && x.session === session);
-          if (c) return c.late_minutes > 0 ? "late" : "ok";
+          if (c) return c.status === "leave" ? "leave" : c.status === "absent" ? "absent" : c.late_minutes > 0 ? "late" : "ok";
           if (d < p.hired_on || d < s.tracking_from) return "none";
           if (hol.has(d)) return "holiday";
           if (s.rest_days.includes(weekday(d))) return "off";
@@ -152,8 +152,8 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
         };
         const m = mark("morning");
         const a = mark("afternoon");
-        const cm = mine.find((x: any) => x.day === d && x.session === "morning");
-        const ca = mine.find((x: any) => x.day === d && x.session === "afternoon");
+        const cm = mine.find((x: any) => x.day === d && x.session === "morning" && (x.status ?? "present") === "present");
+        const ca = mine.find((x: any) => x.day === d && x.session === "afternoon" && (x.status ?? "present") === "present");
         const lateMin = (cm?.late_minutes ?? 0) + (ca?.late_minutes ?? 0);
         out.days[d] = { morning: m, afternoon: a, lateMin, mIn: cm ? time(cm.checked_at) : undefined, aIn: ca ? time(ca.checked_at) : undefined, mLate: cm?.late_minutes, aLate: ca?.late_minutes };
         for (const x of [m, a]) {
@@ -162,7 +162,8 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
           if (x === "absent") out.absent++;
         }
         out.lateMinutes += lateMin;
-        if (m === "leave") out.leaveDays++;
+        if (m === "leave" && a === "leave") out.leaveDays++;
+        else if (m === "leave" || a === "leave") out.leaveDays += 0.5;
       }
       out.deduction = Math.round((out.late * s.late_fee + out.absent * s.absence_fee) * 100) / 100;
       return out;
