@@ -22,12 +22,12 @@ const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:$
  * next one. Nobody has to remember to open it, and it can't be left open
  * after hours. The QR itself changes every minute.
  */
-export function KioskQR({ km, windows, dayOff }: { km: boolean; windows: KioskWindow[]; dayOff: string | null }) {
+export function KioskQR({ km, windows, dayOff, overlayOnly = false }: { km: boolean; windows: KioskWindow[]; dayOff: string | null; /** on other pages: only the full-screen pop-up (and a small "show QR" button once minimised) */ overlayOnly?: boolean }) {
   const [now, setNow] = useState(zooNow());
   const [img, setImg] = useState<string | null>(null);
   const [expires, setExpires] = useState(0);
   const [err, setErr] = useState(false);
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimizedState] = useState(false);
   const wake = useRef<any>(null);
 
   useEffect(() => {
@@ -36,6 +36,18 @@ export function KioskQR({ km, windows, dayOff }: { km: boolean; windows: KioskWi
   }, []);
 
   const active = dayOff ? null : windows.find((w) => now >= w.openMin && now < w.endMin) ?? null;
+  const minKey = active ? `gwz_qr_min_${new Date().toDateString()}_${active.session}` : "";
+  useEffect(() => {
+    try {
+      setMinimizedState(Boolean(minKey && sessionStorage.getItem(minKey)));
+    } catch {}
+  }, [minKey]);
+  const setMinimized = (v: boolean) => {
+    setMinimizedState(v);
+    try {
+      if (minKey) v ? sessionStorage.setItem(minKey, "1") : sessionStorage.removeItem(minKey);
+    } catch {}
+  };
   const next = dayOff ? null : windows.find((w) => now < w.openMin) ?? null;
 
   const load = useCallback(async () => {
@@ -51,7 +63,7 @@ export function KioskQR({ km, windows, dayOff }: { km: boolean; windows: KioskWi
   useEffect(() => {
     if (!activeKey) {
       setImg(null);
-      setMinimized(false);
+      setMinimizedState(false);
       wake.current?.release?.().catch?.(() => {});
       wake.current = null;
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -112,6 +124,16 @@ export function KioskQR({ km, windows, dayOff }: { km: boolean; windows: KioskWi
         </div>
         {err && <p className="mt-3 text-sm font-bold text-amber-200">{L.err}</p>}
       </div>
+    );
+  }
+
+  // ── on other pages: nothing between sessions; a small button once minimised ──
+  if (overlayOnly) {
+    if (!active) return null;
+    return (
+      <button type="button" onClick={() => setMinimized(false)} className="fixed bottom-5 right-5 z-[150] inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] px-5 py-3 font-extrabold text-white shadow-lift ring-4 ring-white animate-[gwzPop_.3s_ease]">
+        <Maximize2 size={18} /> {L.show} · {name(active.session)}
+      </button>
     );
   }
 

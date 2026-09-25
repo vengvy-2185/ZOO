@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, Clock, MapPin, Monitor, Printer, Settings2, Trash2, UserCheck, XCircle } from "lucide-react";
-import { attendanceMonth, localDay, type DayMark, type PersonMonth } from "@/lib/server/attendance";
+import { BarChart3, CalendarDays, CheckCircle2, Clock, FileText, MapPin, Monitor, MoreHorizontal, Printer, Search, Settings2, Sun, Sunset, Trash2, UserCheck, Users, XCircle } from "lucide-react";
+import { attendanceMonth, localDay, localMinutes as localMinutesNow, toMin as toMinutes, type DayMark, type PersonMonth } from "@/lib/server/attendance";
 import { thisMonth } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
 import { addHoliday, markLeaveToday, markSession, removeHoliday, saveAttendanceSettings } from "@/app/staff/(protected)/attendance-actions";
@@ -32,7 +32,7 @@ function cell(k: DayMark["morning"], km: boolean) {
  * calendar with totals (printable), and the rules (hours, grace, rest days,
  * holidays, location, late / absence deductions).
  */
-export async function AttendanceManager({ tab, month, km, base }: { tab: AttTab; month?: string; km: boolean; base: string }) {
+export async function AttendanceManager({ tab, month, km, base, sess, q, compact = false }: { tab: AttTab; month?: string; km: boolean; base: string; /** today: which session to focus (phones show only this one) */ sess?: string; q?: string; /** narrow column: always the card layout */ compact?: boolean }) {
   const m = /^\d{4}-\d{2}$/.test(month ?? "") ? month! : thisMonth();
   const data = await attendanceMonth(m);
   const { settings: s, people, today } = data;
@@ -65,99 +65,226 @@ export async function AttendanceManager({ tab, month, km, base }: { tab: AttTab;
       </div>
 
       {tab === "today" && (() => {
-        const t = people.map((p) => ({ p, d: p.days[today] })).filter((x) => x.d && x.d.morning !== "none");
-        const n = (f: (k: DayMark["morning"]) => boolean) => t.reduce((c, x) => c + (f(x.d.morning) ? 1 : 0) + (f(x.d.afternoon) ? 1 : 0), 0);
-        const came = (k: "morning" | "afternoon") => t.filter((x) => x.d[k] === "ok" || x.d[k] === "late").length;
-        const tiles: [string, string, string][] = [
-          [L.morning, `${came("morning")}/${t.length}`, "from-emerald-500 to-emerald-600 text-white"],
-          [L.afternoon, `${came("afternoon")}/${t.length}`, "from-emerald-400 to-emerald-500 text-white"],
-          [L.late, String(n((k) => k === "late")), "from-amber-50 to-amber-100 text-amber-800"],
-          [L.leave, String(t.filter((x) => x.d.morning === "leave").length), "from-violet-50 to-violet-100 text-violet-800"],
-          [L.absent, String(n((k) => k === "absent")), "from-red-50 to-red-100 text-red-700"],
-        ];
-        // one status chip for a half day: colour + words + time
-        const chip = (k: DayMark["morning"], time?: string, late?: number) => {
-          const S: Record<string, [string, string]> = {
-            ok: ["bg-emerald-500 text-white", `✓ ${time ?? ""} · ${km ? "ទាន់ម៉ោង" : "on time"}`],
-            late: ["bg-amber-400 text-amber-950", `⏰ ${time ?? ""} · ${km ? `យឺត ${late ?? 0}′` : `late ${late ?? 0}′`}`],
-            absent: ["bg-red-500 text-white", `✗ ${L.absent}`],
-            leave: ["bg-violet-500 text-white", `📝 ${L.leave}`],
-            off: ["bg-slate-200 text-slate-600", km ? "ថ្ងៃសម្រាក" : "Rest day"],
-            holiday: ["bg-slate-300 text-slate-700", km ? "ថ្ងៃបុណ្យ" : "Holiday"],
-            future: ["bg-white text-ink/50 ring-1 ring-inset ring-black/10", L.waiting],
-            none: ["bg-white text-ink/40", "—"],
-          };
-          const [cls, text] = S[k];
-          return <span className={cn("block truncate rounded-xl px-2.5 py-1.5 text-center text-xs font-extrabold", cls)}>{text}</span>;
-        };
-        return (
-          <>
-            <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
-              {tiles.map(([k, v, cls]) => (
-                <div key={k} className={cn("rounded-2xl bg-gradient-to-br p-2.5 text-center shadow-soft sm:rounded-3xl sm:p-4 sm:text-left", cls)}>
-                  <p className="truncate text-[10px] font-bold opacity-80 sm:text-xs">{k}</p>
-                  <p className="font-display text-lg font-extrabold sm:text-2xl">{v}</p>
-                </div>
-              ))}
+        const all = people.map((p) => ({ p, d: p.days[today] })).filter((x) => x.d && x.d.morning !== "none");
+        const qq = (q ?? "").trim().toLowerCase();
+        const rows = all.filter(({ p }) => !qq || p.name.toLowerCase().includes(qq) || p.staffNo.toLowerCase().includes(qq));
+        const nowSess: "morning" | "afternoon" = sess === "afternoon" || sess === "morning" ? sess : localMinutesNow() >= toMinutes(s.afternoon_start) - s.open_before_minutes ? "afternoon" : "morning";
+        const dateLabel = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date());
+        const T = km
+          ? { title: "បញ្ជីវត្តមាន", search: "ស្វែងរកឈ្មោះ…", name: "ឈ្មោះបុគ្គលិក", arrived: "មកដល់", late: "យឺត", leave: "ច្បាប់", absent: "អវត្តមាន", total: "សរុបថ្ងៃនេះ", staff: "សរុបបុគ្គលិក", people: "នាក់", allIn: "មកគ្រប់វេន", working: "បានមកដល់", lateIn: (x: string) => `យឺត (${x})`, absentIn: (x: string) => `អវត្តមាន (${x})`, onLeave: "ច្បាប់", waitingAll: "រង់ចាំ", off: "ថ្ងៃសម្រាក", holiday: "ថ្ងៃបុណ្យ", actions: "សកម្មភាព", markM: "✓ កត់ព្រឹក", markA: "✓ កត់រសៀល", undoM: "↺ ដកព្រឹក", undoA: "↺ ដករសៀល", giveLeave: "📝 ឲ្យច្បាប់ថ្ងៃនេះ", removeLeave: "↺ ដកច្បាប់" }
+          : { title: "Attendance list", search: "Search name…", name: "Staff", arrived: "Arrived", late: "Late", leave: "Leave", absent: "Absent", total: "Today", staff: "Staff", people: "", allIn: "All sessions", working: "Arrived", lateIn: (x: string) => `Late (${x})`, absentIn: (x: string) => `Absent (${x})`, onLeave: "On leave", waitingAll: "Waiting", off: "Rest day", holiday: "Holiday", actions: "Actions", markM: "✓ Morning in", markA: "✓ Afternoon in", undoM: "↺ Undo morning", undoA: "↺ Undo afternoon", giveLeave: "📝 Leave today", removeLeave: "↺ Remove leave" };
+        const sessName = (x: "morning" | "afternoon") => (x === "morning" ? L.morning : L.afternoon);
+        const came = (k: DayMark["morning"]) => k === "ok" || k === "late";
+        const count = (f: (k: DayMark["morning"]) => boolean) => all.reduce((c, x) => c + (f(x.d.morning) ? 1 : 0) + (f(x.d.afternoon) ? 1 : 0), 0);
+        const AV = ["from-emerald-400 to-emerald-600", "from-violet-400 to-violet-600", "from-sky-400 to-blue-600", "from-amber-400 to-orange-500", "from-rose-400 to-pink-600", "from-teal-400 to-cyan-600"];
+
+        /** one of the four boxes (arrived / late / leave / absent) for a half day */
+        const box = (kind: "arrived" | "late" | "leave" | "absent", k: DayMark["morning"], time?: string, lateMin?: number) => {
+          const on = kind === "arrived" ? k === "ok" : kind === "late" ? k === "late" : kind === "leave" ? k === "leave" : k === "absent";
+          const style = {
+            arrived: on ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-50 text-slate-300 ring-slate-100",
+            late: on ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-300 ring-slate-100",
+            leave: on ? "bg-sky-50 text-sky-700 ring-sky-200" : "bg-sky-50/40 text-sky-200 ring-sky-100/60",
+            absent: on ? "bg-red-50 text-red-600 ring-red-200" : "bg-red-50/40 text-red-200 ring-red-100/60",
+          }[kind];
+          const Icon = kind === "arrived" ? CheckCircle2 : kind === "late" ? Clock : kind === "leave" ? FileText : XCircle;
+          return (
+            <div className={cn("flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl ring-1", style)}>
+              <Icon size={on ? 22 : 16} className={on ? (kind === "arrived" ? "fill-emerald-500 text-white" : kind === "absent" ? "fill-red-500 text-white" : "") : ""} />
+              <span className="text-xs font-extrabold tabular-nums">
+                {on ? (kind === "arrived" ? time : kind === "late" ? <>{time} <span className="font-bold opacity-70">+{lateMin}′</span></> : kind === "leave" ? T.leave : T.absent) : "–"}
+              </span>
             </div>
-            <div className="card overflow-hidden">
-              {t.length === 0 && <p className="p-6 text-center text-sm text-ink/55">{L.none}</p>}
-              {t.map(({ p, d }, i) => {
-                const onLeave = d.morning === "leave";
-                return (
-                  <div key={p.userId} className={cn("flex flex-wrap items-center gap-3 p-3.5", i > 0 && "border-t border-black/5")}>
-                    <div className="flex min-w-[11rem] flex-1 items-center gap-3">
-                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF2FF] font-display font-extrabold text-[#1D4ED8]">{[...p.name][0]?.toUpperCase()}</span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-bold text-forest">{p.name}</span>
-                        <span className="block truncate text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
-                      </span>
-                    </div>
-                    {/* status: morning | afternoon (same size) */}
-                    <div className="grid w-full grid-cols-2 gap-2 sm:w-[21rem]">
-                      {(["morning", "afternoon"] as const).map((sess) => (
-                        <div key={sess} className="rounded-2xl bg-[#F8FAFF] p-1.5 ring-1 ring-[#2563EB]/10">
-                          <p className="mb-1 flex items-center justify-between px-1 text-[10px] font-bold text-[#1E3A8A]">
-                            <span>{sess === "morning" ? L.morning : L.afternoon}</span>
-                            <span className="font-normal text-ink/45">{sess === "morning" ? s.morning_start : s.afternoon_start}</span>
-                          </p>
-                          {chip(d[sess], sess === "morning" ? d.mIn : d.aIn, sess === "morning" ? d.mLate : d.aLate)}
+          );
+        };
+        /** the "today" summary for a person */
+        const summary = (d: DayMark) => {
+          const ks = [d.morning, d.afternoon];
+          const work = ks.filter((k) => !["off", "holiday", "none"].includes(k)).length;
+          const n = ks.filter(came).length;
+          const which = (f: (k: DayMark["morning"]) => boolean) => (["morning", "afternoon"] as const).filter((x) => f(d[x])).map(sessName).join(", ");
+          if (d.morning === "holiday") return { cls: "bg-slate-100 text-slate-600", Icon: CalendarDays, text: T.holiday, n: "" };
+          if (d.morning === "off") return { cls: "bg-slate-100 text-slate-600", Icon: CalendarDays, text: T.off, n: "" };
+          if (ks.includes("absent")) return { cls: "bg-red-50 text-red-700", Icon: XCircle, text: T.absentIn(which((k) => k === "absent")), n: `${n}/${work}` };
+          if (ks.includes("late")) return { cls: "bg-amber-50 text-amber-800", Icon: Clock, text: T.lateIn(which((k) => k === "late")), n: `${n}/${work}` };
+          if (ks.includes("leave")) return { cls: "bg-sky-50 text-sky-700", Icon: FileText, text: T.onLeave, n: "" };
+          if (n === work && work > 0) return { cls: "bg-emerald-50 text-emerald-700", Icon: CheckCircle2, text: T.allIn, n: `${n}/${work}` };
+          if (n > 0) return { cls: "bg-emerald-50 text-emerald-700", Icon: CheckCircle2, text: T.working, n: `${n}/${work}` };
+          return { cls: "bg-slate-50 text-slate-500", Icon: Clock, text: T.waitingAll, n: `0/${work}` };
+        };
+        const menu = (p: PersonMonth, d: DayMark) => {
+          const onLeave = d.morning === "leave";
+          return (
+            <details className="group relative">
+              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl bg-[#F1F5FF] text-[#1E3A8A] ring-1 ring-[#2563EB]/10 hover:bg-[#E0E7FF]" aria-label={T.actions}>
+                <MoreHorizontal size={18} />
+              </summary>
+              <div className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-2xl bg-white p-1.5 shadow-lift ring-1 ring-black/5">
+                {(["morning", "afternoon"] as const).map((x) => {
+                  const done = came(d[x]);
+                  const can = done || !["leave", "off", "holiday"].includes(d[x]);
+                  if (!can) return null;
+                  return (
+                    <form key={x} action={markSession.bind(null, p.userId, today, x, !done)}>
+                      <button className={cn("w-full rounded-xl px-3 py-2 text-left text-sm font-bold", done ? "text-ink/60 hover:bg-red-50 hover:text-red-600" : "text-emerald-700 hover:bg-emerald-50")}>
+                        {x === "morning" ? (done ? T.undoM : T.markM) : done ? T.undoA : T.markA}
+                      </button>
+                    </form>
+                  );
+                })}
+                <form action={markLeaveToday.bind(null, p.userId, today, !onLeave)}>
+                  <button className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-sky-700 hover:bg-sky-50">{onLeave ? T.removeLeave : T.giveLeave}</button>
+                </form>
+              </div>
+            </details>
+          );
+        };
+        const avatar = (p: PersonMonth, i: number, size = "h-14 w-14 text-2xl") =>
+          p.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.avatar} alt="" className={cn(size, "flex-shrink-0 rounded-2xl object-cover ring-2 ring-white shadow-soft")} />
+          ) : (
+            <span className={cn(size, "flex flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br font-display font-extrabold text-white shadow-soft", AV[i % AV.length])}>{[...p.name][0]?.toUpperCase()}</span>
+          );
+        const SessHead = ({ x }: { x: "morning" | "afternoon" }) => (
+          <div className={cn("rounded-2xl px-2 pb-2 pt-3", nowSess === x && "bg-white/70 ring-1 ring-[#2563EB]/15")}>
+            <p className="mb-2 flex items-center justify-center gap-2 font-display font-extrabold text-[#1E3A8A]">
+              {x === "morning" ? <Sun size={20} className="text-amber-500" /> : <Sunset size={20} className="text-orange-500" />}
+              {sessName(x)} <span className="text-xs font-bold text-ink/45">({x === "morning" ? `${s.morning_start} - ${s.morning_end}` : `${s.afternoon_start} - ${s.afternoon_end}`})</span>
+            </p>
+            <div className="grid grid-cols-4 gap-2 text-center text-[11px] font-bold text-ink/60">
+              <span><CheckCircle2 size={13} className="-mt-0.5 mr-0.5 inline text-emerald-600" />{T.arrived}</span>
+              <span><Clock size={13} className="-mt-0.5 mr-0.5 inline text-amber-600" />{T.late}</span>
+              <span><FileText size={13} className="-mt-0.5 mr-0.5 inline text-sky-600" />{T.leave}</span>
+              <span><XCircle size={13} className="-mt-0.5 mr-0.5 inline text-red-500" />{T.absent}</span>
+            </div>
+          </div>
+        );
+        const qs = (o: Record<string, string>) => href({ at: "today", ...(q ? { q } : {}), ...(sess ? { sess } : {}), ...o });
+
+        return (
+          <div className="space-y-3">
+            {/* header: title · date · morning/afternoon · search */}
+            <div className="flex flex-wrap items-center gap-3 rounded-[1.75rem] bg-white p-2.5 shadow-soft ring-1 ring-black/5">
+              <div className="flex items-center gap-3 rounded-[1.4rem] bg-gradient-to-r from-[#1D4ED8] to-[#3B82F6] py-2.5 pl-4 pr-8 text-white [clip-path:polygon(0_0,100%_0,calc(100%-1.25rem)_100%,0_100%)]">
+                <Users size={26} />
+                <span className="font-display text-xl font-extrabold">{T.title}</span>
+              </div>
+              <span className="flex items-center gap-2 text-sm font-bold text-[#1E3A8A]"><CalendarDays size={18} className="text-[#1D4ED8]" /> {dateLabel}</span>
+              <div className="ml-auto flex rounded-full bg-[#F1F5FF] p-1">
+                {(["morning", "afternoon"] as const).map((x) => (
+                  <Link key={x} href={qs({ sess: x })} className={cn("inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-extrabold transition", nowSess === x ? "bg-[#1D4ED8] text-white shadow-soft" : "text-[#1E3A8A] hover:bg-white")}>
+                    {x === "morning" ? <Sun size={16} className={nowSess === x ? "text-amber-300" : "text-amber-500"} /> : <Sunset size={16} className={nowSess === x ? "text-orange-300" : "text-orange-500"} />} {sessName(x)}
+                  </Link>
+                ))}
+              </div>
+              <form action={base.split("?")[0]} className="relative w-full sm:w-56">
+                {base.includes("?") && base.split("?")[1].split("&").map((kv) => { const [k, v] = kv.split("="); return <input key={k} type="hidden" name={k} value={decodeURIComponent(v ?? "")} />; })}
+                <input type="hidden" name="at" value="today" />
+                {sess && <input type="hidden" name="sess" value={sess} />}
+                <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/35" />
+                <input name="q" defaultValue={q} placeholder={T.search} className="w-full rounded-full border border-black/10 bg-white py-2.5 pl-10 pr-4 text-sm text-ink outline-none focus:border-[#2563EB]" />
+              </form>
+            </div>
+
+            {/* the table (computers) */}
+            <div className={cn("hidden rounded-[1.75rem] bg-[#F1F5FF] p-2 ring-1 ring-[#2563EB]/10", !compact && "xl:block")}>
+              <div className="grid grid-cols-[2.25rem_minmax(11rem,1.1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(8.5rem,0.9fr)_2.5rem] items-end gap-3 px-2">
+                <span className="pb-3 text-center font-bold text-ink/50">#</span>
+                <span className="flex items-center gap-2 pb-3 font-display font-extrabold text-[#1E3A8A]"><Users size={18} /> {T.name}</span>
+                <SessHead x="morning" />
+                <SessHead x="afternoon" />
+                <span className="flex items-center justify-center gap-1.5 pb-3 font-display font-extrabold text-[#1E3A8A]"><BarChart3 size={18} className="text-[#1D4ED8]" /> {T.total}</span>
+                <span />
+              </div>
+              <div className="mt-2 space-y-2">
+                {rows.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-ink/55">{L.none}</p>}
+                {rows.map(({ p, d }, i) => {
+                  const sm = summary(d);
+                  return (
+                    <div key={p.userId} className="grid grid-cols-[2.25rem_minmax(11rem,1.1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(8.5rem,0.9fr)_2.5rem] items-center gap-3 rounded-2xl bg-white p-2 shadow-soft ring-1 ring-black/5">
+                      <span className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F5FF] text-sm font-bold text-[#1E3A8A]">{i + 1}</span>
+                      <div className="flex min-w-0 items-center gap-3">
+                        {avatar(p, i)}
+                        <span className="min-w-0">
+                          <span className="block truncate font-display font-extrabold text-forest">{p.name}</span>
+                          <span className="block truncate text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
+                        </span>
+                      </div>
+                      {(["morning", "afternoon"] as const).map((x) => (
+                        <div key={x} className={cn("grid grid-cols-4 gap-2 rounded-2xl p-1", nowSess === x && "bg-[#F8FAFF]")}>
+                          {box("arrived", d[x], x === "morning" ? d.mIn : d.aIn)}
+                          {box("late", d[x], x === "morning" ? d.mIn : d.aIn, x === "morning" ? d.mLate : d.aLate)}
+                          {box("leave", d[x])}
+                          {box("absent", d[x])}
                         </div>
                       ))}
+                      <div className={cn("flex h-16 items-center gap-2 rounded-2xl px-3", sm.cls)}>
+                        <sm.Icon size={26} className="flex-shrink-0" />
+                        <span className="min-w-0 text-xs font-extrabold leading-tight">
+                          {sm.text}
+                          {sm.n && <span className="block text-sm">{sm.n}</span>}
+                        </span>
+                      </div>
+                      {menu(p, d)}
                     </div>
-                    {/* actions, side by side on the right */}
-                    <div className="ml-auto flex flex-shrink-0 items-center gap-1.5">
-                      {(["morning", "afternoon"] as const).map((sess) => {
-                        const k = d[sess];
-                        const done = k === "ok" || k === "late";
-                        const canMark = !done && !["leave", "off", "holiday"].includes(k);
-                        const word = sess === "morning" ? L.morning : L.afternoon;
-                        return (
-                          <form key={sess} action={markSession.bind(null, p.userId, today, sess, !done)}>
-                            <button
-                              disabled={!done && !canMark}
-                              title={done ? L.undo : L.mark}
-                              className={cn(
-                                "h-9 min-w-[5.5rem] rounded-xl px-3 text-xs font-extrabold transition disabled:opacity-30",
-                                done ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-red-50 hover:text-red-600 hover:ring-red-200" : "bg-emerald-600 text-white hover:bg-emerald-700"
-                              )}
-                            >
-                              {done ? `↺ ${word}` : `✓ ${word}`}
-                            </button>
-                          </form>
-                        );
-                      })}
-                      <form action={markLeaveToday.bind(null, p.userId, today, !onLeave)}>
-                        <button className={cn("h-9 min-w-[5.5rem] rounded-xl px-3 text-xs font-extrabold transition", onLeave ? "bg-violet-600 text-white hover:bg-violet-700" : "bg-white text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50")}>
-                          {onLeave ? (km ? "↺ ច្បាប់" : "↺ Leave") : km ? "📝 ច្បាប់" : "📝 Leave"}
-                        </button>
-                      </form>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* cards (phones, tablets, narrow columns): the chosen session */}
+            <div className={cn("space-y-2", !compact && "xl:hidden")}>
+              {rows.length === 0 && <p className="card p-6 text-center text-sm text-ink/55">{L.none}</p>}
+              {rows.map(({ p, d }, i) => {
+                const sm = summary(d);
+                return (
+                  <div key={p.userId} className="card space-y-2.5 p-3">
+                    <div className="flex items-center gap-3">
+                      {avatar(p, i, "h-12 w-12 text-xl")}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-display font-extrabold text-forest">{p.name}</span>
+                        <span className="block truncate text-xs text-ink/50">{p.staffNo} · {(km && p.positionKm) || p.position}</span>
+                      </span>
+                      <span className={cn("hidden rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold sm:block", sm.cls)}>{sm.text} {sm.n}</span>
+                      {menu(p, d)}
+                    </div>
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-[#1E3A8A]">
+                      {nowSess === "morning" ? <Sun size={14} className="text-amber-500" /> : <Sunset size={14} className="text-orange-500" />} {sessName(nowSess)}
+                    </p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {box("arrived", d[nowSess], nowSess === "morning" ? d.mIn : d.aIn)}
+                      {box("late", d[nowSess], nowSess === "morning" ? d.mIn : d.aIn, nowSess === "morning" ? d.mLate : d.aLate)}
+                      {box("leave", d[nowSess])}
+                      {box("absent", d[nowSess])}
+                    </div>
+                    <div className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold sm:hidden", sm.cls)}>
+                      <sm.Icon size={16} /> {sm.text} {sm.n && <span className="ml-auto">{sm.n}</span>}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </>
+
+            {/* legend + totals */}
+            <div className="flex flex-wrap items-center gap-2 rounded-[1.5rem] bg-white p-2.5 shadow-soft ring-1 ring-black/5">
+              {[
+                [CheckCircle2, T.arrived, "bg-emerald-50 text-emerald-700"],
+                [Clock, T.late, "bg-amber-50 text-amber-800"],
+                [FileText, T.leave, "bg-sky-50 text-sky-700"],
+                [XCircle, T.absent, "bg-red-50 text-red-600"],
+              ].map(([Icon, label, cls]: any) => (
+                <span key={label} className={cn("inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-extrabold", cls)}><Icon size={16} /> {label}</span>
+              ))}
+              <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl bg-[#F1F5FF] px-4 py-2 text-sm font-bold">
+                <span className="text-[#1E3A8A]"><Users size={16} className="-mt-0.5 mr-1 inline" />{T.staff}: {all.length} {T.people}</span>
+                <span className="text-emerald-700">{T.arrived}: {count(came)}</span>
+                <span className="text-amber-700">{T.late}: {count((k) => k === "late")}</span>
+                <span className="text-sky-700">{T.leave}: {all.filter((x) => x.d.morning === "leave").length}</span>
+                <span className="text-red-600">{T.absent}: {count((k) => k === "absent")}</span>
+              </div>
+            </div>
+          </div>
         );
       })()}
 

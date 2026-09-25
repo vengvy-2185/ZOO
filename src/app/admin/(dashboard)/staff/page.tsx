@@ -7,6 +7,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { getPositions, payroll, thisMonth, PERMISSIONS, PAY_TYPE, type PayLine, type Position } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
 import { AttendanceManager, type AttTab } from "@/components/staff/AttendanceManager";
+import { KioskQR } from "@/components/staff/KioskQR";
+import { kioskSchedule } from "@/lib/server/attendance";
 import { ClipboardCheck } from "lucide-react";
 import { AddStaffForm, ResetPassword } from "./StaffClient";
 import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
@@ -17,7 +19,7 @@ const TABS = ["people", "attendance", "payroll", "leave", "notices", "positions"
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const input = "w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary";
 
-export default async function AdminStaffPage({ searchParams }: { searchParams: { tab?: string; month?: string; at?: string } }) {
+export default async function AdminStaffPage({ searchParams }: { searchParams: { tab?: string; month?: string; at?: string; sess?: string; q?: string } }) {
   const { locale } = getI18n();
   const km = locale === "km";
   const tab = (TABS as readonly string[]).includes(searchParams.tab ?? "") ? searchParams.tab! : "people";
@@ -152,12 +154,15 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
         </div>
       )}
 
+      {tab === "attendance" && <KioskQR km={km} {...(await kioskSchedule(km))} overlayOnly />}
       {tab === "attendance" && (
         <AttendanceManager
           tab={(["today", "month", "rules"].includes(searchParams.at ?? "") ? searchParams.at : "today") as AttTab}
           month={searchParams.month}
           km={km}
           base="/admin/staff?tab=attendance"
+          sess={searchParams.sess}
+          q={searchParams.q}
         />
       )}
 

@@ -98,6 +98,7 @@ export type DayMark = { morning: "ok" | "late" | "absent" | "off" | "leave" | "h
 export type PersonMonth = {
   userId: string;
   name: string;
+  avatar: string | null;
   staffNo: string;
   position: string | null;
   positionKm: string | null;
@@ -127,13 +128,16 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
     db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", all[all.length - 1]).gte("end_date", all[0]),
   ]);
   const hol = new Map((holidays ?? []).map((h: any) => [h.day, h.name]));
+  // profile photos (set by the admin or by the staff member on their profile)
+  const { data: profs } = (staff ?? []).length ? await db.from("profiles").select("id, avatar_url").in("id", (staff ?? []).map((p: any) => p.user_id)) : { data: [] as any[] };
+  const photo = new Map((profs ?? []).map((p: any) => [p.id, p.avatar_url]));
   const time = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ }).format(new Date(iso));
   const people: PersonMonth[] = (staff ?? [])
     .filter((p: any) => p.status === "active" || (checks ?? []).some((c: any) => c.user_id === p.user_id))
     .map((p: any) => {
       const mine = (checks ?? []).filter((c: any) => c.user_id === p.user_id);
       const onLeave = (d: string) => (leaves ?? []).some((l: any) => l.user_id === p.user_id && l.start_date <= d && l.end_date >= d);
-      const out: PersonMonth = { userId: p.user_id, name: p.full_name, staffNo: p.staff_no, position: p.position?.name ?? null, positionKm: p.position?.name_km ?? null, days: {}, present: 0, late: 0, lateMinutes: 0, absent: 0, leaveDays: 0, deduction: 0 };
+      const out: PersonMonth = { userId: p.user_id, name: p.full_name, avatar: photo.get(p.user_id) ?? null, staffNo: p.staff_no, position: p.position?.name ?? null, positionKm: p.position?.name_km ?? null, days: {}, present: 0, late: 0, lateMinutes: 0, absent: 0, leaveDays: 0, deduction: 0 };
       for (const d of all) {
         const mark = (session: Session): DayMark["morning"] => {
           const c = mine.find((x: any) => x.day === d && x.session === session);
@@ -164,4 +168,18 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
       return out;
     });
   return { settings: s, days: all, holidays: hol, people, today };
+}
+
+/** When the QR screen should open today (each session's check-in window), or why not (rest day / holiday). */
+export async function kioskSchedule(km: boolean) {
+  const s = await getAttendanceSettings();
+  const day = localDay();
+  const { data: hol } = await createServiceRoleClient().from("staff_holidays").select("name").eq("day", day).maybeSingle();
+  const WEEK = km ? ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayOff: string | null = hol?.name ?? (s.rest_days.includes(weekday(day)) ? WEEK[weekday(day)] : null);
+  const windows = [
+    { session: "morning" as const, openMin: toMin(s.morning_start) - s.open_before_minutes, startMin: toMin(s.morning_start), graceMin: s.grace_minutes, endMin: toMin(s.morning_end) },
+    { session: "afternoon" as const, openMin: toMin(s.afternoon_start) - s.open_before_minutes, startMin: toMin(s.afternoon_start), graceMin: s.grace_minutes, endMin: toMin(s.afternoon_end) },
+  ];
+  return { windows, dayOff };
 }
