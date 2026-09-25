@@ -27,12 +27,14 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
   const can = (p: Parameters<typeof access.perms.has>[0]) => access.perms.has(p);
 
   const T = km
-    ? { issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
-    : { issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
+    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
+    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
 
   const items: StaffNavItem[] = (
     [
       ["home", "/staff", "main", true],
+      ["checkin", "/staff/checkin", "main", isStaff],
+      ["team", "/staff/team", "main", access.admin || can("reports")],
       ["issues", "/staff/issues", "main", true],
       ["scanner", "/staff/scanner", "tools", can("tickets")],
       ["gate", "/staff/gate", "tools", can("tickets")],

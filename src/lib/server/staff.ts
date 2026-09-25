@@ -96,6 +96,8 @@ export type PayLine = {
   allowance: number;
   adjustments: { id: string; amount: number; note: string }[];
   adjTotal: number;
+  /** late / absence deductions from the attendance rules */
+  attendance: { late: number; absent: number; deduction: number };
   gross: number;
   payslip: { gross: number; paid_at: string } | null;
   openShift: string | null;
@@ -108,6 +110,8 @@ export async function payroll(month: string, userId?: string): Promise<PayLine[]
   const db = createServiceRoleClient();
   const { start, end, first } = monthRange(month);
   const staff = await getStaff(userId);
+  const { attendanceMonth } = await import("./attendance");
+  const sessions = await attendanceMonth(month, userId).catch(() => null);
   if (!staff.length) return [];
   const ids = staff.map((s) => s.user_id);
   const [{ data: att }, { data: adj }, { data: slips }] = await Promise.all([
@@ -118,7 +122,11 @@ export async function payroll(month: string, userId?: string): Promise<PayLine[]
   const now = Date.now();
   return staff.map((s) => {
     const mine = (att ?? []).filter((a: any) => a.user_id === s.user_id);
-    const days = new Set(mine.map((a: any) => localDate(new Date(a.clock_in)))).size;
+    // days worked: clocked shifts or QR check-ins (morning / afternoon)
+    const person = sessions?.people.find((x) => x.userId === s.user_id);
+    const checkDays = person ? Object.entries(person.days).filter(([, d]) => ["ok", "late"].includes(d.morning) || ["ok", "late"].includes(d.afternoon)).map(([d]) => d) : [];
+    const days = new Set([...mine.map((a: any) => localDate(new Date(a.clock_in))), ...checkDays]).size;
+    const attendance = { late: person?.late ?? 0, absent: person?.absent ?? 0, deduction: person?.deduction ?? 0 };
     const hours = r2(
       mine.reduce((sum: number, a: any) => {
         const from = Date.parse(a.clock_in);
@@ -144,7 +152,8 @@ export async function payroll(month: string, userId?: string): Promise<PayLine[]
       allowance,
       adjustments,
       adjTotal,
-      gross: r2(Math.max(0, base + allowance + adjTotal)),
+      attendance,
+      gross: r2(Math.max(0, base + allowance + adjTotal - attendance.deduction)),
       payslip: slip ? { gross: Number(slip.gross), paid_at: slip.paid_at } : null,
       openShift: open?.clock_in ?? null,
     };

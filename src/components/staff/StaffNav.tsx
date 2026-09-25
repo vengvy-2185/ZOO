@@ -3,10 +3,10 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound } from "lucide-react";
+import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-const ICONS = { home: Home, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound };
+const ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound };
 export type StaffNavItem = { key: keyof typeof ICONS; href: string; label: string; group: "main" | "tools" | "me" };
 
 /**
@@ -16,7 +16,9 @@ export type StaffNavItem = { key: keyof typeof ICONS; href: string; label: strin
  */
 export function StaffNav({ items }: { items: StaffNavItem[] }) {
   const pathname = usePathname();
-  const active = [...items].sort((a, b) => b.href.length - a.href.length).find((n) => (n.href === "/staff" ? pathname === "/staff" : pathname.startsWith(n.href)))?.key;
+  // whole path segments only (/staff/attendance must not match /staff/attendance-qr); the QR screen belongs to Team
+  const path = pathname === "/staff/attendance-qr" ? "/staff/team" : pathname;
+  const active = [...items].sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || (n.href !== "/staff" && path.startsWith(`${n.href}/`)))?.key;
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => {
     row.current?.querySelector<HTMLElement>("[data-active=true]")?.scrollIntoView({ inline: "center", block: "nearest" });

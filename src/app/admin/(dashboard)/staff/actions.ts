@@ -177,7 +177,7 @@ export async function markPaid(userId: string, month: string) {
       units: line.units,
       base: line.base,
       allowance: line.allowance,
-      adjustments: line.adjTotal,
+      adjustments: Math.round((line.adjTotal - line.attendance.deduction) * 100) / 100,
       gross: line.gross,
       paid_by: adminId,
       paid_at: new Date().toISOString(),

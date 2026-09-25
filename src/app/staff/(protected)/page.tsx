@@ -8,6 +8,8 @@ import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { clockIn, clockOut } from "./actions";
+import { getAttendanceSettings } from "@/lib/server/attendance";
+import { QrCode } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 const usd = (n: number) => `$${n.toFixed(2)}`;
@@ -26,6 +28,11 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
   const p = access.staff?.position ?? null;
   const showTeam = access.admin || access.perms.has("reports");
 
+  // today's QR attendance (morning / afternoon)
+  const [attRules, { data: myChecks }] = await Promise.all([
+    getAttendanceSettings(),
+    access.staff ? db.from("staff_session_checks").select("session, checked_at, late_minutes").eq("user_id", userId).eq("day", today) : Promise.resolve({ data: [] as any[] }),
+  ]);
   const [[pay], shift, { data: notices }, { count: pendingLeave }, reports, team] = await Promise.all([
     access.staff ? payroll(month, userId) : Promise.resolve([]),
     access.staff ? openShift(userId) : Promise.resolve(null),
@@ -86,6 +93,35 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
         <p className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 ring-1 ring-amber-200"><ShieldAlert size={18} /> {L.denied}</p>
       )}
       {!access.staff && <p className="card p-4 text-sm text-ink/65">{L.admin}</p>}
+
+      {access.staff && (
+        <Link href="/staff/checkin" className="group block overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] p-5 text-white shadow-lift transition hover:-translate-y-0.5 md:p-6">
+          <div className="flex items-center gap-4">
+            <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-[#1D4ED8] shadow-soft"><QrCode size={34} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-2xl font-extrabold">{km ? "ស្កេនវត្តមាន" : "Scan attendance"}</span>
+              <span className="block text-sm text-white/80">{km ? "បើក Location រួចស្កេន QR នៅអេក្រង់សួនសត្វ" : "Turn on Location and scan the QR on the zoo's screen"}</span>
+            </span>
+            <ChevronRight size={26} className="flex-shrink-0 text-white/70 transition group-hover:translate-x-1" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {(["morning", "afternoon"] as const).map((sess) => {
+              const c: any = (myChecks ?? []).find((x: any) => x.session === sess);
+              const at = c ? new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh" }).format(new Date(c.checked_at)) : null;
+              return (
+                <span key={sess} className="rounded-2xl bg-white/15 px-3 py-2 ring-1 ring-white/20">
+                  <span className="block text-[11px] font-bold uppercase tracking-wider text-white/70">
+                    {sess === "morning" ? (km ? "ព្រឹក" : "Morning") : km ? "រសៀល" : "Afternoon"} · {sess === "morning" ? attRules.morning_start : attRules.afternoon_start}
+                  </span>
+                  <span className="block font-display text-lg font-extrabold">
+                    {at ? <>{at} {c.late_minutes ? <span className="text-sm text-amber-200">· {km ? `យឺត ${c.late_minutes}′` : `late ${c.late_minutes}′`}</span> : "✓"}</> : <span className="text-white/60">—</span>}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </Link>
+      )}
 
       {access.staff && pay && (
         <div className="grid gap-4 md:grid-cols-[1.15fr_1fr]">

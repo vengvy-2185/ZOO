@@ -62,6 +62,12 @@ export default async function PayPage() {
                 <dd className={`font-display font-extrabold ${a.amount < 0 ? "text-red-600" : "text-emerald-600"}`}>{a.amount > 0 ? "+" : ""}{usd(a.amount)}</dd>
               </div>
             ))}
+            {pay.attendance.deduction > 0 && (
+              <div className="flex items-center justify-between gap-3 px-5 py-3.5 md:px-6">
+                <dt className="text-ink/65">{km ? "កាត់តាមវត្តមាន" : "Attendance deduction"}<span className="block text-xs text-ink/45">{km ? `យឺត ${pay.attendance.late} ដង · អវត្តមាន ${pay.attendance.absent} វេន` : `${pay.attendance.late} late · ${pay.attendance.absent} missed sessions`}</span></dt>
+                <dd className="font-display font-extrabold text-red-600">−{usd(pay.attendance.deduction)}</dd>
+              </div>
+            )}
             <div className="flex items-center justify-between bg-[#EEF2FF] px-5 py-4 md:px-6">
               <dt className="font-display font-extrabold text-[#1E3A8A]">{L.total}</dt>
               <dd className="font-display text-xl font-extrabold text-[#1E3A8A]">{usd(pay.payslip?.gross ?? pay.gross)}</dd>

@@ -6,16 +6,18 @@ import { SubmitButton } from "@/components/admin/ui-client";
 import { getI18n } from "@/lib/i18n/server";
 import { getPositions, payroll, thisMonth, PERMISSIONS, PAY_TYPE, type PayLine, type Position } from "@/lib/server/staff";
 import { cn } from "@/lib/utils/cn";
+import { AttendanceManager, type AttTab } from "@/components/staff/AttendanceManager";
+import { ClipboardCheck } from "lucide-react";
 import { AddStaffForm, ResetPassword } from "./StaffClient";
 import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["people", "payroll", "leave", "notices", "positions"] as const;
+const TABS = ["people", "attendance", "payroll", "leave", "notices", "positions"] as const;
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const input = "w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary";
 
-export default async function AdminStaffPage({ searchParams }: { searchParams: { tab?: string; month?: string } }) {
+export default async function AdminStaffPage({ searchParams }: { searchParams: { tab?: string; month?: string; at?: string } }) {
   const { locale } = getI18n();
   const km = locale === "km";
   const tab = (TABS as readonly string[]).includes(searchParams.tab ?? "") ? searchParams.tab! : "people";
@@ -43,8 +45,8 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
   };
 
   const L = km
-    ? { title: "បុគ្គលិក និងប្រាក់ខែ", sub: "មានតែអ្នកគ្រប់គ្រងទេដែលបង្កើតគណនីបុគ្គលិក។ បុគ្គលិកម្នាក់ៗទទួលបានលេខសម្គាល់ (GWZ-S-…) សម្រាប់ចូលប្រើ និងកាតសម្គាល់ភ្លាមៗ។", tabs: { people: "បុគ្គលិក", payroll: "ប្រាក់ខែ", leave: "ច្បាប់", notices: "ជូនដំណឹង", positions: "តួនាទី និងអត្រា" }, staff: "បុគ្គលិកសកម្ម", shift: "កំពុងធ្វើការឥឡូវ", total: "ប្រាក់ខែសរុបខែនេះ", paid: "បានបើករួច", pos: "តួនាទី", status: "ស្ថានភាព", st: { active: "សកម្ម", suspended: "ផ្អាក", left: "លាឈប់" }, month: "ខែនេះ", card: "កាត", edit: "កែប្រែ", save: "រក្សាទុក", saving: "កំពុងរក្សាទុក…", none: "មិនទាន់មានបុគ្គលិកទេ។ បន្ថែមម្នាក់ខាងលើ។", days: "ថ្ងៃ", hours: "ម៉ោង", base: "ប្រាក់គោល", allowance: "ឧបត្ថម្ភ", adj: "បន្ថែម/កាត់", gross: "សរុប", markPaid: "បានបើកប្រាក់", undo: "មិនទាន់", paidOn: "បានបើក", bonus: "ប្រាក់រង្វាន់ / កាត់", note: "មូលហេតុ", add: "បន្ថែម", rate: "អត្រា", payType: "របៀបគិតប្រាក់", perms: "អាចប្រើ", newPos: "តួនាទីថ្មី", del: "លុប", phone: "ទូរស័ព្ទ", allowanceM: "ឧបត្ថម្ភ/ខែ", onShiftNow: "កំពុងធ្វើការ" }
-    : { title: "Staff and payroll", sub: "Only admins create staff accounts. Each person gets a Staff ID (GWZ-S-…) to sign in with and an ID card straight away.", tabs: { people: "Staff", payroll: "Payroll", leave: "Leave", notices: "Notices", positions: "Positions and pay" }, staff: "Active staff", shift: "Working right now", total: "Payroll this month", paid: "Already paid", pos: "Position", status: "Status", st: { active: "Active", suspended: "Suspended", left: "Left" }, month: "This month", card: "Card", edit: "Edit", save: "Save", saving: "Saving…", none: "No staff yet. Add someone above.", days: "days", hours: "hours", base: "Base", allowance: "Allowance", adj: "Bonus/deduction", gross: "Total", markPaid: "Mark paid", undo: "Undo", paidOn: "Paid", bonus: "Bonus / deduction", note: "Reason", add: "Add", rate: "Rate", payType: "Pay type", perms: "Can use", newPos: "New position", del: "Delete", phone: "Phone", allowanceM: "Allowance/month", onShiftNow: "On shift" };
+    ? { title: "បុគ្គលិក និងប្រាក់ខែ", sub: "មានតែអ្នកគ្រប់គ្រងទេដែលបង្កើតគណនីបុគ្គលិក។ បុគ្គលិកម្នាក់ៗទទួលបានលេខសម្គាល់ (GWZ-S-…) សម្រាប់ចូលប្រើ និងកាតសម្គាល់ភ្លាមៗ។", tabs: { people: "បុគ្គលិក", attendance: "វត្តមាន", payroll: "ប្រាក់ខែ", leave: "ច្បាប់", notices: "ជូនដំណឹង", positions: "តួនាទី និងអត្រា" }, staff: "បុគ្គលិកសកម្ម", shift: "កំពុងធ្វើការឥឡូវ", total: "ប្រាក់ខែសរុបខែនេះ", paid: "បានបើករួច", pos: "តួនាទី", status: "ស្ថានភាព", st: { active: "សកម្ម", suspended: "ផ្អាក", left: "លាឈប់" }, month: "ខែនេះ", card: "កាត", edit: "កែប្រែ", save: "រក្សាទុក", saving: "កំពុងរក្សាទុក…", none: "មិនទាន់មានបុគ្គលិកទេ។ បន្ថែមម្នាក់ខាងលើ។", days: "ថ្ងៃ", hours: "ម៉ោង", base: "ប្រាក់គោល", allowance: "ឧបត្ថម្ភ", adj: "បន្ថែម/កាត់", gross: "សរុប", markPaid: "បានបើកប្រាក់", undo: "មិនទាន់", paidOn: "បានបើក", bonus: "ប្រាក់រង្វាន់ / កាត់", note: "មូលហេតុ", add: "បន្ថែម", rate: "អត្រា", payType: "របៀបគិតប្រាក់", perms: "អាចប្រើ", newPos: "តួនាទីថ្មី", del: "លុប", phone: "ទូរស័ព្ទ", allowanceM: "ឧបត្ថម្ភ/ខែ", onShiftNow: "កំពុងធ្វើការ" }
+    : { title: "Staff and payroll", sub: "Only admins create staff accounts. Each person gets a Staff ID (GWZ-S-…) to sign in with and an ID card straight away.", tabs: { people: "Staff", attendance: "Attendance", payroll: "Payroll", leave: "Leave", notices: "Notices", positions: "Positions and pay" }, staff: "Active staff", shift: "Working right now", total: "Payroll this month", paid: "Already paid", pos: "Position", status: "Status", st: { active: "Active", suspended: "Suspended", left: "Left" }, month: "This month", card: "Card", edit: "Edit", save: "Save", saving: "Saving…", none: "No staff yet. Add someone above.", days: "days", hours: "hours", base: "Base", allowance: "Allowance", adj: "Bonus/deduction", gross: "Total", markPaid: "Mark paid", undo: "Undo", paidOn: "Paid", bonus: "Bonus / deduction", note: "Reason", add: "Add", rate: "Rate", payType: "Pay type", perms: "Can use", newPos: "New position", del: "Delete", phone: "Phone", allowanceM: "Allowance/month", onShiftNow: "On shift" };
 
   const units = (l: PayLine) => {
     const t = l.staff.position?.pay_type;
@@ -73,7 +75,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
       <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
         {TABS.map((k) => (
           <Link key={k} href={`/admin/staff?tab=${k}&month=${month}`} className={cn("flex-shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold", tab === k ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10 hover:bg-light-green")}>
-            {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "leave" ? <CalendarOff size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "notices" ? <Megaphone size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
+            {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "attendance" ? <ClipboardCheck size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "leave" ? <CalendarOff size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "notices" ? <Megaphone size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
             {L.tabs[k]}
             {k === "leave" && pendingLeaves.length > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-xs font-extrabold text-forest">{pendingLeaves.length}</span>}
           </Link>
@@ -150,6 +152,15 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
         </div>
       )}
 
+      {tab === "attendance" && (
+        <AttendanceManager
+          tab={(["today", "month", "rules"].includes(searchParams.at ?? "") ? searchParams.at : "today") as AttTab}
+          month={searchParams.month}
+          km={km}
+          base="/admin/staff?tab=attendance"
+        />
+      )}
+
       {tab === "payroll" && (
         <div className="space-y-4">
           <div className="flex items-center justify-center gap-2 sm:justify-start">
@@ -197,6 +208,12 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                     ))}
                   </div>
 
+                  {l.attendance.deduction > 0 && (
+                    <p className="mx-4 mt-3 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                      <span>{km ? `វត្តមាន៖ យឺត ${l.attendance.late} ដង · អវត្តមាន ${l.attendance.absent} វេន` : `Attendance: ${l.attendance.late} late · ${l.attendance.absent} missed`}</span>
+                      <span>−{usd(l.attendance.deduction)}</span>
+                    </p>
+                  )}
                   {/* bonuses / deductions */}
                   {l.adjustments.length > 0 && (
                     <ul className="mx-4 mt-3 space-y-1.5">
