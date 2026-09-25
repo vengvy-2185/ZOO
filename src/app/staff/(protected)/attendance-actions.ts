@@ -80,7 +80,7 @@ export async function saveAttendanceSettings(formData: FormData) {
       afternoon_start: hhmm(str(formData, "afternoon_start"), "13:30"),
       afternoon_end: hhmm(str(formData, "afternoon_end"), "17:30"),
       grace_minutes: num("grace_minutes", 10, 0, 120),
-      open_before_minutes: num("open_before_minutes", 60, 0, 240),
+      open_before_minutes: 0, // the QR opens exactly at the start time
       rest_days: formData.getAll("rest_days").map(Number).filter((n) => n >= 0 && n <= 6),
       zoo_lat: lat && Number.isFinite(Number(lat)) ? Number(lat) : null,
       zoo_lng: lng && Number.isFinite(Number(lng)) ? Number(lng) : null,

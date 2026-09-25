@@ -118,7 +118,7 @@ export function KioskQR({ km, windows, dayOff, overlayOnly = false }: { km: bool
 
         <p className="mt-5 font-mono text-4xl font-extrabold tabular-nums md:text-5xl">{clock}</p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm font-bold">
-          <span className={cn("rounded-full px-4 py-1.5", late ? "bg-amber-400 text-amber-950" : "bg-white text-[#1E3A8A]")}>{late ? L.lateNow : L.onTime(hm(active.startMin + active.graceMin))}</span>
+          <span className={cn("rounded-full px-4 py-1.5", late ? "bg-amber-400 text-amber-950" : "bg-white text-[#1E3A8A]")}>{late ? L.lateNow : L.onTime(hm(Math.min(active.startMin + active.graceMin, active.endMin)))}</span>
           <span className="rounded-full bg-white/15 px-4 py-1.5"><ShieldCheck size={14} className="-mt-0.5 mr-1 inline" />{L.changes} · {left}s</span>
           <span className="rounded-full bg-white/15 px-4 py-1.5"><Clock size={14} className="-mt-0.5 mr-1 inline" />{L.closes(hm(active.endMin))}</span>
         </div>

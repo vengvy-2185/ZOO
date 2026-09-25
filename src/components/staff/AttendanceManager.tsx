@@ -68,7 +68,7 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
         const all = people.map((p) => ({ p, d: p.days[today] })).filter((x) => x.d && x.d.morning !== "none");
         const qq = (q ?? "").trim().toLowerCase();
         const rows = all.filter(({ p }) => !qq || p.name.toLowerCase().includes(qq) || p.staffNo.toLowerCase().includes(qq));
-        const nowSess: "morning" | "afternoon" = sess === "afternoon" || sess === "morning" ? sess : localMinutesNow() >= toMinutes(s.afternoon_start) - s.open_before_minutes ? "afternoon" : "morning";
+        const nowSess: "morning" | "afternoon" = sess === "afternoon" || sess === "morning" ? sess : localMinutesNow() >= toMinutes(s.afternoon_start) ? "afternoon" : "morning";
         const dateLabel = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date());
         const T = km
           ? { title: "បញ្ជីវត្តមាន", search: "ស្វែងរកឈ្មោះ…", name: "ឈ្មោះបុគ្គលិក", arrived: "មកដល់", late: "យឺត", leave: "ច្បាប់", absent: "អវត្តមាន", total: "សរុបថ្ងៃនេះ", staff: "សរុបបុគ្គលិក", people: "នាក់", allIn: "មកគ្រប់វេន", working: "បានមកដល់", lateIn: (x: string) => `យឺត (${x})`, absentIn: (x: string) => `អវត្តមាន (${x})`, onLeave: "ច្បាប់", waitingAll: "រង់ចាំ", off: "ថ្ងៃសម្រាក", holiday: "ថ្ងៃបុណ្យ", actions: "សកម្មភាព", markM: "✓ កត់ព្រឹក", markA: "✓ កត់រសៀល", undoM: "↺ ដកព្រឹក", undoA: "↺ ដករសៀល", giveLeave: "📝 ឲ្យច្បាប់ថ្ងៃនេះ", removeLeave: "↺ ដកច្បាប់" }
@@ -344,14 +344,12 @@ export async function AttendanceManager({ tab, month, km, base, sess, q, compact
                   <label key={n} className="text-xs font-bold text-ink/55">{l}<input type="time" name={n} defaultValue={v} className={cn(input, "mt-1")} /></label>
                 ))}
                 <label className="text-xs font-bold text-ink/55">{L.grace}<input type="number" name="grace_minutes" min={0} max={120} defaultValue={s.grace_minutes} className={cn(input, "mt-1")} /></label>
-                <label className="text-xs font-bold text-ink/55">{L.openBefore}<input type="number" name="open_before_minutes" min={0} max={240} defaultValue={s.open_before_minutes} className={cn(input, "mt-1")} /></label>
               </div>
               {/* when the QR will pop up with the saved rules */}
               <p className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-[#EEF2FF] px-3 py-2 text-xs font-bold text-[#1E3A8A]">
                 <Monitor size={14} /> {km ? "QR លោតពេញអេក្រង់ដោយខ្លួនឯងនៅម៉ោង៖" : "The QR pops up full screen by itself at:"}
                 {([["morning", s.morning_start, s.morning_end], ["afternoon", s.afternoon_start, s.afternoon_end]] as const).map(([x, st, en]) => {
-                  const m = Math.max(0, toMinutes(st) - s.open_before_minutes);
-                  return <span key={x} className="rounded-full bg-white px-2.5 py-1">{x === "morning" ? L.morning : L.afternoon} {String(Math.floor(m / 60)).padStart(2, "0")}:{String(m % 60).padStart(2, "0")} → {en}</span>;
+                  return <span key={x} className="rounded-full bg-white px-2.5 py-1">{x === "morning" ? L.morning : L.afternoon} {st} → {en}</span>;
                 })}
               </p>
             </fieldset>

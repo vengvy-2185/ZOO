@@ -86,7 +86,8 @@ export function sessionFor(s: AttendanceSettings, minutes = localMinutes()): { s
     ["afternoon", s.afternoon_start, s.afternoon_end],
   ] as const) {
     const a = toMin(start);
-    if (minutes >= a - s.open_before_minutes && minutes < toMin(end)) {
+    // open exactly from the start time to the end time
+    if (minutes >= a && minutes < toMin(end)) {
       return { session, late: minutes > a + s.grace_minutes ? minutes - a : 0 };
     }
   }
@@ -179,8 +180,8 @@ export async function kioskSchedule(km: boolean) {
   const WEEK = km ? ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayOff: string | null = hol?.name ?? (s.rest_days.includes(weekday(day)) ? WEEK[weekday(day)] : null);
   const windows = [
-    { session: "morning" as const, openMin: toMin(s.morning_start) - s.open_before_minutes, startMin: toMin(s.morning_start), graceMin: s.grace_minutes, endMin: toMin(s.morning_end) },
-    { session: "afternoon" as const, openMin: toMin(s.afternoon_start) - s.open_before_minutes, startMin: toMin(s.afternoon_start), graceMin: s.grace_minutes, endMin: toMin(s.afternoon_end) },
+    { session: "morning" as const, openMin: toMin(s.morning_start), startMin: toMin(s.morning_start), graceMin: s.grace_minutes, endMin: toMin(s.morning_end) },
+    { session: "afternoon" as const, openMin: toMin(s.afternoon_start), startMin: toMin(s.afternoon_start), graceMin: s.grace_minutes, endMin: toMin(s.afternoon_end) },
   ];
   return { windows, dayOff };
 }
