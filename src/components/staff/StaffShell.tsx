@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, Siren, MapPin } from "lucide-react";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { SOS_KINDS, type SosKind } from "@/lib/staff-extras";
+import { resolveSos } from "@/app/staff/(protected)/actions";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { staffAccess } from "@/lib/server/staff";
 import { getMembers } from "@/lib/server/members";
@@ -26,19 +29,29 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
   const [me] = await getMembers(userId);
   const isStaff = Boolean(access.staff);
   const can = (p: Parameters<typeof access.perms.has>[0]) => access.perms.has(p);
+  // open SOS alerts: managers see every one, others see their own
+  const manager = access.admin || access.perms.has("reports");
+  const { data: alertRows } = await createServiceRoleClient().from("staff_alerts").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(5);
+  const alerts = (alertRows ?? []).filter((a: any) => manager || a.user_id === userId);
+  const senderIds = [...new Set(alerts.map((a: any) => a.user_id).filter(Boolean))];
+  const { data: senders } = senderIds.length ? await createServiceRoleClient().from("staff_members").select("user_id, full_name, phone").in("user_id", senderIds) : { data: [] as any[] };
+  const senderOf = new Map((senders ?? []).map((x: any) => [x.user_id, x]));
 
   const T = km
-    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", kudos: "ពាក្យអរគុណ", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
-    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", kudos: "Thanks", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
+    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", kudos: "ពាក្យអរគុណ", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
+    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", kudos: "Thanks", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
 
   const items: StaffNavItem[] = (
     [
       ["home", "/staff", "main", true],
       ["checkin", "/staff/checkin", "main", isStaff],
       ["team", "/staff/team", "main", access.admin || can("reports")],
+      ["tasks", "/staff/tasks", "main", true],
       ["issues", "/staff/issues", "main", true],
       ["supplies", "/staff/supplies", "main", true],
       ["kudos", "/staff/kudos", "main", true],
+      ["handover", "/staff/handover", "main", true],
+      ["lost", "/staff/lost", "main", true],
       ["scanner", "/staff/scanner", "tools", can("tickets")],
       ["gate", "/staff/gate", "tools", can("tickets")],
       ["bookings", "/staff/bookings", "tools", can("tickets")],
@@ -68,6 +81,10 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
             </span>
           </Link>
           <div className="flex flex-shrink-0 items-center gap-2">
+            <Link href="/staff/sos" title="SOS" className="relative flex h-10 items-center gap-1.5 rounded-full bg-red-500 px-3 text-xs font-extrabold text-white shadow-[0_0_0_3px_rgba(255,255,255,0.15)] transition hover:bg-red-600">
+              <span className="absolute inset-0 animate-ping rounded-full bg-red-400/40 [animation-duration:2.4s]" />
+              <Siren size={16} className="relative" /> <span className="relative">SOS</span>
+            </Link>
             <LanguageSwitcher tone="blue" className="[&>svg]:hidden sm:[&>svg]:block" />
             {access.admin && (
               <Link href="/admin" className="hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-xs font-bold hover:bg-white/25 sm:inline-flex">
@@ -95,6 +112,36 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
           <StaffNav items={items} />
         </div>
       </div>
+
+      {/* live SOS alerts (the page refreshes by itself when one arrives) */}
+      {alerts.length > 0 && (
+        <div className="sticky top-[57px] z-30 space-y-1.5 bg-red-600 px-4 py-2.5 text-white shadow-lift md:top-[108px] md:px-8">
+          {alerts.map((a: any) => {
+            const S = SOS_KINDS[a.kind as SosKind] ?? SOS_KINDS.other;
+            const who = senderOf.get(a.user_id);
+            const mins = Math.max(0, Math.round((Date.now() - Date.parse(a.created_at)) / 60000));
+            return (
+              <div key={a.id} className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
+                  <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-red-600"><S.Icon size={18} /></span>
+                </span>
+                <p className="min-w-0 flex-1 text-sm font-bold">
+                  SOS · {km ? S.km : S.en}
+                  <span className="font-semibold text-white/85"> — {who?.full_name ?? "Admin"}{a.place && ` · ${a.place}`}{a.note && ` · ${a.note}`} · {km ? `${mins} នាទីមុន` : `${mins} min ago`}</span>
+                </p>
+                {a.lat != null && (
+                  <a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25"><MapPin size={13} /> {km ? "ទីតាំង" : "Map"}</a>
+                )}
+                {who?.phone && <a href={`tel:${who.phone}`} className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25">📞 {who.phone}</a>}
+                <form action={resolveSos.bind(null, a.id)}>
+                  <button className="rounded-full bg-white px-3.5 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50">{km ? "ដោះស្រាយរួច" : "Resolved"}</button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* page title */}
       <header className="relative overflow-hidden bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white">

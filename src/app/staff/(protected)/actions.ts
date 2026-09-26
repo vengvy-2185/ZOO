@@ -255,3 +255,119 @@ export async function saveEventCount(ref: string, formData: FormData) {
   await createServiceRoleClient().from("staff_event_counts").upsert({ day, ref, visitors, user_id: id, updated_at: new Date().toISOString() });
   revalidatePath("/staff/schedule");
 }
+
+const isManager = (access: Awaited<ReturnType<typeof staffAccess>>) => access.admin || access.perms.has("reports");
+const localToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+
+// ── Tasks given by a manager ──────────────────────────────────────────
+export type TaskState = { ok?: boolean; error?: string };
+export async function createTask(_prev: TaskState, formData: FormData): Promise<TaskState> {
+  const { id, access } = await me();
+  if (!isManager(access)) return { error: "Only managers can give tasks." };
+  const title = String(formData.get("title") ?? "").trim().slice(0, 120);
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+  const target = String(formData.get("target") ?? "");
+  const priority = String(formData.get("priority") ?? "normal");
+  const due = String(formData.get("due") ?? "");
+  if (!title || !["low", "normal", "high"].includes(priority)) return { error: "invalid" };
+  const section = target.startsWith("s:") ? target.slice(2) : null;
+  const person = target.startsWith("u:") ? target.slice(2) : null;
+  if (section && !["tickets", "animals", "cleaning", "guide", "reports"].includes(section)) return { error: "invalid" };
+  if (person && !/^[0-9a-f-]{36}$/i.test(person)) return { error: "invalid" };
+  if (!section && !person) return { error: "invalid" };
+  // "HH:MM" today (zoo time) → a real instant
+  const due_at = /^\d{2}:\d{2}$/.test(due) ? new Date(`${localToday()}T${due}:00+07:00`).toISOString() : null;
+  const { error } = await createServiceRoleClient().from("staff_tasks").insert({ title, note: note || null, assigned_to: person, section, priority, due_at, created_by: id });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/tasks");
+  revalidatePath("/staff");
+  return { ok: true };
+}
+/** Tick a task done (or open again). Yours, your section's, or any if you're a manager. */
+export async function toggleStaffTask(taskId: string) {
+  const { id, access } = await me();
+  const db = createServiceRoleClient();
+  const { data: t } = await db.from("staff_tasks").select("status, assigned_to, section").eq("id", taskId).maybeSingle();
+  if (!t) return;
+  const mine = t.assigned_to === id || (t.section && access.perms.has(t.section as any));
+  if (!mine && !isManager(access)) throw new Error("Not your task.");
+  const done = t.status !== "done";
+  await db.from("staff_tasks").update({ status: done ? "done" : "open", done_by: done ? id : null, done_at: done ? new Date().toISOString() : null }).eq("id", taskId);
+  revalidatePath("/staff/tasks");
+  revalidatePath("/staff");
+}
+export async function deleteStaffTask(taskId: string) {
+  const { access } = await me();
+  if (!isManager(access)) throw new Error("Only managers.");
+  await createServiceRoleClient().from("staff_tasks").delete().eq("id", taskId);
+  revalidatePath("/staff/tasks");
+}
+
+// ── Lost and found ────────────────────────────────────────────────────
+export type LostState = { ok?: boolean; error?: string };
+const LOST_CATS = ["phone", "bag", "wallet", "keys", "clothes", "child", "other"];
+export async function addLostItem(_prev: LostState, formData: FormData): Promise<LostState> {
+  const { id } = await me();
+  const item = String(formData.get("item") ?? "").trim().slice(0, 100);
+  const place = String(formData.get("place") ?? "").trim().slice(0, 100);
+  const description = String(formData.get("description") ?? "").trim().slice(0, 400);
+  const category = String(formData.get("category") ?? "other");
+  if (!item || !place || !LOST_CATS.includes(category)) return { error: "invalid" };
+  const { error } = await createServiceRoleClient().from("lost_found").insert({ item, place, description: description || null, category, found_by: id });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/lost");
+  return { ok: true };
+}
+export async function returnLostItem(itemId: string, formData: FormData) {
+  const { id } = await me();
+  const owner_name = String(formData.get("owner_name") ?? "").trim().slice(0, 80);
+  const owner_contact = String(formData.get("owner_contact") ?? "").trim().slice(0, 80);
+  if (!owner_name) return;
+  await createServiceRoleClient().from("lost_found").update({ status: "returned", owner_name, owner_contact: owner_contact || null, returned_by: id, returned_at: new Date().toISOString() }).eq("id", itemId).eq("status", "held");
+  revalidatePath("/staff/lost");
+}
+
+// ── Shift handover notes ──────────────────────────────────────────────
+export type HandoverState = { ok?: boolean; error?: string };
+export async function addHandover(_prev: HandoverState, formData: FormData): Promise<HandoverState> {
+  const { id, access } = await me();
+  const section = String(formData.get("section") ?? "general");
+  const note = String(formData.get("note") ?? "").trim().slice(0, 600);
+  if (!note || !["tickets", "animals", "cleaning", "guide", "general"].includes(section)) return { error: "invalid" };
+  if (section !== "general" && !access.perms.has(section as any)) return { error: "invalid" };
+  const { error } = await createServiceRoleClient().from("staff_handover").insert({ section, note, user_id: id });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/handover");
+  revalidatePath("/staff");
+  return { ok: true };
+}
+
+// ── SOS ───────────────────────────────────────────────────────────────
+export type SosState = { ok?: boolean; error?: string };
+const SOS_KINDS = ["medical", "animal", "security", "fire", "child", "other"];
+export async function sendSos(_prev: SosState, formData: FormData): Promise<SosState> {
+  const { id } = await me();
+  const kind = String(formData.get("kind") ?? "");
+  const place = String(formData.get("place") ?? "").trim().slice(0, 100);
+  const note = String(formData.get("note") ?? "").trim().slice(0, 300);
+  const lat = Number(formData.get("lat"));
+  const lng = Number(formData.get("lng"));
+  if (!SOS_KINDS.includes(kind)) return { error: "invalid" };
+  const db = createServiceRoleClient();
+  // one open alert per person at a time (a double tap doesn't send two)
+  const { data: open } = await db.from("staff_alerts").select("id").eq("user_id", id).eq("status", "open").gte("created_at", new Date(Date.now() - 120e3).toISOString()).maybeSingle();
+  if (open) return { ok: true };
+  const { error } = await db.from("staff_alerts").insert({ user_id: id, kind, place: place || null, note: note || null, lat: Number.isFinite(lat) && formData.get("lat") ? lat : null, lng: Number.isFinite(lng) && formData.get("lng") ? lng : null });
+  if (error) return { error: error.message };
+  revalidatePath("/staff", "layout");
+  return { ok: true };
+}
+export async function resolveSos(alertId: string) {
+  const { id, access } = await me();
+  const db = createServiceRoleClient();
+  const { data: a } = await db.from("staff_alerts").select("user_id").eq("id", alertId).maybeSingle();
+  if (!a) return;
+  if (!isManager(access) && a.user_id !== id) throw new Error("Only managers or the sender can close this.");
+  await db.from("staff_alerts").update({ status: "resolved", resolved_by: id, resolved_at: new Date().toISOString() }).eq("id", alertId);
+  revalidatePath("/staff", "layout");
+}

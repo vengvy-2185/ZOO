@@ -3,10 +3,10 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, Package, HandHeart } from "lucide-react";
+import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, Package, HandHeart, ListChecks, Archive, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-const ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, kudos: HandHeart };
+const ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, kudos: HandHeart, tasks: ListChecks, lost: Archive, handover: NotebookPen };
 export type StaffNavItem = { key: keyof typeof ICONS; href: string; label: string; group: "main" | "tools" | "me" };
 
 /**

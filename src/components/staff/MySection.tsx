@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ScanLine, PawPrint, Sparkles, Map, BarChart3, HandHeart, Package, ChevronRight, type LucideIcon } from "lucide-react";
+import { ScanLine, PawPrint, Sparkles, Map, BarChart3, HandHeart, Package, ChevronRight, ListChecks, NotebookPen, type LucideIcon } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { zooToday } from "@/lib/data/gate";
 import { todaysEvents } from "@/lib/data/events";
@@ -34,6 +34,16 @@ export async function MySection({ userId, perms, km }: { userId: string; perms: 
     db.from("staff_kudos").select("id", { count: "exact", head: true }).eq("to_user", userId).gte("created_at", monthStart),
     db.from("staff_supply_requests").select("status").eq("user_id", userId).in("status", ["pending", "approved"]),
   ]);
+
+  // tasks for me or my sections, and the newest handover note for my sections
+  const secs = [...perms];
+  const [{ data: taskRows }, { data: lastNote }] = await Promise.all([
+    db.from("staff_tasks").select("assigned_to, section, priority").eq("status", "open"),
+    db.from("staff_handover").select("note, section, created_at").in("section", [...secs.filter((x) => x !== "reports"), "general"]).order("created_at", { ascending: false }).limit(1),
+  ]);
+  const myTasks = (taskRows ?? []).filter((t: any) => t.assigned_to === userId || (t.section && perms.has(t.section)));
+  const urgentTasks = myTasks.filter((t: any) => t.priority === "high").length;
+  const note = (lastNote ?? [])[0] as any;
 
   const cards: Card[] = [];
   if (has("tickets")) {
@@ -86,6 +96,25 @@ export async function MySection({ userId, perms, km }: { userId: string; perms: 
       </div>
       {/* thanks + my supplies: for everyone */}
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Link href="/staff/tasks" className={`group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lift ${urgentTasks ? "ring-2 ring-red-300" : ""}`}>
+          <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-indigo-700 text-white shadow-sm transition group-hover:scale-110">
+            <ListChecks size={22} />
+            {myTasks.length > 0 && <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-extrabold ring-2 ring-white">{myTasks.length}</span>}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg font-extrabold text-forest">{km ? "ការងាររបស់ខ្ញុំ" : "My tasks"}</span>
+            <span className="block text-xs text-ink/55">{myTasks.length ? (km ? `${myTasks.length} ត្រូវធ្វើ${urgentTasks ? ` · ${urgentTasks} បន្ទាន់` : ""}` : `${myTasks.length} to do${urgentTasks ? ` · ${urgentTasks} urgent` : ""}`) : km ? "គ្មានការងារនៅសល់ 🎉" : "Nothing left to do 🎉"}</span>
+          </span>
+          <ChevronRight size={18} className="text-ink/25" />
+        </Link>
+        <Link href="/staff/handover" className="group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
+          <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-700 text-white shadow-sm transition group-hover:scale-110"><NotebookPen size={22} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg font-extrabold text-forest">{km ? "ប្រគល់វេន" : "Handover"}</span>
+            <span className="line-clamp-1 block text-xs text-ink/55">{note ? `“${note.note}”` : km ? "សរសេរកំណត់ចំណាំសម្រាប់វេនបន្ទាប់" : "Leave a note for the next shift"}</span>
+          </span>
+          <ChevronRight size={18} className="text-ink/25" />
+        </Link>
         <Link href="/staff/kudos" className="group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400 to-rose-600 text-white shadow-sm transition group-hover:scale-110"><HandHeart size={22} /></span>
           <span className="min-w-0 flex-1">
