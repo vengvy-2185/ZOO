@@ -59,7 +59,6 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
       ["issues", "/staff/issues", "team", true],
       ["supplies", "/staff/supplies", "team", true],
       ["handover", "/staff/handover", "team", true],
-      ["lost", "/staff/lost", "team", true],
       ["attendance", "/staff/attendance", "me", isStaff],
       ["leave", "/staff/leave", "me", isStaff],
       ["pay", "/staff/pay", "me", isStaff],

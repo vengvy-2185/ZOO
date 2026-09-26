@@ -23,7 +23,7 @@ export function ChatScroll({ count, children }: { count: number; children: React
     if (el) el.scrollTop = el.scrollHeight;
   }, [count]);
   return (
-    <div ref={ref} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-[#F8FAFF] bg-[radial-gradient(circle_at_1px_1px,rgba(37,99,235,0.06)_1px,transparent_0)] p-3 [background-size:18px_18px] md:p-5">
+    <div ref={ref} className="no-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-[#F8FAFF] bg-[radial-gradient(circle_at_1px_1px,rgba(37,99,235,0.06)_1px,transparent_0)] p-3 [background-size:18px_18px] md:p-5">
       {children}
     </div>
   );
@@ -76,6 +76,14 @@ export function VoiceBubble({ src, secs, own }: { src: string; secs: number; own
   );
 }
 
+/** The typing box grows with the text, up to about five lines, then scrolls. */
+function grow(t: HTMLTextAreaElement) {
+  t.style.height = "0px";
+  const h = Math.min(132, Math.max(48, t.scrollHeight));
+  t.style.height = `${h}px`;
+  t.style.overflowY = t.scrollHeight > 132 ? "auto" : "hidden";
+}
+
 /** Type and send (Enter sends, Shift+Enter = new line), or record a voice message. */
 export function ChatComposer({ channel, km }: { channel: string; km: boolean }) {
   const [state, action] = useFormState<ChatState, FormData>(sendChat, {});
@@ -91,7 +99,8 @@ export function ChatComposer({ channel, km }: { channel: string; km: boolean }) 
   useEffect(() => {
     if (state.ok) {
       form.current?.reset();
-      box.current?.focus();
+      if (box.current) grow(box.current);
+      box.current?.focus({ preventScroll: true });
     }
     if (state.ok || state.error) setMode("text");
     if (state.error) setErr(state.error === "too-long" ? (km ? "សំឡេងវែងពេក" : "Too long") : state.error);
@@ -195,12 +204,10 @@ export function ChatComposer({ channel, km }: { channel: string; km: boolean }) 
               if (box.current?.value.trim()) form.current?.requestSubmit();
             }
           }}
-          onInput={(e) => {
-            const t = e.currentTarget;
-            t.style.height = "auto";
-            t.style.height = `${Math.min(140, t.scrollHeight)}px`;
-          }}
-          className="max-h-36 min-h-12 min-w-0 flex-1 resize-none rounded-2xl border border-black/10 bg-[#F8FAFF] px-4 py-3 text-sm text-ink outline-none focus:border-[#2563EB] focus:bg-white"
+          onInput={(e) => grow(e.currentTarget)}
+          onChange={(e) => grow(e.currentTarget)}
+          // 16px text: smaller makes iPhones zoom in (and shake) when you tap the box
+          className="block max-h-[132px] min-h-[48px] min-w-0 flex-1 resize-none overflow-y-hidden rounded-3xl border border-black/10 bg-[#F8FAFF] px-4 py-3 text-base leading-6 text-ink outline-none transition-[border-color,background-color] focus:border-[#2563EB] focus:bg-white"
         />
         <SendButton />
       </div>

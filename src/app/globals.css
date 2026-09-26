@@ -325,3 +325,8 @@ html.intro-on .gwz-intro {
 @keyframes gwzFloatUp { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-160px) scale(1.1) rotate(15deg); opacity: 0; } }
 .gwz-float-up { animation: gwzFloatUp 1.6s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .gwz-float-up { animation: none; opacity: 0; } }
+
+/* phones: 16px form text so iPhones don't zoom in (and jump) when a box is tapped */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: 16px !important; }
+}

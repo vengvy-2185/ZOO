@@ -90,8 +90,8 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const myWeek = days.slice(0, 7);
 
   const L = km
-    ? { title: "កាលវិភាគការងារ", sub: "វេនធ្វើការប្រចាំសប្តាហ៍ និងប្រចាំខែ របស់ក្រុមនីមួយៗ។ ប្តូរវេន ឬរកអ្នកជំនួស ពេលមានបញ្ហា។", week: "សប្តាហ៍", month: "ខែ", all: "ទាំងអស់", save: "រក្សាទុកកាលវិភាគ", saving: "កំពុងរក្សាទុក…", copy: "ចម្លងសប្តាហ៍មុន", mine: "វេនរបស់ខ្ញុំ", team: "កាលវិភាគក្រុម", ask: "ប្តូរវេន / រកអ្នកជំនួស", forMe: "អ្នកអាចជួយបាន", myReq: "សំណើរបស់ខ្ញុំ", approve: "រង់ចាំអ្នកគ្រប់គ្រងអនុម័ត", take: "ខ្ញុំជំនួស", agree: "យល់ព្រមដូរ", cancel: "បោះបង់", yes: "អនុម័ត", no: "បដិសេធ", st: { open: "រង់ចាំអ្នកជំនួស", accepted: "មានអ្នកទទួលហើយ · រង់ចាំអនុម័ត" }, cover: "ជំនួស", swap: "ដូរ", nothing: "គ្មានទេ", none: "—", legend: "ពន្យល់", today: "ថ្ងៃនេះ", noTeam: "មិនមានបុគ្គលិកក្នុងក្រុមនេះទេ។" }
-    : { title: "Work schedule", sub: "Each team's shifts by week or month. Swap a shift or find cover when something comes up.", week: "Week", month: "Month", all: "Everyone", save: "Save schedule", saving: "Saving…", copy: "Copy last week", mine: "My shifts", team: "Team schedule", ask: "Swap / find cover", forMe: "You can help", myReq: "My requests", approve: "Waiting for approval", take: "I'll cover", agree: "Agree to swap", cancel: "Cancel", yes: "Approve", no: "Refuse", st: { open: "Looking for cover", accepted: "Taken · waiting for approval" }, cover: "Cover", swap: "Swap", nothing: "Nothing", none: "—", legend: "Key", today: "Today", noTeam: "No staff in this team." };
+    ? { title: "កាលវិភាគការងារ", sub: "វេនធ្វើការប្រចាំសប្តាហ៍ និងប្រចាំខែ របស់ក្រុមនីមួយៗ។ ប្តូរវេន ឬរកអ្នកជំនួស ពេលមានបញ្ហា។", week: "សប្តាហ៍", month: "ខែ", all: "ទាំងអស់", save: "រក្សាទុកកាលវិភាគ", saving: "កំពុងរក្សាទុក…", copy: "ចម្លងសប្តាហ៍មុន", mine: "វេនរបស់ខ្ញុំសប្តាហ៍នេះ", team: "កាលវិភាគក្រុមទាំងមូល", ask: "មកធ្វើការមិនបាន? ស្នើអ្នកជំនួស ឬប្តូរវេន", forMe: "មិត្តរួមការងារកំពុងរកអ្នកជំនួស", myReq: "សំណើរបស់ខ្ញុំ", approve: "រង់ចាំអ្នកគ្រប់គ្រងអនុម័ត", take: "ខ្ញុំជំនួស", agree: "យល់ព្រមដូរ", cancel: "បោះបង់", yes: "អនុម័ត", no: "បដិសេធ", st: { open: "រង់ចាំអ្នកជំនួស", accepted: "មានអ្នកទទួលហើយ · រង់ចាំអនុម័ត" }, cover: "ជំនួស", swap: "ដូរ", nothing: "គ្មានទេ", none: "—", legend: "ពន្យល់", today: "ថ្ងៃនេះ", noTeam: "មិនមានបុគ្គលិកក្នុងក្រុមនេះទេ។" }
+    : { title: "Work schedule", sub: "Each team's shifts by week or month. Swap a shift or find cover when something comes up.", week: "Week", month: "Month", all: "Everyone", save: "Save schedule", saving: "Saving…", copy: "Copy last week", mine: "My shifts this week", team: "Whole team schedule", ask: "Can't come? Ask for cover or a swap", forMe: "Colleagues looking for cover", myReq: "My requests", approve: "Waiting for approval", take: "I'll cover", agree: "Agree to swap", cancel: "Cancel", yes: "Approve", no: "Refuse", st: { open: "Looking for cover", accepted: "Taken · waiting for approval" }, cover: "Cover", swap: "Swap", nothing: "Nothing", none: "—", legend: "Key", today: "Today", noTeam: "No staff in this team." };
   const badge = (sh: Shift | undefined, compact = false) =>
     sh ? <span className={cn("inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-extrabold ring-1", SHIFT[sh].cls, compact && "w-full px-0.5 py-0.5 text-[10px]")}>{compact ? (km ? SHIFT[sh].shortKm : SHIFT[sh].short) : km ? SHIFT[sh].km : SHIFT[sh].en}</span> : <span className="text-ink/20">·</span>;
 
@@ -123,24 +123,74 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
         </div>
       </div>
 
-      {/* my week */}
+      {/* how it works */}
+      <details className="card group p-0" open={!access.admin && !(myUpcoming ?? []).length}>
+        <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8]"><CalendarRange size={20} /></span>
+          <span className="flex-1 font-display text-lg font-extrabold text-forest">{km ? "កាលវិភាគនេះប្រើយ៉ាងម៉េច?" : "How does the schedule work?"}</span>
+          <ChevronRight size={18} className="text-ink/40 transition group-open:rotate-90" />
+        </summary>
+        <ol className="grid gap-3 px-4 pb-4 md:grid-cols-3">
+          {(km
+            ? [
+                ["១", "អ្នកគ្រប់គ្រងរៀបចំវេន", "កំណត់ថ្ងៃណា អ្នកណាមកធ្វើការ ពេលព្រឹក រសៀល ពេញថ្ងៃ ឬឈប់សម្រាក។"],
+                ["២", "បុគ្គលិកមើលវេនរបស់ខ្លួន", "មើល «វេនរបស់ខ្ញុំ» ដើម្បីដឹងថាថ្ងៃណាត្រូវមក និងម៉ោងប៉ុន្មាន។"],
+                ["៣", "មកមិនបាន? ស្នើនៅទីនេះ", "សុំអ្នកជំនួស ឬប្តូរវេនជាមួយមិត្ត → មិត្តយល់ព្រម → អ្នកគ្រប់គ្រងអនុម័ត → វេនប្តូរដោយខ្លួនឯង។"],
+              ]
+            : [
+                ["1", "Managers plan the shifts", "Who works which day: morning, afternoon, full day or day off."],
+                ["2", "Staff see their shifts", "Look at “My shifts” to know which days to come and what time."],
+                ["3", "Can't come? Ask here", "Ask for cover or a swap → a colleague agrees → a manager approves → the schedule updates."],
+              ]
+          ).map(([n, t, d]) => (
+            <li key={n} className="flex gap-3 rounded-2xl bg-[#F8FAFF] p-3 ring-1 ring-[#2563EB]/10">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1D4ED8] font-display text-base font-extrabold text-white">{n}</span>
+              <span>
+                <span className="block font-bold text-forest">{t}</span>
+                <span className="block text-sm leading-relaxed text-ink/60">{d}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </details>
+
+      {/* my shifts */}
       {access.staff && view === "week" && (
         <section className="card p-4 md:p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-extrabold text-forest"><UserCheck size={20} className="text-[#1D4ED8]" /> {L.mine}</h2>
-          <div className="grid grid-cols-7 gap-1.5 md:gap-2">
+          {(() => {
+            const nx = (myUpcoming ?? [])[0] as any;
+            return (
+              <div className={cn("mb-4 flex items-center gap-3 rounded-2xl p-4", nx ? "bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] text-white" : "bg-slate-50 text-ink/60")}>
+                <Clock size={26} className="flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className={cn("text-sm font-bold", nx ? "text-white/80" : "")}>{km ? "វេនបន្ទាប់របស់អ្នក" : "Your next shift"}</p>
+                  <p className="font-display text-xl font-extrabold leading-tight">
+                    {nx ? `${nx.day === today ? (km ? "ថ្ងៃនេះ" : "Today") : dateLabel(nx.day)} · ${km ? SHIFT[nx.shift as Shift].km : SHIFT[nx.shift as Shift].en} ${shiftTimes[nx.shift as Shift]}` : km ? "មិនទាន់មានវេន — រង់ចាំអ្នកគ្រប់គ្រងរៀបចំ" : "No shifts yet — waiting for a manager"}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-extrabold text-forest"><UserCheck size={20} className="text-[#1D4ED8]" /> {L.mine}</h2>
+          <ul className="space-y-2">
             {myWeek.map((d) => {
               const r: any = cell.get(`${userId}_${d}`);
               const sh = r?.shift as Shift | undefined;
               return (
-                <div key={d} className={cn("flex flex-col items-center gap-1 rounded-2xl p-1.5 text-center ring-1 md:p-2.5", d === today ? "bg-[#EEF2FF] ring-[#93C5FD]" : "bg-white ring-black/5")}>
-                  <span className="text-[11px] font-bold text-ink/50 md:text-xs">{dayName(d)}</span>
-                  <span className={cn("font-display text-lg font-extrabold leading-none md:text-2xl", d === today ? "text-[#1D4ED8]" : "text-forest")}>{dayNum(d)}</span>
-                  {sh ? badge(sh, true) : <span className="text-xs text-ink/25">—</span>}
-                  {sh && sh !== "off" && <span className="hidden text-[10px] font-semibold text-ink/45 md:block">{shiftTimes[sh]}</span>}
-                </div>
+                <li key={d} className={cn("flex items-center gap-3 rounded-2xl px-3 py-2.5 ring-1", d === today ? "bg-[#EEF2FF] ring-[#93C5FD]" : "bg-white ring-black/5")}>
+                  <span className={cn("flex h-11 w-11 flex-shrink-0 flex-col items-center justify-center rounded-xl leading-none", d === today ? "bg-[#1D4ED8] text-white" : "bg-slate-100 text-forest")}>
+                    <span className="text-[10px] font-bold opacity-80">{dayName(d)}</span>
+                    <span className="font-display text-lg font-extrabold">{dayNum(d)}</span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-bold text-forest">{dayName(d, "long")}{d === today && <span className="ml-2 rounded-full bg-[#1D4ED8] px-2 py-0.5 text-[11px] text-white">{L.today}</span>}</span>
+                    <span className="block text-sm text-ink/55">{sh && sh !== "off" ? shiftTimes[sh] : sh === "off" ? (km ? "សម្រាក" : "Rest day") : km ? "មិនទាន់កំណត់" : "Not planned yet"}</span>
+                  </span>
+                  {sh ? badge(sh) : <span className="text-sm text-ink/30">—</span>}
+                </li>
               );
             })}
-          </div>
+          </ul>
         </section>
       )}
 
@@ -160,6 +210,11 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
           <p className="p-8 text-center text-ink/55">{L.noTeam}</p>
         ) : (
           <form action={saveRosterWeek}>
+            {manager && view === "week" && (
+              <p className="flex items-center gap-2 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
+                ✏️ {km ? "ចុចលើប្រអប់នីមួយៗ ដើម្បីជ្រើសវេនរបស់បុគ្គលិក រួចចុច «រក្សាទុកកាលវិភាគ» នៅខាងក្រោម។" : "Tap each box to choose a person's shift, then press “Save schedule” below."}
+              </p>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead>

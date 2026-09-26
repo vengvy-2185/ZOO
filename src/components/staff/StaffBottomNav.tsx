@@ -36,21 +36,24 @@ export function StaffBottomNav({ items, groups, moreLabel, closeLabel }: { items
               <span className="mx-auto h-1.5 w-12 rounded-full bg-black/10" />
               <button onClick={() => setOpen(false)} className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F5FF] text-[#1E3A8A]" aria-label={closeLabel}><X size={18} /></button>
             </div>
-            <div className="max-h-[65dvh] space-y-4 overflow-y-auto">
+            {/* everything that is NOT already in the bar below, in groups */}
+            <div className="no-scrollbar max-h-[65dvh] space-y-3 overflow-y-auto">
               {(["main", "tools", "team", "me"] as const).map((g) => {
-                const list = items.filter((n) => n.group === g);
+                const list = items.filter((n) => n.group === g && !bar.some((b) => b.key === n.key));
                 if (!list.length) return null;
                 return (
-                  <div key={g}>
-                    <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-ink/40">{groups[g]}</p>
+                  <div key={g} className="rounded-3xl bg-[#F8FAFF] p-3 ring-1 ring-[#2563EB]/10">
+                    <p className="mb-2 px-1 text-xs font-extrabold text-[#1E3A8A]">{groups[g]}</p>
                     <div className="grid grid-cols-4 gap-2">
                       {list.map((n) => {
                         const Icon = ICONS[n.key as keyof typeof ICONS] ?? Home;
                         const on = isOn(n.href);
                         return (
-                          <Link key={n.key} href={n.href} className={cn("flex flex-col items-center gap-1.5 rounded-2xl p-2.5 text-center text-[11px] font-bold leading-tight", on ? "bg-[#1D4ED8] text-white" : "bg-[#F8FAFF] text-[#1E3A8A] ring-1 ring-[#2563EB]/10")}>
-                            <Icon size={22} />
-                            {n.label}
+                          <Link key={n.key} href={n.href} className="flex flex-col items-center gap-1.5 text-center text-[11px] font-bold leading-tight text-[#1E3A8A]">
+                            <span className={cn("flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm transition active:scale-90", on ? "bg-[#1D4ED8] text-white" : "bg-white text-[#1D4ED8] ring-1 ring-[#2563EB]/10")}>
+                              <Icon size={22} />
+                            </span>
+                            <span className="line-clamp-2">{n.label}</span>
                           </Link>
                         );
                       })}

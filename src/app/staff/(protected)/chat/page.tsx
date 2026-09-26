@@ -113,7 +113,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
               </span>
             ))}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
             {mine.map((c) => {
               const on = c.key === ch.key && (inConversation || true);
               const n = c.key === ch.key ? 0 : unread.get(c.key) ?? 0;
