@@ -7,49 +7,71 @@ export type ScratchPrize = { code: string; percent: number; endsOn: string };
 /** What a scratch card shows: a discount code, or a thank-you. */
 export type ScratchResult = ScratchPrize | { thanks: true; en: string; km: string };
 
+/**
+ * The admin sets a campaign: a discount range (e.g. 5–25 %), how many
+ * winners (e.g. 100) and the dates (e.g. 1–22 August). Every paid ticket,
+ * whatever it cost, scratches once; the winners are spread at random over
+ * the campaign so that about that many people win by the last day.
+ */
 export type ScratchSettings = {
   enabled: boolean;
-  /** chance weights: each prize, and "thank you" (no prize) */
-  prizes: { percent: number; weight: number }[];
-  thanks_weight: number;
+  min_pct: number;
+  max_pct: number;
+  winners: number;
+  start_date: string; // YYYY-MM-DD (zoo time)
+  end_date: string;
+  valid_days: number; // how long a won code can be used
   thanks_en: string;
   thanks_km: string;
-  valid_days: number;
-  /** who can win */
-  min_total: number; // booking total in USD
-  min_visitors: number; // people on the booking
-  members_only: boolean; // only bookings made while signed in
-  max_wins_per_day: number; // 0 = no limit
-  once_per_member_days: number; // a signed-in visitor wins at most once in this many days (0 = no limit)
 };
 
 export const DEFAULT_SCRATCH: ScratchSettings = {
   enabled: true,
-  prizes: [
-    { percent: 10, weight: 45 },
-    { percent: 15, weight: 17 },
-    { percent: 20, weight: 6 },
-    { percent: 30, weight: 2 },
-  ],
-  thanks_weight: 30,
+  min_pct: 5,
+  max_pct: 25,
+  winners: 100,
+  start_date: "",
+  end_date: "",
+  valid_days: 60,
   thanks_en: "Thank you for visiting Green Wild Zoo! Better luck next time.",
   thanks_km: "អរគុណដែលបានមកលេងសួនសត្វ Green Wild Zoo! សំណាងល្អលើកក្រោយ។",
-  valid_days: 60,
-  min_total: 0,
-  min_visitors: 1,
-  members_only: false,
-  max_wins_per_day: 0,
-  once_per_member_days: 0,
 };
 
-/** The admin's scratch-card rules (Admin → Discounts), on top of the defaults. */
 export async function getScratchSettings(): Promise<ScratchSettings> {
   const { data } = await createServiceRoleClient().from("app_settings").select("value").eq("key", "scratch_card").maybeSingle();
   const v = (data?.value ?? {}) as Partial<ScratchSettings>;
-  return { ...DEFAULT_SCRATCH, ...v, prizes: Array.isArray(v.prizes) && v.prizes.length ? v.prizes : DEFAULT_SCRATCH.prizes };
+  const today = zooToday();
+  const s = { ...DEFAULT_SCRATCH, ...v };
+  // no dates saved yet: this month
+  if (!s.start_date) s.start_date = `${today.slice(0, 7)}-01`;
+  if (!s.end_date) s.end_date = zooToday(30);
+  return s;
 }
 
-const roll = () => (crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32);
+const DAY = 864e5;
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / DAY);
+
+export type ScratchStats = { won: number; left: number; daysLeft: number; perDay: number; chance: number; active: boolean };
+/** How the campaign is going, and today's chance of winning for the next ticket. */
+export async function scratchStats(s?: ScratchSettings): Promise<ScratchStats> {
+  s ??= await getScratchSettings();
+  const db = createServiceRoleClient();
+  const today = zooToday();
+  const active = s.enabled && s.winners > 0 && today >= s.start_date && today <= s.end_date;
+  const [{ count: won }, { count: recent }] = await Promise.all([
+    db.from("discount_codes").select("id", { count: "exact", head: true }).eq("source", "scratch").gte("created_at", `${s.start_date}T00:00:00+07:00`).lte("created_at", `${s.end_date}T23:59:59+07:00`),
+    // how many paid tickets a day, lately (to spread the winners out)
+    db.from("bookings").select("id", { count: "exact", head: true }).eq("status", "confirmed").gte("created_at", new Date(Date.now() - 14 * DAY).toISOString()),
+  ]);
+  const perDay = Math.max(1, (recent ?? 0) / 14);
+  const left = Math.max(0, s.winners - (won ?? 0));
+  const daysLeft = Math.max(1, daysBetween(today, s.end_date) + 1);
+  // remaining winners ÷ tickets expected until the end (never more than certain)
+  const chance = active && left > 0 ? Math.min(1, left / (perDay * daysLeft)) : 0;
+  return { won: won ?? 0, left, daysLeft, perDay, chance, active };
+}
+
+const roll = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 const toPrize = (c: any): ScratchPrize => ({ code: c.code, percent: Number(c.value), endsOn: c.ends_on });
 const thanksOf = (s: ScratchSettings): ScratchResult => ({ thanks: true, en: s.thanks_en || DEFAULT_SCRATCH.thanks_en, km: s.thanks_km || DEFAULT_SCRATCH.thanks_km });
 
@@ -62,46 +84,19 @@ export async function existingResult(scratchCodeId: string | null | undefined, s
   if (scratchedAt) return thanksOf(await getScratchSettings());
   return null;
 }
-/** @deprecated kept for older callers */
-export const existingPrize = (id: string | null | undefined) => existingResult(id, null);
 
-/**
- * Reveals (and on the first call decides) the card for a paid booking.
- * Needs the booking's secret key. The admin's rules decide who may win; the
- * others get a thank-you. The code is made automatically, nothing to set up.
- */
+/** Reveals (and on the first call decides) the card for a paid booking. Needs the booking's secret key. */
 export async function claimScratch(bookingCode: string, key: string): Promise<ScratchResult | null> {
   const db = createServiceRoleClient();
-  const { data: b } = await db.from("bookings").select("id, status, total_usd, visitor_id, scratch_code_id, scratched_at, booking_items(quantity)").eq("booking_code", bookingCode).eq("qr_token", key).maybeSingle();
+  const { data: b } = await db.from("bookings").select("id, status, scratch_code_id, scratched_at").eq("booking_code", bookingCode).eq("qr_token", key).maybeSingle();
   if (!b || b.status !== "confirmed") return null;
   if (b.scratch_code_id || b.scratched_at) return existingResult(b.scratch_code_id, b.scratched_at);
 
   const s = await getScratchSettings();
-  const people = ((b.booking_items ?? []) as any[]).reduce((n, i) => n + (i.quantity ?? 0), 0);
-  let eligible = s.enabled && Number(b.total_usd) >= s.min_total && people >= s.min_visitors && (!s.members_only || !!b.visitor_id);
-  if (eligible && s.max_wins_per_day > 0) {
-    const { count } = await db.from("discount_codes").select("id", { count: "exact", head: true }).eq("source", "scratch").gte("created_at", `${zooToday()}T00:00:00+07:00`);
-    if ((count ?? 0) >= s.max_wins_per_day) eligible = false;
-  }
-  if (eligible && s.once_per_member_days > 0 && b.visitor_id) {
-    const since = new Date(Date.now() - s.once_per_member_days * 864e5).toISOString();
-    const { count } = await db.from("bookings").select("id", { count: "exact", head: true }).eq("visitor_id", b.visitor_id).not("scratch_code_id", "is", null).gte("scratched_at", since);
-    if ((count ?? 0) > 0) eligible = false;
-  }
-
-  // pick: a prize by weight, or thank-you
-  let percent = 0;
-  if (eligible) {
-    const total = s.prizes.reduce((n, p) => n + Math.max(0, p.weight), 0) + Math.max(0, s.thanks_weight);
-    let r = roll() * total;
-    for (const p of s.prizes) {
-      r -= Math.max(0, p.weight);
-      if (r < 0) {
-        percent = p.percent;
-        break;
-      }
-    }
-  }
+  const st = await scratchStats(s);
+  const lo = Math.max(1, Math.min(s.min_pct, s.max_pct));
+  const hi = Math.min(100, Math.max(s.min_pct, s.max_pct));
+  const percent = st.chance > 0 && roll() < st.chance ? lo + Math.floor(roll() * (hi - lo + 1)) : 0;
 
   if (!percent) {
     const { data: done } = await db.from("bookings").update({ scratched_at: new Date().toISOString() }).eq("id", b.id).is("scratched_at", null).select("id");
@@ -112,10 +107,9 @@ export async function claimScratch(bookingCode: string, key: string): Promise<Sc
     return thanksOf(s);
   }
 
-  const endsOn = zooToday(s.valid_days);
   const { data: code, error } = await db
     .from("discount_codes")
-    .insert({ name: `Scratch card ${percent}% off`, name_km: `រង្វាន់កាតកោស បញ្ចុះ ${percent}%`, code: generateCode("WIN"), kind: "percent", value: percent, max_uses: 1, ends_on: endsOn, source: "scratch" })
+    .insert({ name: `Scratch card ${percent}% off`, name_km: `រង្វាន់កាតកោស បញ្ចុះ ${percent}%`, code: generateCode("WIN"), kind: "percent", value: percent, max_uses: 1, ends_on: zooToday(s.valid_days), source: "scratch" })
     .select("id, code, value, ends_on")
     .single();
   if (error || !code) return null;

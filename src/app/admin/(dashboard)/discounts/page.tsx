@@ -5,7 +5,7 @@ import { AdminPageHeader, AdminTable } from "@/components/admin/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { cn } from "@/lib/utils/cn";
-import { getScratchSettings } from "@/lib/server/scratch";
+import { getScratchSettings, scratchStats } from "@/lib/server/scratch";
 import { ScratchSettingsForm } from "@/components/admin/ScratchSettingsForm";
 
 export const dynamic = "force-dynamic";
@@ -104,7 +104,7 @@ export default async function AdminDiscountsPage() {
         })}
       </AdminTable>
 
-      <ScratchSettingsForm s={scratchSettings} km={km} given={scratch.length} used={scratchUsed} />
+      <ScratchSettingsForm s={scratchSettings} st={await scratchStats(scratchSettings)} km={km} used={scratchUsed} />
     </div>
   );
 }
