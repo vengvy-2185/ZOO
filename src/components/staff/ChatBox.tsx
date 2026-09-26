@@ -23,7 +23,7 @@ export function ChatScroll({ count, children }: { count: number; children: React
     if (el) el.scrollTop = el.scrollHeight;
   }, [count]);
   return (
-    <div ref={ref} className="no-scrollbar h-[calc(100dvh-27rem)] min-h-[15rem] space-y-2 overflow-y-auto scroll-smooth bg-[#F8FAFF] p-3 md:h-[min(60vh,560px)] md:p-4">
+    <div ref={ref} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-[#F8FAFF] bg-[radial-gradient(circle_at_1px_1px,rgba(37,99,235,0.06)_1px,transparent_0)] p-3 [background-size:18px_18px] md:p-5">
       {children}
     </div>
   );

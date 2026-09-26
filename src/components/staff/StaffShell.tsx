@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { LogOut, ShieldCheck, Siren, MapPin } from "lucide-react";
+import { LogOut, ShieldCheck, Siren } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { SOS_KINDS, type SosKind } from "@/lib/staff-extras";
-import { resolveSos } from "@/app/staff/(protected)/actions";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { staffAccess } from "@/lib/server/staff";
 import { getMembers } from "@/lib/server/members";
@@ -12,6 +10,7 @@ import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
 import { StaffNav, type StaffNavItem } from "./StaffNav";
 import { StaffBottomNav } from "./StaffBottomNav";
+import { SosDock } from "./SosDock";
 
 /** Kept for the pages' `active` prop; the menu itself highlights from the address. */
 export type StaffNavKey = StaffNavItem["key"];
@@ -21,7 +20,7 @@ export type StaffNavKey = StaffNavItem["key"];
  * that stay pinned while scrolling (phone and computer), the page title,
  * then the content. Only the tools the position allows are in the menu.
  */
-export async function StaffShell({ title, subtitle, hero, children }: { active?: StaffNavKey; title: string; subtitle?: string; hero?: React.ReactNode; children: React.ReactNode }) {
+export async function StaffShell({ title, subtitle, hero, children, bare = false, hideBottomNav = false }: { active?: StaffNavKey; title: string; subtitle?: string; hero?: React.ReactNode; children: React.ReactNode; /** no title band: the page fills the screen (chat) */ bare?: boolean; hideBottomNav?: boolean }) {
   const userId = getVerifiedUserId()!;
   const { locale } = getI18n();
   const km = locale === "km";
@@ -70,7 +69,7 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
     .map(([key, href, group]) => ({ key, href, group, label: T[key] }));
 
   return (
-    <div className="min-h-screen bg-[#F4F7FF] pb-28 md:pb-14">
+    <div className={bare ? "flex h-[100dvh] flex-col overflow-hidden bg-[#F4F7FF]" : "min-h-screen bg-[#F4F7FF] pb-28 md:pb-14"}>
       {/* pinned top bar + menu */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] text-white shadow-[0_8px_24px_-12px_rgba(30,58,138,0.6)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 md:px-8">
@@ -114,51 +113,14 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
         </div>
       </div>
 
-      {/* live SOS alerts (the page refreshes by itself when one arrives) */}
-      {alerts.length > 0 && (
-        <div className="sticky top-[57px] z-30 space-y-3 divide-y divide-white/15 bg-gradient-to-r from-red-600 to-rose-600 px-4 py-3 text-white shadow-lift md:top-[108px] md:px-8 [&>*+*]:pt-3">
-          {alerts.map((a: any) => {
-            const S = SOS_KINDS[a.kind as SosKind] ?? SOS_KINDS.other;
-            const who = senderOf.get(a.user_id);
-            const mins = Math.max(0, Math.round((Date.now() - Date.parse(a.created_at)) / 60000));
-            return (
-              <div key={a.id} className="mx-auto flex max-w-6xl flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className="relative mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center">
-                    <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
-                    <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-red-600 shadow"><S.Icon size={20} /></span>
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-display text-base font-extrabold leading-tight">SOS · {km ? S.km : S.en}</p>
-                    <p className="mt-0.5 text-xs font-semibold leading-snug text-white/85">
-                      {who?.full_name ?? "Admin"}
-                      {a.place && <> · 📍 {a.place}</>}
-                      <span className="whitespace-nowrap"> · {km ? `${mins} នាទីមុន` : `${mins} min ago`}</span>
-                    </p>
-                    {a.note && <p className="mt-1 line-clamp-2 rounded-lg bg-black/10 px-2 py-1 text-xs text-white/90">{a.note}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-shrink-0">
-                  {a.lat != null ? (
-                    <a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25"><MapPin size={13} /> {km ? "ទីតាំង" : "Map"}</a>
-                  ) : (
-                    <span />
-                  )}
-                  {who?.phone ? (
-                    <a href={`tel:${who.phone}`} className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25">📞 {km ? "ហៅ" : "Call"}</a>
-                  ) : (
-                    <span />
-                  )}
-                  <form action={resolveSos.bind(null, a.id)} className="contents">
-                    <button className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-red-600 shadow hover:bg-red-50">✓ {km ? "ដោះស្រាយរួច" : "Resolved"}</button>
-                  </form>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* live SOS alerts: a small button + a sheet (the page refreshes by itself when one arrives) */}
+      <SosDock
+        km={km}
+        alerts={alerts.map((a: any) => ({ id: a.id, kind: a.kind, place: a.place, note: a.note, lat: a.lat, lng: a.lng, created_at: a.created_at, name: senderOf.get(a.user_id)?.full_name ?? "Admin", phone: senderOf.get(a.user_id)?.phone ?? null, own: a.user_id === userId }))}
+      />
 
+      {!bare && (
+        <>
       {/* page title */}
       <header className="relative overflow-hidden bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white">
         <svg viewBox="0 0 400 200" className="pointer-events-none absolute -right-16 -top-16 h-72 w-[28rem] opacity-[0.07]" aria-hidden>
@@ -172,8 +134,10 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
         </div>
       </header>
 
-      <main className="relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>
-      <StaffBottomNav items={items} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />
+        </>
+      )}
+      {bare ? <main className={`relative mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col ${hideBottomNav ? "" : "pb-[4.5rem] md:pb-0"}`}>{children}</main> : <main className="relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>}
+      {!hideBottomNav && <StaffBottomNav items={items} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />}
     </div>
   );
 }

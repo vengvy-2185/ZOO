@@ -120,27 +120,27 @@ export function GlobalStaffSound() {
     <>
       {/* outside the staff area (admin, public pages) there is no red bar, so show one here */}
       {!onStaff && inAlert.length > 0 && (
-        <Link href="/staff/sos" className="fixed inset-x-3 top-3 z-[70] mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-red-600 px-4 py-3 text-white shadow-lift ring-4 ring-white/60">
+        <Link href="/staff" className="fixed bottom-24 left-4 z-[70] flex max-w-[20rem] items-center gap-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 py-2 pl-2 pr-4 text-white shadow-lift ring-4 ring-white/80 md:bottom-6 md:left-6">
           <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center">
             <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
             <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-red-600"><Siren size={18} /></span>
           </span>
-          <span className="min-w-0 flex-1 text-sm font-bold">
+          <span className="min-w-0 flex-1 truncate text-sm font-bold">
             SOS · {(km ? KIND_KM : KIND_EN)[inAlert[0].kind] ?? "SOS"} — {inAlert[0].name}
             {inAlert[0].place && ` · ${inAlert[0].place}`}
           </span>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-red-600">{km ? "មើល" : "Open"}</span>
+          
         </Link>
       )}
 
       {ringing && (
-        <div className="fixed bottom-24 left-1/2 z-[70] -translate-x-1/2 md:bottom-6">
+        <div className="fixed bottom-[9.5rem] left-4 z-[70] md:bottom-[5.5rem] md:left-6">
           {!ready || !soundUnlocked() ? (
-            <button onClick={() => unlockSound().then((ok) => ok && setReady(true))} className="flex animate-bounce items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-extrabold text-white shadow-lift ring-4 ring-white">
-              <BellRing size={18} /> {km ? "ចុចដើម្បីបើកសំឡេង SOS" : "Tap to turn on SOS sound"}
+            <button onClick={() => unlockSound().then((ok) => ok && setReady(true))} className="flex animate-[gwzPop_.4s_ease-out_both] items-center gap-2 whitespace-nowrap rounded-full bg-red-600 px-4 py-2 text-xs font-extrabold text-white shadow-lift ring-4 ring-white/80">
+              <BellRing size={15} className="animate-pulse" /> {km ? "ចុចដើម្បីបើកសំឡេង SOS" : "Tap to turn on SOS sound"}
             </button>
           ) : (
-            <button onClick={silence} className="flex items-center gap-2 rounded-full bg-forest px-5 py-3 text-sm font-extrabold text-white shadow-lift ring-4 ring-white">
+            <button onClick={silence} className="flex items-center gap-2 whitespace-nowrap rounded-full bg-forest px-4 py-2 text-xs font-extrabold text-white shadow-lift ring-4 ring-white/80">
               <VolumeX size={18} /> {km ? "បិទសំឡេង" : "Silence"}
               <span className="relative ml-1 flex h-2.5 w-2.5"><span className="absolute inset-0 animate-ping rounded-full bg-red-400" /><span className="relative h-2.5 w-2.5 rounded-full bg-red-500" /></span>
             </button>
