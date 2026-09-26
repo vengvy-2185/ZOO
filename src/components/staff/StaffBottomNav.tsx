@@ -3,17 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, LayoutGrid, X, Package, HandHeart, ListChecks, Archive, NotebookPen, MessagesSquare } from "lucide-react";
+import { Home, LayoutGrid, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { STAFF_ICONS } from "./StaffNav";
 import type { StaffNavItem } from "./StaffNav";
 
-const ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, kudos: HandHeart, tasks: ListChecks, lost: Archive, handover: NotebookPen, chat: MessagesSquare };
+const ICONS = STAFF_ICONS;
 
 /**
  * Phones: the staff menu sits at the bottom of the screen (thumb reach):
  * Home · Scan attendance · the main tool · Me · More (everything else in a sheet).
  */
-export function StaffBottomNav({ items, moreLabel, closeLabel }: { items: StaffNavItem[]; moreLabel: string; closeLabel: string }) {
+export function StaffBottomNav({ items, groups, moreLabel, closeLabel }: { items: StaffNavItem[]; groups: Record<StaffNavItem["group"], string>; moreLabel: string; closeLabel: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
@@ -22,7 +23,7 @@ export function StaffBottomNav({ items, moreLabel, closeLabel }: { items: StaffN
 
   const pick = (k: string) => items.find((i) => i.key === k);
   const mainTool = items.find((i) => i.group === "tools") ?? pick("team") ?? pick("pay");
-  const bar = [pick("home"), pick("checkin") ?? pick("team"), mainTool, pick("profile")].filter((x, i, a): x is StaffNavItem => Boolean(x) && a.findIndex((y) => y?.key === x!.key) === i);
+  const bar = [pick("home"), pick("chat"), mainTool, pick("checkin") ?? pick("roster")].filter((x, i, a): x is StaffNavItem => Boolean(x) && a.findIndex((y) => y?.key === x!.key) === i);
   const moreOn = !bar.some((b) => isOn(b.href)) && items.some((i) => isOn(i.href));
 
   return (
@@ -35,15 +36,26 @@ export function StaffBottomNav({ items, moreLabel, closeLabel }: { items: StaffN
               <span className="mx-auto h-1.5 w-12 rounded-full bg-black/10" />
               <button onClick={() => setOpen(false)} className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F5FF] text-[#1E3A8A]" aria-label={closeLabel}><X size={18} /></button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {items.map((n) => {
-                const Icon = ICONS[n.key as keyof typeof ICONS] ?? Home;
-                const on = isOn(n.href);
+            <div className="max-h-[65dvh] space-y-4 overflow-y-auto">
+              {(["main", "tools", "team", "me"] as const).map((g) => {
+                const list = items.filter((n) => n.group === g);
+                if (!list.length) return null;
                 return (
-                  <Link key={n.key} href={n.href} className={cn("flex flex-col items-center gap-1.5 rounded-2xl p-2.5 text-center text-[11px] font-bold leading-tight", on ? "bg-[#1D4ED8] text-white" : "bg-[#F8FAFF] text-[#1E3A8A] ring-1 ring-[#2563EB]/10")}>
-                    <Icon size={22} />
-                    {n.label}
-                  </Link>
+                  <div key={g}>
+                    <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-ink/40">{groups[g]}</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {list.map((n) => {
+                        const Icon = ICONS[n.key as keyof typeof ICONS] ?? Home;
+                        const on = isOn(n.href);
+                        return (
+                          <Link key={n.key} href={n.href} className={cn("flex flex-col items-center gap-1.5 rounded-2xl p-2.5 text-center text-[11px] font-bold leading-tight", on ? "bg-[#1D4ED8] text-white" : "bg-[#F8FAFF] text-[#1E3A8A] ring-1 ring-[#2563EB]/10")}>
+                            <Icon size={22} />
+                            {n.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>

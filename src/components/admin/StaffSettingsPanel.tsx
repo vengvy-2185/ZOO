@@ -84,7 +84,6 @@ export function StaffSettingsPanel({ s, km, usingDefault }: { s: StaffSettings; 
 
         <Card Icon={SlidersHorizontal} title={L.numbers}>
           <div className="grid gap-3 sm:grid-cols-2">
-            {n("kudos_per_day", L.kudos, 1, 100)}
             {n("default_leave_quota", L.leave, 0, 365)}
             {n("handover_new_hours", L.handover, 1, 168)}
             {n("task_keep_days", L.tasks, 1, 60)}

@@ -45,6 +45,20 @@ export function GlobalStaffSound() {
   const allowed = useRef(false);
 
   useEffect(() => setMuted(get(MUTED)), []);
+  // keep the sound prompt just above the SOS button, wherever it was dragged
+  const [sosPos, setSosPos] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const read = () => {
+      try {
+        setSosPos(JSON.parse(localStorage.getItem("gwz_sos_pos") ?? "null"));
+      } catch {
+        /* ignore */
+      }
+    };
+    read();
+    window.addEventListener("gwz-sos-move", read);
+    return () => window.removeEventListener("gwz-sos-move", read);
+  }, []);
   // one tap anywhere switches sound on
   useEffect(() => {
     const on = () => unlockSound().then((ok) => ok && setReady(true));
@@ -134,7 +148,7 @@ export function GlobalStaffSound() {
       )}
 
       {ringing && (
-        <div className="fixed bottom-[9.5rem] left-4 z-[70] md:bottom-[5.5rem] md:left-6">
+        <div className="fixed z-[70]" style={sosPos ? { left: sosPos.x, top: Math.max(8, sosPos.y - 48) } : { left: 16, bottom: 152 }}>
           {!ready || !soundUnlocked() ? (
             <button onClick={() => unlockSound().then((ok) => ok && setReady(true))} className="flex animate-[gwzPop_.4s_ease-out_both] items-center gap-2 whitespace-nowrap rounded-full bg-red-600 px-4 py-2 text-xs font-extrabold text-white shadow-lift ring-4 ring-white/80">
               <BellRing size={15} className="animate-pulse" /> {km ? "ចុចដើម្បីបើកសំឡេង SOS" : "Tap to turn on SOS sound"}

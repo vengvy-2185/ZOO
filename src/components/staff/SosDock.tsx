@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Siren, X, MapPin, Phone, CheckCircle2, Stethoscope, PawPrint, ShieldAlert, Flame, Baby } from "lucide-react";
 import { resolveSos } from "@/app/staff/(protected)/actions";
 import { cn } from "@/lib/utils/cn";
 
 export type DockAlert = { id: string; kind: string; place: string | null; note: string | null; lat: number | null; lng: number | null; created_at: string; name: string; phone: string | null; own: boolean };
+
+export const POS_KEY = "gwz_sos_pos";
 
 const KINDS: Record<string, { Icon: typeof Siren; en: string; km: string }> = {
   medical: { Icon: Stethoscope, en: "Someone is hurt", km: "មានអ្នករបួស/ឈឺ" },
@@ -41,6 +43,55 @@ export function SosDock({ alerts, km }: { alerts: DockAlert[]; km: boolean }) {
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
+
+  // drag the button anywhere; the spot is remembered on this device
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const clamp = (x: number, y: number) => {
+    const w = btn.current?.offsetWidth ?? 150;
+    const h = btn.current?.offsetHeight ?? 56;
+    return { x: Math.min(Math.max(8, x), window.innerWidth - w - 8), y: Math.min(Math.max(8, y), window.innerHeight - h - 8) };
+  };
+  useEffect(() => {
+    let p: { x: number; y: number } | null = null;
+    try {
+      p = JSON.parse(localStorage.getItem(POS_KEY) ?? "null");
+    } catch {
+      /* ignore */
+    }
+    setPos(clamp(p?.x ?? 16, p?.y ?? window.innerHeight - (window.innerWidth < 768 ? 160 : 90)));
+    const fit = () => setPos((q) => (q ? clamp(q.x, q.y) : q));
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts.length > 0]);
+  const onDown = (e: React.PointerEvent) => {
+    if (!pos) return;
+    drag.current = { sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y, moved: false };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) < 6) return;
+    d.moved = true;
+    setPos(clamp(d.ox + dx, d.oy + dy));
+  };
+  const onUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    if (!d.moved) return setOpen(true);
+    try {
+      if (pos) localStorage.setItem(POS_KEY, JSON.stringify(pos));
+      window.dispatchEvent(new Event("gwz-sos-move"));
+    } catch {
+      /* ignore */
+    }
+  };
   if (!alerts.length) return null;
   const first = KINDS[alerts[0].kind] ?? KINDS.other;
   const ago = (iso: string) => {
@@ -52,9 +103,15 @@ export function SosDock({ alerts, km }: { alerts: DockAlert[]; km: boolean }) {
     <>
       {/* the small button */}
       <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-24 left-4 z-[65] flex items-center gap-2 rounded-full bg-gradient-to-r from-red-600 to-rose-600 py-2 pl-2 pr-4 text-white shadow-lift ring-4 ring-white/80 transition hover:scale-105 active:scale-95 md:bottom-6 md:left-6"
+        ref={btn}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}
+        style={pos ? { left: pos.x, top: pos.y } : { left: 16, bottom: 96 }}
+        className="fixed z-[65] flex touch-none select-none items-center gap-2 rounded-full bg-gradient-to-r from-red-600 to-rose-600 py-2 pl-2 pr-4 text-white shadow-lift ring-4 ring-white/80 active:scale-95"
         aria-label="SOS"
+        title={km ? "ចុចដើម្បីមើល · អូសដើម្បីផ្លាស់ទីតាំង" : "Tap to open · drag to move"}
       >
         <span className="relative flex h-9 w-9 items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-white/50" />

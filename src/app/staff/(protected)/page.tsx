@@ -60,18 +60,6 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
   const X = km
     ? { bookings: "ការកក់ថ្ងៃនេះ", bookingsT: "ស្វែងរកសំបុត្រ មើលអ្នកបានបង់ និងបានចូល", board: "ផ្ទាំងចំណី", boardT: "សត្វណាមិនទាន់បានចំណីថ្ងៃនេះ", schedule: "កម្មវិធីថ្ងៃនេះ", scheduleT: "កម្មវិធីសម្តែង និងការផ្តល់ចំណី តាមម៉ោង", cleaning: "បញ្ជីសម្អាត", cleaningT: "ធីកតំបន់ និងសេវាកម្មដែលសម្អាតរួច", reports: "របាយការណ៍", reportsT: "តួលេខថ្ងៃនេះ និង ៧ ថ្ងៃចុងក្រោយ" }
     : { bookings: "Today's bookings", bookingsT: "Find tickets, see who paid and who's in", board: "Feeding board", boardT: "Which animals still need feeding today", schedule: "Today's programme", scheduleT: "Shows and feedings by the clock", cleaning: "Cleaning checklist", cleaningT: "Tick zones and facilities as they're cleaned", reports: "Reports", reportsT: "Today's numbers and the last 7 days" };
-  // one look for every tool: blue icon tiles
-  const tools = [
-    access.perms.has("tickets") && { href: "/staff/scanner", icon: ScanLine, title: L.scanner, text: L.scannerT },
-    access.perms.has("tickets") && { href: "/staff/gate", icon: UserRoundPlus, title: L.gate, text: L.gateT },
-    access.perms.has("tickets") && { href: "/staff/bookings", icon: Ticket, title: X.bookings, text: X.bookingsT },
-    access.perms.has("animals") && { href: "/staff/animals", icon: PawPrint, title: L.animals, text: L.animalsT },
-    access.perms.has("animals") && { href: "/staff/animals?tab=board", icon: CheckCircle2, title: X.board, text: X.boardT },
-    access.perms.has("guide") && { href: "/staff/schedule", icon: MapIcon, title: X.schedule, text: X.scheduleT },
-    access.perms.has("cleaning") && { href: "/staff/cleaning", icon: Sparkles, title: X.cleaning, text: X.cleaningT },
-    access.perms.has("reports") && { href: "/staff/reports", icon: BarChart3, title: X.reports, text: X.reportsT },
-    { href: "/staff/issues", icon: Wrench, title: km ? "រាយការណ៍បញ្ហា" : "Report a problem", text: access.perms.has("reports") && openIssues ? (km ? `${openIssues} បញ្ហាកំពុងរង់ចាំ` : `${openIssues} waiting to be fixed`) : km ? "អ្វីខូច កខ្វក់ ឬគ្រោះថ្នាក់" : "Broken, dirty or unsafe? Tell us" },
-  ].filter(Boolean) as { href: string; icon: any; title: string; text: string }[];
   const time = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
   const date = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { day: "numeric", month: "short", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
   const todayLong = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date());
@@ -162,20 +150,9 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
 
       <MySection userId={userId} perms={access.perms} km={km} />
 
-      {/* tools + quick links */}
+      {/* leave + today's numbers (the tools themselves are in the menu) */}
       <section>
-        <h2 className="mb-3 font-display text-xl font-extrabold text-forest">{L.tools}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {tools.map((t) => (
-            <Link key={t.href} href={t.href} className="group card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] text-white shadow-soft"><t.icon size={26} /></span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-display text-lg font-extrabold text-forest">{t.title}</span>
-                <span className="block text-xs text-ink/55">{t.text}</span>
-              </span>
-              <ChevronRight size={18} className="text-ink/25 transition group-hover:translate-x-0.5 group-hover:text-ink/60" />
-            </Link>
-          ))}
           {access.staff && (
             <Link href="/staff/leave" className="group card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
               <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8]"><CalendarOff size={26} /></span>
@@ -201,7 +178,6 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
               </div>
             </div>
           )}
-          {tools.length === 0 && !reports && !access.staff && <p className="card p-5 text-sm text-ink/60">{L.noTools}</p>}
         </div>
       </section>
 

@@ -11,6 +11,7 @@ import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
 import { StaffNav, type StaffNavItem } from "./StaffNav";
 import { StaffBottomNav } from "./StaffBottomNav";
 import { SosDock } from "./SosDock";
+import { AppFrame } from "./AppFrame";
 
 /** Kept for the pages' `active` prop; the menu itself highlights from the address. */
 export type StaffNavKey = StaffNavItem["key"];
@@ -37,21 +38,15 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
   const senderOf = new Map((senders ?? []).map((x: any) => [x.user_id, x]));
 
   const T = km
-    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", kudos: "ពាក្យអរគុណ", chat: "ជជែកក្រុម", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
-    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", kudos: "Thanks", chat: "Team chat", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
+    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "វត្តមានខ្ញុំ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", roster: "កាលវិភាគ", chat: "ជជែកក្រុម", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
+    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "My attendance", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", roster: "Schedule", chat: "Team chat", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
 
   const items: StaffNavItem[] = (
     [
       ["home", "/staff", "main", true],
-      ["checkin", "/staff/checkin", "main", isStaff],
-      ["team", "/staff/team", "main", access.admin || can("reports")],
       ["chat", "/staff/chat", "main", true],
       ["tasks", "/staff/tasks", "main", true],
-      ["issues", "/staff/issues", "main", true],
-      ["supplies", "/staff/supplies", "main", true],
-      ["kudos", "/staff/kudos", "main", true],
-      ["handover", "/staff/handover", "main", true],
-      ["lost", "/staff/lost", "main", true],
+      ["roster", "/staff/roster", "main", true],
       ["scanner", "/staff/scanner", "tools", can("tickets")],
       ["gate", "/staff/gate", "tools", can("tickets")],
       ["bookings", "/staff/bookings", "tools", can("tickets")],
@@ -59,6 +54,12 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
       ["schedule", "/staff/schedule", "tools", can("guide")],
       ["cleaning", "/staff/cleaning", "tools", can("cleaning")],
       ["reports", "/staff/reports", "tools", can("reports")],
+      ["checkin", "/staff/checkin", "team", isStaff],
+      ["team", "/staff/team", "team", access.admin || can("reports")],
+      ["issues", "/staff/issues", "team", true],
+      ["supplies", "/staff/supplies", "team", true],
+      ["handover", "/staff/handover", "team", true],
+      ["lost", "/staff/lost", "team", true],
       ["attendance", "/staff/attendance", "me", isStaff],
       ["leave", "/staff/leave", "me", isStaff],
       ["pay", "/staff/pay", "me", isStaff],
@@ -69,9 +70,9 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
     .map(([key, href, group]) => ({ key, href, group, label: T[key] }));
 
   return (
-    <div className={bare ? "flex h-[100dvh] flex-col overflow-hidden bg-[#F4F7FF]" : "min-h-screen bg-[#F4F7FF] pb-28 md:pb-14"}>
+    <Frame bare={bare}>
       {/* pinned top bar + menu */}
-      <div className="sticky top-0 z-40 bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] text-white shadow-[0_8px_24px_-12px_rgba(30,58,138,0.6)]">
+      <div className={`sticky top-0 z-40 bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] text-white shadow-[0_8px_24px_-12px_rgba(30,58,138,0.6)] ${bare && hideBottomNav ? "hidden md:block" : ""}`}>
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 md:px-8">
           <Link href="/staff" className="flex min-w-0 items-center gap-2.5">
             <span className="flex-shrink-0 rounded-full bg-white p-0.5 shadow-soft"><LogoMark className="h-8 w-8" /></span>
@@ -109,7 +110,7 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
         </div>
         {/* computers: tabs under the top bar · phones: a bar at the bottom */}
         <div className="hidden md:block">
-          <StaffNav items={items} />
+          <StaffNav items={items} groups={km ? { tools: "ការងារ", team: "ក្រុម", me: "ខ្ញុំ" } : { tools: "Work", team: "Team", me: "Me" }} />
         </div>
       </div>
 
@@ -137,7 +138,12 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
         </>
       )}
       {bare ? <main className={`relative mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col ${hideBottomNav ? "" : "pb-[4.5rem] md:pb-0"}`}>{children}</main> : <main className="relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>}
-      {!hideBottomNav && <StaffBottomNav items={items} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />}
-    </div>
+      {!hideBottomNav && <StaffBottomNav items={items} groups={km ? { main: "សំខាន់", tools: "ការងារ", team: "ក្រុម", me: "ខ្ញុំ" } : { main: "Main", tools: "Work", team: "Team", me: "Me" }} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />}
+    </Frame>
   );
+}
+
+/** Normal pages scroll; "bare" pages (chat) fill exactly the visible screen. */
+function Frame({ bare, children }: { bare: boolean; children: React.ReactNode }) {
+  return bare ? <AppFrame className="flex flex-col overflow-hidden bg-[#F4F7FF]">{children}</AppFrame> : <div className="min-h-screen bg-[#F4F7FF] pb-28 md:pb-14">{children}</div>;
 }

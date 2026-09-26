@@ -19,7 +19,7 @@ export async function MySection({ userId, perms, km }: { userId: string; perms: 
   const has = (p: Permission) => perms.has(p);
   const none = Promise.resolve({ data: [] as any[], count: 0 });
 
-  const [scans, gate, animals, fed, zones, facilities, cleanTicks, eventTicks, eventCounts, openIssues, waitingSupplies, kudos, mySupplies] = await Promise.all([
+  const [scans, gate, animals, fed, zones, facilities, cleanTicks, eventTicks, eventCounts, openIssues, waitingSupplies, mySupplies] = await Promise.all([
     has("tickets") ? db.from("visitor_checkins").select("visitors_count").eq("checked_in_by", userId).gte("checked_in_at", since) : none,
     has("tickets") ? db.from("gate_entries").select("count").eq("created_by", userId).eq("entry_date", today) : none,
     has("animals") ? db.from("animals").select("id", { count: "exact", head: true }).eq("status", "active") : none,
@@ -31,7 +31,6 @@ export async function MySection({ userId, perms, km }: { userId: string; perms: 
     has("guide") ? db.from("staff_event_counts").select("visitors").eq("day", today) : none,
     has("reports") ? db.from("staff_issues").select("id", { count: "exact", head: true }).neq("status", "done") : none,
     has("reports") ? db.from("staff_supply_requests").select("id", { count: "exact", head: true }).eq("status", "pending") : none,
-    db.from("staff_kudos").select("id", { count: "exact", head: true }).eq("to_user", userId).gte("created_at", monthStart),
     db.from("staff_supply_requests").select("status").eq("user_id", userId).in("status", ["pending", "approved"]),
   ]);
 
@@ -112,14 +111,6 @@ export async function MySection({ userId, perms, km }: { userId: string; perms: 
           <span className="min-w-0 flex-1">
             <span className="block font-display text-lg font-extrabold text-forest">{km ? "ប្រគល់វេន" : "Handover"}</span>
             <span className="line-clamp-1 block text-xs text-ink/55">{note ? `“${note.note}”` : km ? "សរសេរកំណត់ចំណាំសម្រាប់វេនបន្ទាប់" : "Leave a note for the next shift"}</span>
-          </span>
-          <ChevronRight size={18} className="text-ink/25" />
-        </Link>
-        <Link href="/staff/kudos" className="group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400 to-rose-600 text-white shadow-sm transition group-hover:scale-110"><HandHeart size={22} /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-display text-lg font-extrabold text-forest">{km ? "ពាក្យអរគុណ" : "Thanks"}</span>
-            <span className="block text-xs text-ink/55">{km ? `ទទួលបាន ${kudos.count ?? 0} ដងខែនេះ · អរគុណមិត្ត` : `${kudos.count ?? 0} this month · thank a colleague`}</span>
           </span>
           <ChevronRight size={18} className="text-ink/25" />
         </Link>
