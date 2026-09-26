@@ -12,6 +12,7 @@ import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
 import { StaffNav, type StaffNavItem } from "./StaffNav";
 import { StaffBottomNav } from "./StaffBottomNav";
+import { SoundAlerts } from "./SoundAlerts";
 
 /** Kept for the pages' `active` prop; the menu itself highlights from the address. */
 export type StaffNavKey = StaffNavItem["key"];
@@ -36,6 +37,9 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
   const senderIds = [...new Set(alerts.map((a: any) => a.user_id).filter(Boolean))];
   const { data: senders } = senderIds.length ? await createServiceRoleClient().from("staff_members").select("user_id, full_name, phone").in("user_id", senderIds) : { data: [] as any[] };
   const senderOf = new Map((senders ?? []).map((x: any) => [x.user_id, x]));
+  // my open tasks (a chime plays when a new one arrives)
+  const { data: openTasks } = await createServiceRoleClient().from("staff_tasks").select("id, assigned_to, section").eq("status", "open").limit(200);
+  const myTaskIds = (openTasks ?? []).filter((t: any) => t.assigned_to === userId || (t.section && access.perms.has(t.section))).map((t: any) => t.id as string);
 
   const T = km
     ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", kudos: "ពាក្យអរគុណ", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
@@ -157,6 +161,7 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
       </header>
 
       <main className="relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>
+      <SoundAlerts km={km} alertIds={alerts.filter((a: any) => a.user_id !== userId).map((a: any) => a.id as string)} taskIds={myTaskIds} />
       <StaffBottomNav items={items} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />
     </div>
   );
