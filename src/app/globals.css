@@ -321,3 +321,7 @@ html.intro-on .gwz-intro {
 @keyframes gwzGrowUp { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .gwz-grow-up { transform-origin: bottom; animation: gwzGrowUp 0.9s cubic-bezier(.2,.8,.2,1) both; }
 @media (prefers-reduced-motion: reduce) { .gwz-confetti, .gwz-grow, .gwz-grow-up { animation: none; } }
+/* staff thanks: hearts float up after sending */
+@keyframes gwzFloatUp { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-160px) scale(1.1) rotate(15deg); opacity: 0; } }
+.gwz-float-up { animation: gwzFloatUp 1.6s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .gwz-float-up { animation: none; opacity: 0; } }

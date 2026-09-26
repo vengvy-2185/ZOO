@@ -190,3 +190,68 @@ export async function setIssueStatus(issueId: string, status: "open" | "in_progr
     .eq("id", issueId);
   revalidatePath("/staff/issues");
 }
+
+// ── Supplies ──────────────────────────────────────────────────────────
+export type SupplyState = { ok?: boolean; error?: string };
+const SECTIONS = ["tickets", "animals", "cleaning", "guide", "general"] as const;
+/** Ask for something your section needs (paper rolls, food, trash bags…). */
+export async function requestSupply(_prev: SupplyState, formData: FormData): Promise<SupplyState> {
+  const { id, access } = await me();
+  const section = String(formData.get("section") ?? "general") as (typeof SECTIONS)[number];
+  const item = String(formData.get("item") ?? "").trim().slice(0, 80);
+  const quantity = Math.round(Number(formData.get("quantity") ?? 1));
+  const note = String(formData.get("note") ?? "").trim().slice(0, 300);
+  if (!SECTIONS.includes(section) || !item || !Number.isFinite(quantity) || quantity < 1 || quantity > 9999) return { error: "invalid" };
+  // your own section's list only (general is for everyone)
+  if (section !== "general" && !access.perms.has(section)) return { error: "invalid" };
+  const { error } = await createServiceRoleClient().from("staff_supply_requests").insert({ user_id: id, section, item, quantity, urgent: formData.get("urgent") === "on", note: note || null });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/supplies");
+  return { ok: true };
+}
+/** Managers / admins: approve, deliver or refuse a request. The asker may cancel (delete) their own while it waits. */
+export async function setSupplyStatus(requestId: string, status: "pending" | "approved" | "delivered" | "rejected" | "cancel") {
+  const { id, access } = await me();
+  const db = createServiceRoleClient();
+  if (status === "cancel") {
+    await db.from("staff_supply_requests").delete().eq("id", requestId).eq("user_id", id).eq("status", "pending");
+  } else {
+    if (!access.admin && !access.perms.has("reports")) throw new Error("Only managers can do this.");
+    await db.from("staff_supply_requests").update({ status, handled_by: status === "pending" ? null : id, handled_at: status === "pending" ? null : new Date().toISOString() }).eq("id", requestId);
+  }
+  revalidatePath("/staff/supplies");
+}
+
+// ── Thanks between colleagues ─────────────────────────────────────────
+export type KudosState = { ok?: boolean; error?: string };
+const BADGES = ["helpful", "teamwork", "fast", "kind", "star"];
+export async function sendKudos(_prev: KudosState, formData: FormData): Promise<KudosState> {
+  const { id } = await me();
+  const to = String(formData.get("to_user") ?? "");
+  const badge = String(formData.get("badge") ?? "");
+  const message = String(formData.get("message") ?? "").trim().slice(0, 200);
+  if (!/^[0-9a-f-]{36}$/i.test(to) || to === id || !BADGES.includes(badge)) return { error: "invalid" };
+  const db = createServiceRoleClient();
+  const { data: person } = await db.from("staff_members").select("user_id").eq("user_id", to).eq("status", "active").maybeSingle();
+  if (!person) return { error: "invalid" };
+  // at most 10 thanks a day each, so it stays meaningful
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  const { count } = await db.from("staff_kudos").select("id", { count: "exact", head: true }).eq("from_user", id).gte("created_at", `${today}T00:00:00+07:00`);
+  if ((count ?? 0) >= 10) return { error: "limit" };
+  const { error } = await db.from("staff_kudos").insert({ from_user: id, to_user: to, badge, message: message || null });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/kudos");
+  revalidatePath("/staff");
+  return { ok: true };
+}
+
+// ── Guides: visitors at each show ─────────────────────────────────────
+export async function saveEventCount(ref: string, formData: FormData) {
+  const { id, access } = await me();
+  if (!access.perms.has("guide")) throw new Error("Not allowed for your position.");
+  const visitors = Math.round(Number(formData.get("visitors") ?? ""));
+  if (!/^[\w-]{1,64}$/.test(ref) || !Number.isFinite(visitors) || visitors < 0 || visitors > 5000) return;
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  await createServiceRoleClient().from("staff_event_counts").upsert({ day, ref, visitors, user_id: id, updated_at: new Date().toISOString() });
+  revalidatePath("/staff/schedule");
+}

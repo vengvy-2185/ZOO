@@ -6,6 +6,7 @@ import { staffAccess, payroll, thisMonth, openShift, staffTitle, leaveUsage } fr
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
+import { MySection } from "@/components/staff/MySection";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { clockIn, clockOut } from "./actions";
 import { getAttendanceSettings } from "@/lib/server/attendance";
@@ -158,6 +159,8 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
           </Link>
         </div>
       )}
+
+      <MySection userId={userId} perms={access.perms} km={km} />
 
       {/* tools + quick links */}
       <section>
