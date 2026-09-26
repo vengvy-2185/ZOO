@@ -307,3 +307,17 @@ html.intro-on .gwz-intro {
   transition: opacity .25s ease, padding .25s ease, background .25s ease;
 }
 .side-tab:hover, .side-tab:focus-visible { opacity: 1; padding-right: 0.75rem; background: rgba(255, 255, 255, 0.7); }
+
+/* birthday confetti: small pieces falling behind the "Happy birthday" card */
+@keyframes gwzConfetti {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(260px) rotate(540deg); opacity: 0; }
+}
+.gwz-confetti { animation: gwzConfetti 3.2s linear infinite; }
+/* bars that grow in from zero on the stats pages */
+@keyframes gwzGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.gwz-grow { transform-origin: left; animation: gwzGrow 0.9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes gwzGrowUp { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.gwz-grow-up { transform-origin: bottom; animation: gwzGrowUp 0.9s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .gwz-confetti, .gwz-grow, .gwz-grow-up { animation: none; } }

@@ -13,6 +13,7 @@ import { HeroWildlife, Butterflies } from "@/components/visitor/JungleAmbience";
 import { TodayAtZoo } from "@/components/visitor/EventsSchedule";
 import { TodayConditions } from "@/components/visitor/TodayConditions";
 import { AnimalOfTheDay } from "@/components/visitor/AnimalOfTheDay";
+import { DiscoverMore } from "@/components/visitor/DiscoverMore";
 import { OpenStatus } from "@/components/visitor/OpenStatus";
 import { CountUp } from "@/components/visitor/CountUp";
 import { FactsCarousel, type Fact } from "@/components/visitor/FactsCarousel";
@@ -233,6 +234,7 @@ export default async function HomePage() {
         <TodayAtZoo />
         <TodayConditions />
         <AnimalOfTheDay />
+        <DiscoverMore />
 
         {/* ───────────── POPULAR ANIMALS ───────────── */}
         <section>

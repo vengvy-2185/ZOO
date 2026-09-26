@@ -111,7 +111,7 @@ export async function saveAttendanceSettings(formData: FormData) {
       require_location: formData.get("require_location") === "on",
       late_fee: num("late_fee", 0, 0, 1000),
       absence_fee: num("absence_fee", 0, 0, 1000),
-      ...(/^d{4}-d{2}-d{2}$/.test(str(formData, "tracking_from")) ? { tracking_from: str(formData, "tracking_from") } : {}),
+      ...(/^\d{4}-\d{2}-\d{2}$/.test(str(formData, "tracking_from")) ? { tracking_from: str(formData, "tracking_from") } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", 1);

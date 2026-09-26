@@ -138,7 +138,7 @@ export function NavbarClient({
                 {t.nav.more} <ChevronDown size={15} className={cn("transition-transform", moreOpen && "rotate-180")} />
               </button>
               <div className={cn("absolute right-0 top-full z-50 pt-3 transition", moreOpen ? "visible opacity-100" : "invisible -translate-y-1 opacity-0")}>
-                <div className="grid w-[min(46rem,calc(100vw-3rem))] grid-cols-3 gap-2 rounded-3xl bg-white p-3 shadow-lift ring-1 ring-black/5">
+                <div className="grid w-[min(60rem,calc(100vw-3rem))] grid-cols-4 gap-2 rounded-3xl bg-white p-3 shadow-lift ring-1 ring-black/5">
                   {MORE_GROUPS.map((g, gi) => (
                     <div key={g.key} className={cn("min-w-0 p-1", gi > 0 && "border-l border-black/5 pl-3")}>
                       <p className="px-2 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-wider text-ink/40">{t.nav[g.key]}</p>
