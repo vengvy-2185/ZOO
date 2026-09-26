@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import jsQR from "jsqr";
-import { CheckCircle2, XCircle, AlertTriangle, Users, CalendarDays, Keyboard, UserRoundPlus, Loader2, ScanLine } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Users, CalendarDays, UserRoundPlus, Loader2, ScanLine } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
@@ -100,7 +100,6 @@ export default function ScannerPage() {
   const [cameraOk, setCameraOk] = useState(true);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [manual, setManual] = useState("");
   const [count, setCount] = useState(0);
   const [pay, setPay] = useState<PayHere | null>(null);
   const km = locale === "km";
@@ -341,25 +340,10 @@ export default function ScannerPage() {
           </div>
         )}
 
-        {/* Manual entry */}
-        <form
-          className="mt-4 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (manual.trim()) scan(manual.trim());
-          }}
-        >
-          <div className="relative flex-1">
-            <Keyboard size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-            <input
-              placeholder={L.manual}
-              value={manual}
-              onChange={(e) => setManual(e.target.value)}
-              className="w-full rounded-2xl bg-white/10 py-3 pl-9 pr-3 text-sm outline-none placeholder:text-white/40 focus:ring-2 focus:ring-[#93C5FD]"
-            />
-          </div>
-          <button className="rounded-2xl bg-[#3B82F6] px-5 text-sm font-extrabold text-white">{L.check}</button>
-        </form>
+        {/* No typing a code by hand: a ticket gets in only by scanning its QR */}
+        <p className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-center text-sm font-semibold text-white/75">
+          <ScanLine size={16} /> {km ? "ភ្ញៀវអាចចូលបាន លុះត្រាតែស្កេន QR លើសំបុត្រ" : "Visitors get in only by scanning the QR on their ticket"}
+        </p>
       </main>
     </div>
   );

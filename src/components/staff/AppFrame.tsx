@@ -3,11 +3,11 @@
 import { useEffect, useRef } from "react";
 
 /**
- * A full-screen frame that matches the part of the screen you can see.
- * On phones the keyboard shrinks the visible area; this keeps the chat
- * header on top and the typing box right above the keyboard. The page
- * itself is locked (no scrolling behind), and the size is set straight on
- * the element once per frame, so it doesn't shake while the keyboard opens.
+ * A full-screen frame for the chat. Normally it is simply the full screen
+ * (100dvh). While you type, the phone keyboard covers part of the screen,
+ * so the frame shrinks to the visible part: the header stays on top and the
+ * typing box sits right above the keyboard. When the keyboard closes it goes
+ * back to the full screen. The page behind is locked so nothing jumps.
  */
 export function AppFrame({ className, children }: { className?: string; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -20,25 +20,42 @@ export function AppFrame({ className, children }: { className?: string; children
     body.style.overscrollBehavior = "none";
 
     const vv = window.visualViewport;
+    const typing = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT");
+    };
     let raf = 0;
     const fit = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const el = ref.current;
         if (!el) return;
-        const h = vv ? vv.height : window.innerHeight;
-        el.style.height = `${Math.round(h)}px`;
-        // iOS may still nudge the page when the keyboard opens: put it back
+        // keyboard open → the visible part; otherwise the whole screen
+        const keyboard = vv && typing() && vv.height < window.innerHeight - 80;
+        el.style.height = keyboard ? `${Math.round(vv!.height)}px` : "100dvh";
         if (window.scrollY !== 0) window.scrollTo(0, 0);
       });
+    };
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // the keyboard animates in/out: look again a few times
+    const settle = () => {
+      fit();
+      timers.forEach(clearTimeout);
+      timers.length = 0;
+      for (const ms of [120, 300, 600]) timers.push(setTimeout(fit, ms));
     };
     fit();
     vv?.addEventListener("resize", fit);
     window.addEventListener("resize", fit);
+    document.addEventListener("focusin", settle);
+    document.addEventListener("focusout", settle);
     return () => {
       cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
       vv?.removeEventListener("resize", fit);
       window.removeEventListener("resize", fit);
+      document.removeEventListener("focusin", settle);
+      document.removeEventListener("focusout", settle);
       html.style.overflow = before.h;
       body.style.overflow = before.b;
       body.style.overscrollBehavior = before.o;

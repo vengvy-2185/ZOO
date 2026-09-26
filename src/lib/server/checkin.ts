@@ -37,8 +37,9 @@ export async function checkInTicket(rawToken: string, staffUserId: string, force
   const { data: b } = await db
     .from("bookings")
     .select("id, booking_code, visit_date, status, total_usd, visitor_name, booking_items(quantity, ticket_types(name, khmer_name)), visitor_checkins(checked_in_at)")
-    // Token from the QR, or the booking code typed by staff (charset already restricted above).
-    .or(`qr_token.eq.${token},booking_code.eq.${token.toUpperCase()}`)
+    // Only the secret token inside the ticket's QR lets someone in: a paid
+    // ticket must be scanned, a booking code typed by hand is not enough.
+    .eq("qr_token", token)
     .maybeSingle();
   if (!b) return { verdict: "invalid" };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ChevronDown, DoorOpen, Loader2, QrCode, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Loader2, QrCode, ScanLine, X } from "lucide-react";
 import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
 import { cn } from "@/lib/utils/cn";
 
@@ -18,7 +18,6 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
   const [open, setOpen] = useState(false);
   const [pay, setPay] = useState<Pay | null>(null);
   const [expires, setExpires] = useState<number | null>(null);
-  const [letting, setLetting] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [checking, setChecking] = useState(false);
 
   async function checkNow() {
@@ -33,8 +32,8 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
     } else setPay((p) => (p ? { ...p, blocked: v?.checkBlocked } : p));
   }
   const L = km
-    ? { checkNow: "ភ្ញៀវបង់រួចហើយ · ពិនិត្យឥឡូវ", checking: "កំពុងពិនិត្យ…", limit: "Bakong ឈានដល់ចំនួនពិនិត្យប្រចាំថ្ងៃ។ ប្រាក់បានចូលគណនីរបស់អ្នក ប៉ុន្តែប្រព័ន្ធនឹងបញ្ជាក់ដោយស្វ័យប្រវត្តិ ពេលពិនិត្យលើកដំបូងនៅថ្ងៃស្អែក។", details: "ព័ត៌មានលម្អិត", pay: "បង់ទីនេះ (KHQR)", letIn: "ឲ្យចូល", letting: "កំពុង…", in: "បានឲ្យចូល", scan: "ឲ្យភ្ញៀវស្កេនដោយ app ធនាគារ", wait: "រង់ចាំ Bakong បញ្ជាក់…", paid: "បានទទួលប្រាក់!", close: "បិទ", err: "មិនអាចបង្កើត KHQR បានទេ។", left: "នៅសល់", notInToday: "មិនអាចឲ្យចូលបានទេ (ពិនិត្យថ្ងៃ)" }
-    : { checkNow: "Visitor has paid · check now", checking: "Checking…", limit: "Bakong's daily check limit is reached. The money is in your account; the system confirms it automatically at the first check tomorrow.", details: "Details", pay: "Pay here (KHQR)", letIn: "Let in", letting: "…", in: "Let in", scan: "Let the visitor scan with their bank app", wait: "Waiting for Bakong…", paid: "Payment received!", close: "Close", err: "Couldn't make a KHQR.", left: "left", notInToday: "Can't let in (check the date)" };
+    ? { checkNow: "ភ្ញៀវបង់រួចហើយ · ពិនិត្យឥឡូវ", checking: "កំពុងពិនិត្យ…", limit: "Bakong ឈានដល់ចំនួនពិនិត្យប្រចាំថ្ងៃ។ ប្រាក់បានចូលគណនីរបស់អ្នក ប៉ុន្តែប្រព័ន្ធនឹងបញ្ជាក់ដោយស្វ័យប្រវត្តិ ពេលពិនិត្យលើកដំបូងនៅថ្ងៃស្អែក។", details: "ព័ត៌មានលម្អិត", pay: "បង់ទីនេះ (KHQR)", letIn: "ឲ្យចូល", letting: "កំពុង…", in: "បានឲ្យចូល", scan: "ឲ្យភ្ញៀវស្កេនដោយ app ធនាគារ", wait: "រង់ចាំ Bakong បញ្ជាក់…", paid: "បានទទួលប្រាក់!", close: "បិទ", err: "មិនអាចបង្កើត KHQR បានទេ។", left: "នៅសល់", notInToday: "មិនអាចឲ្យចូលបានទេ (ពិនិត្យថ្ងៃ)", scanToEnter: "ស្កេនសំបុត្រដើម្បីឲ្យចូល", scanHint: "បានបង់ហើយ — ភ្ញៀវចូលបាន លុះត្រាតែស្កេន QR លើសំបុត្រ" }
+    : { checkNow: "Visitor has paid · check now", checking: "Checking…", limit: "Bakong's daily check limit is reached. The money is in your account; the system confirms it automatically at the first check tomorrow.", details: "Details", pay: "Pay here (KHQR)", letIn: "Let in", letting: "…", in: "Let in", scan: "Let the visitor scan with their bank app", wait: "Waiting for Bakong…", paid: "Payment received!", close: "Close", err: "Couldn't make a KHQR.", left: "left", notInToday: "Can't let in (check the date)", scanToEnter: "Scan ticket to let in", scanHint: "Paid — visitors get in only by scanning the ticket QR" };
 
   async function startPay() {
     setPay({ state: "loading" });
@@ -71,16 +70,6 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
   }, [pay?.state]);
   const secs = expires ? Math.max(0, Math.round((expires - now) / 1000)) : 0;
 
-  async function letIn() {
-    setLetting("busy");
-    const r = await fetch("/api/tickets/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: code }) })
-      .then((x) => x.json())
-      .catch(() => null);
-    const ok = r?.verdict === "ok" || r?.verdict === "already";
-    setLetting(ok ? "done" : "error");
-    if (ok) router.refresh();
-  }
-
   return (
     <>
       <div className="mt-3 flex gap-2">
@@ -93,12 +82,11 @@ export function BookingActions({ code, accessKey, paid, inAt, items, email, km }
           </button>
         )}
         {paid && !inAt && (
-          <button type="button" onClick={letIn} disabled={letting === "busy" || letting === "done"} className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#1D4ED8] py-2 text-xs font-bold text-white hover:bg-[#1E40AF] disabled:opacity-70">
-            {letting === "busy" ? <Loader2 size={13} className="animate-spin" /> : letting === "done" ? <CheckCircle2 size={13} /> : <DoorOpen size={13} />} {letting === "done" ? L.in : L.letIn}
-          </button>
+          <a href="/staff/scanner" className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white hover:bg-emerald-700" title={L.scanHint}>
+            <ScanLine size={13} /> {L.scanToEnter}
+          </a>
         )}
       </div>
-      {letting === "error" && <p className="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600">{L.notInToday}</p>}
       {open && (
         <div className="mt-2 space-y-1 rounded-xl bg-[#F8FAFF] p-3 text-xs text-ink/70 ring-1 ring-[#2563EB]/10">
           {items.map((i, n) => (
