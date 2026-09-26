@@ -10,13 +10,16 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 const H = { "Cache-Control": "no-store" };
 
-export async function GET() {
+export async function GET(req: Request) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ allowed: false }, { headers: H });
   const access = await staffAccess(me.id);
   if (!access.ok) return NextResponse.json({ allowed: false }, { headers: H });
   const manager = access.admin || access.perms.has("reports");
   const db = createServiceRoleClient();
+  // heartbeat: "online" in the team chat
+  const path = (new URL(req.url).searchParams.get("p") ?? "").slice(0, 80);
+  await db.from("staff_presence").upsert({ user_id: me.id, last_seen: new Date().toISOString(), path });
   const since = new Date(Date.now() - 7 * 864e5).toISOString();
   const [s, { data: alerts }, { data: tasks }, { data: notices }, supplies, issues] = await Promise.all([
     getStaffSettings(),
@@ -28,7 +31,13 @@ export async function GET() {
   ]);
   // chat messages from others in my channels, last 2 hours
   const channels = ["all", ...(manager ? ["managers"] : []), ...(["tickets", "animals", "cleaning", "guide"] as const).filter((c) => access.admin || access.perms.has(c))];
-  const { data: msgs } = await db.from("staff_messages").select("id, user_id").in("channel", channels).gte("created_at", new Date(Date.now() - 2 * 3600e3).toISOString()).limit(60);
+  const [{ data: msgRows }, { data: reads }] = await Promise.all([
+    db.from("staff_messages").select("id, user_id, channel, created_at").in("channel", channels).gte("created_at", new Date(Date.now() - 2 * 3600e3).toISOString()).limit(60),
+    db.from("staff_chat_reads").select("channel, last_read_at").eq("user_id", me.id),
+  ]);
+  const readAt = new Map((reads ?? []).map((r: any) => [r.channel, Date.parse(r.last_read_at)]));
+  // only messages I haven't read yet
+  const msgs = (msgRows ?? []).filter((m: any) => Date.parse(m.created_at) > (readAt.get(m.channel) ?? 0));
   const mine = (alerts ?? []).filter((a: any) => manager || a.user_id === me.id);
   const ids = [...new Set(mine.map((a: any) => a.user_id).filter(Boolean))];
   const { data: who } = ids.length ? await db.from("staff_members").select("user_id, full_name").in("user_id", ids) : { data: [] as any[] };

@@ -59,7 +59,7 @@ export function GlobalStaffSound() {
   useEffect(() => {
     let alive = true;
     const load = () =>
-      fetch("/api/staff/alerts", { cache: "no-store" })
+      fetch(`/api/staff/alerts?p=${encodeURIComponent(location.pathname)}`, { cache: "no-store" })
         .then((r) => r.json())
         .then((x: Data) => {
           allowed.current = x.allowed;

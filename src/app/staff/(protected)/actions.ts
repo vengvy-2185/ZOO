@@ -385,9 +385,27 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
   const { id, access } = await me();
   const channel = String(formData.get("channel") ?? "all");
   const body = String(formData.get("body") ?? "").trim().slice(0, 1000);
-  if (!body || !canUseChannel(access, channel)) return { error: "invalid" };
-  const { error } = await createServiceRoleClient().from("staff_messages").insert({ channel, body, user_id: id });
+  const audio = formData.get("audio");
+  const hasAudio = audio instanceof File && audio.size > 0;
+  if ((!body && !hasAudio) || !canUseChannel(access, channel)) return { error: "invalid" };
+  const db = createServiceRoleClient();
+  let audio_url: string | null = null;
+  let audio_secs: number | null = null;
+  if (hasAudio) {
+    const file = audio as File;
+    if (file.size > 3 * 1024 * 1024) return { error: "too-long" };
+    const type = (file.type || "audio/webm").split(";")[0];
+    if (!/^audio\/(webm|ogg|mp4|mpeg|aac|wav|x-m4a)$/.test(type)) return { error: "type" };
+    const ext = type === "audio/mp4" || type === "audio/x-m4a" || type === "audio/aac" ? "m4a" : type === "audio/ogg" ? "ogg" : type === "audio/mpeg" ? "mp3" : type === "audio/wav" ? "wav" : "webm";
+    const path = `${channel}/${id}/${Date.now()}.${ext}`;
+    const { error: upErr } = await db.storage.from("staff-voice").upload(path, file, { contentType: type, upsert: false });
+    if (upErr) return { error: upErr.message };
+    audio_url = db.storage.from("staff-voice").getPublicUrl(path).data.publicUrl;
+    audio_secs = Math.max(1, Math.min(300, Math.round(Number(formData.get("secs")) || 1)));
+  }
+  const { data: sent, error } = await db.from("staff_messages").insert({ channel, body: body || null, user_id: id, audio_url, audio_secs }).select("created_at").single();
   if (error) return { error: error.message };
+  await db.from("staff_chat_reads").upsert({ user_id: id, channel, last_read_at: sent.created_at });
   revalidatePath("/staff/chat");
   return { ok: true, at: Date.now() };
 }

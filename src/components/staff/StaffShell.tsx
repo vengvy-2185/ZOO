@@ -116,28 +116,43 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
 
       {/* live SOS alerts (the page refreshes by itself when one arrives) */}
       {alerts.length > 0 && (
-        <div className="sticky top-[57px] z-30 space-y-1.5 bg-red-600 px-4 py-2.5 text-white shadow-lift md:top-[108px] md:px-8">
+        <div className="sticky top-[57px] z-30 space-y-3 divide-y divide-white/15 bg-gradient-to-r from-red-600 to-rose-600 px-4 py-3 text-white shadow-lift md:top-[108px] md:px-8 [&>*+*]:pt-3">
           {alerts.map((a: any) => {
             const S = SOS_KINDS[a.kind as SosKind] ?? SOS_KINDS.other;
             const who = senderOf.get(a.user_id);
             const mins = Math.max(0, Math.round((Date.now() - Date.parse(a.created_at)) / 60000));
             return (
-              <div key={a.id} className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
-                  <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-red-600"><S.Icon size={18} /></span>
-                </span>
-                <p className="min-w-0 flex-1 text-sm font-bold">
-                  SOS · {km ? S.km : S.en}
-                  <span className="font-semibold text-white/85"> — {who?.full_name ?? "Admin"}{a.place && ` · ${a.place}`}{a.note && ` · ${a.note}`} · {km ? `${mins} នាទីមុន` : `${mins} min ago`}</span>
-                </p>
-                {a.lat != null && (
-                  <a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25"><MapPin size={13} /> {km ? "ទីតាំង" : "Map"}</a>
-                )}
-                {who?.phone && <a href={`tel:${who.phone}`} className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25">📞 {who.phone}</a>}
-                <form action={resolveSos.bind(null, a.id)}>
-                  <button className="rounded-full bg-white px-3.5 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50">{km ? "ដោះស្រាយរួច" : "Resolved"}</button>
-                </form>
+              <div key={a.id} className="mx-auto flex max-w-6xl flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <span className="relative mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
+                    <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-red-600 shadow"><S.Icon size={20} /></span>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-display text-base font-extrabold leading-tight">SOS · {km ? S.km : S.en}</p>
+                    <p className="mt-0.5 text-xs font-semibold leading-snug text-white/85">
+                      {who?.full_name ?? "Admin"}
+                      {a.place && <> · 📍 {a.place}</>}
+                      <span className="whitespace-nowrap"> · {km ? `${mins} នាទីមុន` : `${mins} min ago`}</span>
+                    </p>
+                    {a.note && <p className="mt-1 line-clamp-2 rounded-lg bg-black/10 px-2 py-1 text-xs text-white/90">{a.note}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-shrink-0">
+                  {a.lat != null ? (
+                    <a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25"><MapPin size={13} /> {km ? "ទីតាំង" : "Map"}</a>
+                  ) : (
+                    <span />
+                  )}
+                  {who?.phone ? (
+                    <a href={`tel:${who.phone}`} className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/30 hover:bg-white/25">📞 {km ? "ហៅ" : "Call"}</a>
+                  ) : (
+                    <span />
+                  )}
+                  <form action={resolveSos.bind(null, a.id)} className="contents">
+                    <button className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-red-600 shadow hover:bg-red-50">✓ {km ? "ដោះស្រាយរួច" : "Resolved"}</button>
+                  </form>
+                </div>
               </div>
             );
           })}
