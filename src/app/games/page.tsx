@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Gamepad2, Palette, Layers, Puzzle, Utensils, Grid3x3, Brain, ZoomIn, ScanLine, Ruler, Ticket, ArrowRight, type LucideIcon } from "lucide-react";
+import { Gamepad2, Palette, Layers, Puzzle, Utensils, Grid3x3, Brain, ZoomIn, ScanLine, Ruler, Ticket, Camera, Mail, Cake, ArrowRight, type LucideIcon } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
 import { PageHeader } from "@/components/visitor/PageHeader";
@@ -26,7 +26,16 @@ const SECTIONS: { en: [string, string]; km: [string, string]; games: Game[] }[] 
     games: [
       { href: "/quiz", Icon: Brain, en: ["Animal Quiz", "Who is in the photo?"], km: ["ល្បែងសំណួរ", "តើសត្វអ្វីនៅក្នុងរូប?"], from: "#8CCB63", to: "#2E8B57" },
       { href: "/guess", Icon: ZoomIn, en: ["Zoom Guess", "Guess from a close-up"], km: ["ទាយពីរូបជិត", "ទាយសត្វពីរូបពង្រីក"], from: "#F59E7B", to: "#C2410C" },
+      { href: "/older", Icon: Cake, en: ["Who Is Older?", "Pick the older animal, keep your streak"], km: ["អ្នកណាចាស់ជាង?", "ជ្រើសសត្វដែលចាស់ជាង រក្សាស៊េរីឈ្នះ"], from: "#FB7185", to: "#BE123C" },
       { href: "/compare", Icon: Ruler, en: ["You vs Animals", "How big are you next to them?"], km: ["អ្នក និងសត្វ", "តើអ្នកធំប៉ុនណាបើធៀបនឹងសត្វ?"], from: "#94A3B8", to: "#475569" },
+    ],
+  },
+  {
+    en: ["Make and share", "Take photos with animals and send cards to friends."],
+    km: ["បង្កើត និងចែករំលែក", "ថតរូបជាមួយសត្វ ហើយផ្ញើកាតទៅមិត្តភក្តិ។"],
+    games: [
+      { href: "/photo-booth", Icon: Camera, en: ["Photo Booth", "Selfies with animal stickers"], km: ["ថតរូបជាមួយសត្វ", "សែលហ្វីជាមួយស្ទីគ័រសត្វ"], from: "#38BDF8", to: "#0369A1" },
+      { href: "/postcard", Icon: Mail, en: ["Animal Postcard", "Make a card and share it"], km: ["កាតប៉ុស្តាល់សត្វ", "បង្កើតកាត ហើយចែករំលែក"], from: "#FBBF24", to: "#C2410C" },
     ],
   },
   {

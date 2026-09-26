@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Menu, X, LogIn, UserPlus, User, LayoutDashboard, ScanLine, ChevronRight, ArrowRight, ChevronDown } from "lucide-react";
+import { Search, Menu, X, LogIn, UserPlus, User, LayoutDashboard, ScanLine, ChevronRight, ArrowRight, ChevronDown, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { Logo } from "./Logo";
 import { NAV_LINKS, MORE_LINKS, MORE_GROUPS, isActivePath } from "./nav-links";
@@ -138,7 +138,7 @@ export function NavbarClient({
                 {t.nav.more} <ChevronDown size={15} className={cn("transition-transform", moreOpen && "rotate-180")} />
               </button>
               <div className={cn("absolute right-0 top-full z-50 pt-3 transition", moreOpen ? "visible opacity-100" : "invisible -translate-y-1 opacity-0")}>
-                <div className="grid w-[min(60rem,calc(100vw-3rem))] grid-cols-4 gap-2 rounded-3xl bg-white p-3 shadow-lift ring-1 ring-black/5">
+                <div className="grid w-[min(46rem,calc(100vw-3rem))] grid-cols-3 gap-2 rounded-3xl bg-white p-3 shadow-lift ring-1 ring-black/5">
                   {MORE_GROUPS.map((g, gi) => (
                     <div key={g.key} className={cn("min-w-0 p-1", gi > 0 && "border-l border-black/5 pl-3")}>
                       <p className="px-2 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-wider text-ink/40">{t.nav[g.key]}</p>
@@ -160,6 +160,9 @@ export function NavbarClient({
                       ))}
                     </div>
                   ))}
+                  <Link href="/discover" onClick={() => setMoreOpen(false)} className="col-span-3 mt-1 flex items-center justify-center gap-2 rounded-2xl bg-light-green px-3 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-white">
+                    <LayoutGrid size={16} /> {t.nav.allFeatures} <ChevronRight size={15} />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -343,24 +346,34 @@ export function NavbarClient({
               })}
             </nav>
 
-            <div className="mt-1 space-y-1">
-              {MORE_LINKS.map(({ href, key, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[15px] font-semibold transition",
-                    isActivePath(pathname, href) ? "bg-primary text-white shadow-soft" : "text-forest hover:bg-white"
-                  )}
-                >
-                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", isActivePath(pathname, href) ? "bg-white/15" : "bg-light-green text-primary")}>
-                    <Icon size={17} strokeWidth={2.3} />
-                  </span>
-                  {t.nav[key]}
-                  <ChevronRight size={14} className={cn("ml-auto", isActivePath(pathname, href) ? "text-white/60" : "text-ink/25")} />
-                </Link>
-              ))}
-            </div>
+            {MORE_GROUPS.map((g) => (
+              <div key={g.key} className="mt-3">
+                <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-ink/40">{t.nav[g.key]}</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {g.links.map(({ href, key, icon: Icon }) => {
+                    const active = isActivePath(pathname, href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn(
+                          "flex min-w-0 items-center gap-2 rounded-xl p-2 text-[13px] font-semibold leading-tight transition",
+                          active ? "bg-primary text-white shadow-soft" : "bg-white text-forest shadow-sm hover:bg-light-green"
+                        )}
+                      >
+                        <span className={cn("flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg", active ? "bg-white/15" : "bg-light-green text-primary")}>
+                          <Icon size={16} strokeWidth={2.3} />
+                        </span>
+                        <span className="min-w-0">{t.nav[key]}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <Link href="/discover" className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-forest px-3 py-2.5 text-sm font-bold text-white">
+              <LayoutGrid size={16} /> {t.nav.allFeatures}
+            </Link>
 
             {dashboard && (
               <>

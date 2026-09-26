@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader, AdminTable, StatusBadge, Thumb } from "@/components/admin/ui";
 import { getEntity, REF_LABELS } from "@/lib/admin/entities";
 import { getI18n } from "@/lib/i18n/server";
+import { toggleEntityField } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,16 @@ export default async function ManageListPage({
   const cell = (row: any, c: (typeof entity.columns)[number]) => {
     const v = row[c.name];
     if (c.ref) return refMaps[c.name]?.get(v) ?? "—";
-    if (typeof v === "boolean") return <StatusBadge active={v} label={v ? (km ? "បាទ/ចាស" : "Yes") : km ? "ទេ" : "No"} />;
+    if (typeof v === "boolean") {
+      const badge = <StatusBadge active={v} label={v ? (km ? "បាទ/ចាស" : "Yes") : km ? "ទេ" : "No"} />;
+      // yes/no fields on the form can be flipped right here with one tap
+      if (!entity.fields.some((f) => f.name === c.name && f.type === "bool")) return badge;
+      return (
+        <form action={toggleEntityField.bind(null, params.entity, row.id, c.name)}>
+          <button title={km ? "ចុចដើម្បីប្តូរ" : "Tap to change"} className="rounded-full transition hover:scale-105 hover:ring-2 hover:ring-primary/30">{badge}</button>
+        </form>
+      );
+    }
     if (c.name === "color" && v) return <span className="inline-flex items-center gap-2"><span className="h-4 w-4 rounded-full ring-1 ring-black/10" style={{ background: v }} />{v}</span>;
     if (c.name === "price_usd") return `$${Number(v).toFixed(2)}`;
     if (typeof v === "string" && v.length > 90) return <span title={v}>{v.slice(0, 90)}…</span>;

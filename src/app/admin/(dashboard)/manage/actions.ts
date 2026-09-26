@@ -63,9 +63,14 @@ export async function saveEntity(entityKey: string, id: string, formData: FormDa
     if (old && old.transcript !== row.transcript && old.audio_url === row.audio_url) row.audio_url = null;
   }
 
-  const { error } = isNew
-    ? await supabase.from(entity.table).insert(row)
-    : await supabase.from(entity.table).update(row).eq("id", id);
+  let error;
+  if (isNew) ({ error } = await supabase.from(entity.table).insert(row));
+  else {
+    // RLS hides a refused update (0 rows, no error), so ask for the changed row back
+    const res = await supabase.from(entity.table).update(row).eq("id", id).select("id");
+    error = res.error;
+    if (!error && !res.data?.length) throw new Error("This item was not found, or your account is not allowed to change it.");
+  }
   if (error) throw new Error(error.code === "23505" ? "This code already exists. Please choose another one." : error.message);
 
   revalidateTag(ZOO_TAG);
@@ -87,4 +92,17 @@ export async function deleteEntity(entityKey: string, id: string) {
   revalidateTag(ZOO_TAG);
   revalidatePath("/", "layout");
   redirect(entity.listHref ? `${entity.listHref}?deleted=1` : `/admin/manage/${entityKey}?deleted=1`);
+}
+
+/** One tap in a list: flip a yes/no column (e.g. "Answered", "Visible") without opening the form. */
+export async function toggleEntityField(entityKey: string, id: string, field: string) {
+  const entity = getEntity(entityKey);
+  if (!entity || !UUID.test(id) || !entity.fields.some((f) => f.name === field && f.type === "bool")) throw new Error("Unknown item.");
+  const supabase = createClient();
+  const { data: cur } = await supabase.from(entity.table).select(field).eq("id", id).maybeSingle();
+  if (!cur) throw new Error("Not allowed.");
+  const { data, error } = await supabase.from(entity.table).update({ [field]: !(cur as any)[field] }).eq("id", id).select("id");
+  if (error || !data?.length) throw new Error(error?.message ?? "Your account is not allowed to change this.");
+  revalidateTag(ZOO_TAG);
+  revalidatePath("/", "layout");
 }

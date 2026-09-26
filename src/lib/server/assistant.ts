@@ -42,7 +42,6 @@ const WORDS = {
   myTickets: ["my ticket", "lost ticket", "find my ticket", "where is my ticket", "show qr", "សំបុត្ររបស់ខ្ញុំ", "បាត់សំបុត្រ", "រកសំបុត្រ"],
   account: ["login", "log in", "sign in", "sign up", "register", "account", "profile", "password", "change my name", "change name", "avatar", "គណនី", "ចូលគណនី", "ចុះឈ្មោះ", "ពាក្យសម្ងាត់", "ប្តូរឈ្មោះ", "ប្តូររូប", "ប្រវត្តិរូប"],
   adopt: ["adopt", "sponsor", "donate", "support an animal", "ឧបត្ថម្ភ", "បរិច្ចាគ", "ជួយសត្វ"],
-  zodiac: ["zodiac", "horoscope", "year animal", "born in the year", "ឆ្នាំកំណើត", "សត្វឆ្នាំ", "រាសី"],
   easy: ["elderly", "senior", "old people", "grandma", "grandpa", "wheelchair", "big text", "bigger text", "ចាស់ទុំ", "មនុស្សចាស់", "អក្សរធំ"],
   kidszone: ["kids zone", "តំបន់កុមារ"],
   message: ["send a message", "complain", "complaint", "lost something", "lost item", "lost and found", "email you", "ទាក់ទង", "ផ្ញើសារ", "បាត់របស់", "តវ៉ា"],
@@ -247,9 +246,6 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
       ),
       links: [{ label: L("Adopt an animal", "ឧបត្ថម្ភសត្វ"), href: animal ? `/adopt?animal=${animal.animal_code}` : "/adopt" }],
     };
-  }
-  if (has(q, WORDS.zodiac)) {
-    return { text: L("Enter your birthday to find your Khmer zodiac animal, its lucky colour, and your animal friend at the zoo.", "បញ្ចូលថ្ងៃកំណើត ដើម្បីដឹងសត្វឆ្នាំខ្មែររបស់អ្នក ពណ៌សំណាង និងមិត្តសត្វរបស់អ្នកនៅសួនសត្វ។"), links: [{ label: L("Zodiac animal", "សត្វឆ្នាំកំណើត"), href: "/zodiac" }] };
   }
   if (has(q, WORDS.easy)) {
     return { text: L("Our Easy Visit page has the key information in large text, a switch to make text bigger on every page, and it can read the page aloud.", "ទំព័រទស្សនាងាយស្រួល មានព័ត៌មានសំខាន់ៗជាអក្សរធំ ប៊ូតុងពង្រីកអក្សរលើគ្រប់ទំព័រ និងអាចអានឲ្យស្តាប់បាន។"), links: [{ label: L("Easy Visit", "ទស្សនាងាយស្រួល"), href: "/easy" }] };

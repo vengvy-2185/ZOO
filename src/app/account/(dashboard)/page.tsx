@@ -1,3 +1,4 @@
+import { TextSizeControl } from "@/components/visitor/EasyTools";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
@@ -7,7 +8,7 @@ import { getMembers, ensureCard } from "@/lib/server/members";
 import { getSiteUrl } from "@/lib/server/site-url";
 import { ClaimQuestSession } from "@/components/visitor/ClaimQuestSession";
 import { IconBadge } from "@/components/visitor/IconBadge";
-import { Medal, Search, Trophy, Star, PawPrint, Ticket, QrCode, ArrowRight, Download, Wallet, Receipt, CheckCircle2, Clock, HeartHandshake, Users, Gift } from "lucide-react";
+import { Medal, Search, Trophy, Star, PawPrint, Ticket, QrCode, ArrowRight, Download, Wallet, Receipt, CheckCircle2, Clock, HeartHandshake, Users, Gift, Accessibility } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { zooToday } from "@/lib/data/gate";
 import { formatFullDate, num } from "@/lib/utils/age";
@@ -288,6 +289,19 @@ export default async function AccountPage() {
             </span>
             <ArrowRight size={20} className="flex-shrink-0" />
           </Link>
+          {/* Easy visit: bigger text for the whole site, plus the large-print page */}
+          <section className="card p-5">
+            <h2 className="flex items-center gap-2 font-display text-xl font-bold text-forest">
+              <Accessibility size={20} className="text-primary" /> {locale === "km" ? "ទស្សនាងាយស្រួល" : "Easy visit"}
+            </h2>
+            <p className="mt-1 text-sm text-ink/60">{locale === "km" ? "ពង្រីកអក្សរលើគ្រប់ទំព័រ ឬបើកទំព័រអក្សរធំដែលអាចអានឲ្យស្តាប់។" : "Make the text bigger on every page, or open the large-print page that can read aloud."}</p>
+            <div className="mt-3">
+              <TextSizeControl />
+            </div>
+            <Link href="/easy" className="btn-outline mt-3 w-full justify-center">
+              {locale === "km" ? "បើកទំព័រអក្សរធំ" : "Open the large-print page"} <ArrowRight size={16} />
+            </Link>
+          </section>
           <section className="card p-5">
             <h2 className="flex items-center gap-2 font-display text-xl font-bold text-forest">
               <Star size={20} className="text-primary" /> {t.account.myQuest}

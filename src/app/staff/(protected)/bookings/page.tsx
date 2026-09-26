@@ -32,14 +32,34 @@ export default async function StaffBookingsPage({ searchParams }: { searchParams
     .order("created_at", { ascending: false })
     .limit(200);
   if (q) query = query.or(`booking_code.ilike.%${q.replace(/[%,()]/g, "")}%,visitor_name.ilike.%${q.replace(/[%,()]/g, "")}%`);
-  const { data } = await query;
+  // "Not paid" isn't only today: every unpaid booking from the last week and the days ahead
+  const since = new Date(`${zooToday()}T12:00:00Z`);
+  since.setUTCDate(since.getUTCDate() - 7);
+  let unpaidQuery = createServiceRoleClient()
+    .from("bookings")
+    .select("id, booking_code, qr_token, visitor_name, visitor_email, total_usd, status, pay_later, created_at, visit_date, booking_items(quantity, ticket_types(name, khmer_name)), visitor_checkins(checked_in_at)")
+    .eq("status", "pending")
+    .gte("visit_date", since.toISOString().slice(0, 10))
+    .order("visit_date", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (q) unpaidQuery = unpaidQuery.or(`booking_code.ilike.%${q.replace(/[%,()]/g, "")}%,visitor_name.ilike.%${q.replace(/[%,()]/g, "")}%`);
+  const [{ data }, { data: unpaidAll }] = await Promise.all([query, unpaidQuery]);
+  const shape = (b: any) => ({
+    ...b,
+    people: (b.booking_items ?? []).reduce((s: number, i: any) => s + i.quantity, 0),
+    inAt: ([b.visitor_checkins].flat()[0] as any)?.checked_in_at ?? null,
+  });
+  const unpaidRows = (unpaidAll ?? []).map(shape);
   const rows = (data ?? []).map((b: any) => ({
     ...b,
     people: (b.booking_items ?? []).reduce((s: number, i: any) => s + i.quantity, 0),
     inAt: ([b.visitor_checkins].flat()[0] as any)?.checked_in_at ?? null,
   }));
-  const count = { all: rows.length, paid: rows.filter((r) => r.status === "confirmed").length, unpaid: rows.filter((r) => r.status === "pending").length, in: rows.filter((r) => r.inAt).length };
-  const shown = rows.filter((r) => (f === "paid" ? r.status === "confirmed" : f === "unpaid" ? r.status === "pending" : f === "in" ? !!r.inAt : true));
+  const count = { all: rows.length, paid: rows.filter((r) => r.status === "confirmed").length, unpaid: unpaidRows.length, in: rows.filter((r) => r.inAt).length };
+  const shown = f === "unpaid" ? unpaidRows : rows.filter((r) => (f === "paid" ? r.status === "confirmed" : f === "in" ? !!r.inAt : true));
+  const otherDayUnpaid = unpaidRows.filter((r) => r.visit_date !== day).length;
+  const dateLabel = (d: string) => (d === zooToday() ? (km ? "ថ្ងៃនេះ" : "Today") : new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`)));
   const people = rows.filter((r) => r.status === "confirmed").reduce((s, r) => s + r.people, 0);
   const time = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
   const L = km
@@ -70,6 +90,17 @@ export default async function StaffBookingsPage({ searchParams }: { searchParams
         </div>
       </div>
 
+      {f !== "unpaid" && otherDayUnpaid > 0 && (
+        <Link href={href({ f: "unpaid" })} className="flex items-center gap-3 rounded-3xl bg-gradient-to-r from-amber-50 to-orange-50 p-4 ring-1 ring-amber-200 transition hover:shadow-soft">
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white"><Clock size={20} /></span>
+          <span className="min-w-0 flex-1 text-sm font-bold text-amber-900">
+            {km ? `មាន ${otherDayUnpaid} ការកក់មិនទាន់បង់ នៅថ្ងៃផ្សេងទៀត` : `${otherDayUnpaid} unpaid bookings on other days`}
+            <span className="block text-xs font-semibold text-amber-800/70">{km ? "ចុចដើម្បីមើល និងទទួលប្រាក់" : "Tap to see them and take payment"}</span>
+          </span>
+          <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-extrabold text-white">{km ? "មើល" : "View"}</span>
+        </Link>
+      )}
+      {f === "unpaid" && <p className="px-1 text-xs font-semibold text-ink/50">{km ? "បង្ហាញការកក់មិនទាន់បង់ទាំងអស់ ចាប់ពី ៧ ថ្ងៃមុន ដល់ថ្ងៃខាងមុខ។" : "Showing every unpaid booking from 7 days ago onwards."}</p>}
       <div className="grid gap-3 md:grid-cols-2">
         {shown.length === 0 && <p className="card p-8 text-center text-sm text-ink/55 md:col-span-2">{L.none}</p>}
         {shown.map((b) => {
@@ -81,7 +112,10 @@ export default async function StaffBookingsPage({ searchParams }: { searchParams
                   {b.inAt ? <CheckCircle2 size={20} /> : paid ? <Ticket size={20} /> : <XCircle size={20} />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-mono text-sm font-extrabold text-forest">{b.booking_code}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-extrabold text-forest">
+                    {b.booking_code}
+                    {b.visit_date && b.visit_date !== day && <span className="rounded-full bg-amber-100 px-2 py-0.5 font-sans text-[11px] font-extrabold text-amber-800">{dateLabel(b.visit_date)}</span>}
+                  </p>
                   <p className="truncate text-sm text-ink/70">{b.visitor_name || "—"}</p>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
                     <span className="inline-flex items-center gap-1 rounded-full bg-[#EEF2FF] px-2 py-0.5 font-bold text-[#1E3A8A]"><Users size={12} /> {b.people}</span>

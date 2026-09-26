@@ -4,6 +4,7 @@ import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
 import { PageHeader } from "@/components/visitor/PageHeader";
 import { SiteFooter } from "@/components/visitor/SiteFooter";
+import { QuestTabs } from "@/components/visitor/QuestTabs";
 import { getI18n } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getRequestOrigin } from "@/lib/server/site-url";
@@ -116,6 +117,7 @@ export default async function RewardsPage() {
     <div className="pb-20 md:pb-0">
       <Navbar />
       <PageHeader icon={Gift} eyebrow={L.eyebrow} title={L.title} subtitle={L.subtitle} />
+      <QuestTabs active="rewards" />
       <main className="mx-auto max-w-5xl space-y-6 px-4 pb-12 md:px-6">
         {!wallet ? (
           <div className="card mx-auto max-w-xl p-7 text-center">
