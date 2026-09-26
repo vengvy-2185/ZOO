@@ -135,7 +135,6 @@ export async function saveScratchSettings(formData: FormData) {
     winners: n("winners", 100, 0, 100000),
     start_date,
     end_date,
-    valid_days: n("valid_days", 60, 1, 365),
     thanks_en: txt("thanks_en"),
     thanks_km: txt("thanks_km"),
   };

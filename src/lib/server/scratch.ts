@@ -20,7 +20,6 @@ export type ScratchSettings = {
   winners: number;
   start_date: string; // YYYY-MM-DD (zoo time)
   end_date: string;
-  valid_days: number; // how long a won code can be used
   thanks_en: string;
   thanks_km: string;
 };
@@ -32,7 +31,6 @@ export const DEFAULT_SCRATCH: ScratchSettings = {
   winners: 100,
   start_date: "",
   end_date: "",
-  valid_days: 60,
   thanks_en: "Thank you for visiting Green Wild Zoo! Better luck next time.",
   thanks_km: "អរគុណដែលបានមកលេងសួនសត្វ Green Wild Zoo! សំណាងល្អលើកក្រោយ។",
 };
@@ -66,12 +64,22 @@ export async function scratchStats(s?: ScratchSettings): Promise<ScratchStats> {
   const perDay = Math.max(1, (recent ?? 0) / 14);
   const left = Math.max(0, s.winners - (won ?? 0));
   const daysLeft = Math.max(1, daysBetween(today, s.end_date) + 1);
-  // remaining winners ÷ tickets expected until the end (never more than certain)
-  const chance = active && left > 0 ? Math.min(1, left / (perDay * daysLeft)) : 0;
+  // the same chance every day of the campaign: winners ÷ tickets expected over
+  // the WHOLE campaign. No catching up near the end; if fewer win, the zoo keeps it.
+  const totalDays = Math.max(1, daysBetween(s.start_date, s.end_date) + 1);
+  const chance = active && left > 0 ? Math.min(1, s.winners / (perDay * totalDays)) : 0;
   return { won: won ?? 0, left, daysLeft, perDay, chance, active };
 }
 
 const roll = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+/**
+ * A percent between lo and hi where low values are common and high ones
+ * rare (roll³ bunches near 0): with 5–25 %, about half the winners get
+ * 5–7 %, and 20 %+ is about 1 in 10.
+ */
+export function pickPercent(lo: number, hi: number) {
+  return lo + Math.floor(roll() ** 3 * (hi - lo + 1));
+}
 const toPrize = (c: any): ScratchPrize => ({ code: c.code, percent: Number(c.value), endsOn: c.ends_on });
 const thanksOf = (s: ScratchSettings): ScratchResult => ({ thanks: true, en: s.thanks_en || DEFAULT_SCRATCH.thanks_en, km: s.thanks_km || DEFAULT_SCRATCH.thanks_km });
 
@@ -96,7 +104,8 @@ export async function claimScratch(bookingCode: string, key: string): Promise<Sc
   const st = await scratchStats(s);
   const lo = Math.max(1, Math.min(s.min_pct, s.max_pct));
   const hi = Math.min(100, Math.max(s.min_pct, s.max_pct));
-  const percent = st.chance > 0 && roll() < st.chance ? lo + Math.floor(roll() * (hi - lo + 1)) : 0;
+  // small discounts come out much more often than big ones
+  const percent = st.chance > 0 && roll() < st.chance ? pickPercent(lo, hi) : 0;
 
   if (!percent) {
     const { data: done } = await db.from("bookings").update({ scratched_at: new Date().toISOString() }).eq("id", b.id).is("scratched_at", null).select("id");
@@ -109,7 +118,7 @@ export async function claimScratch(bookingCode: string, key: string): Promise<Sc
 
   const { data: code, error } = await db
     .from("discount_codes")
-    .insert({ name: `Scratch card ${percent}% off`, name_km: `រង្វាន់កាតកោស បញ្ចុះ ${percent}%`, code: generateCode("WIN"), kind: "percent", value: percent, max_uses: 1, ends_on: zooToday(s.valid_days), source: "scratch" })
+    .insert({ name: `Scratch card ${percent}% off`, name_km: `រង្វាន់កាតកោស បញ្ចុះ ${percent}%`, code: generateCode("WIN"), kind: "percent", value: percent, max_uses: 1, ends_on: s.end_date, source: "scratch" })
     .select("id, code, value, ends_on")
     .single();
   if (error || !code) return null;

@@ -55,12 +55,37 @@ export function ScratchSettingsForm({ s, st, km, used }: { s: ScratchSettings; s
             <label className="block"><span className={lbl}>{km ? "ចាប់ពី (%)" : "From (%)"}</span><input name="min_pct" type="number" min={1} max={100} defaultValue={s.min_pct} className={input} /></label>
             <label className="block"><span className={lbl}>{km ? "ដល់ (%)" : "To (%)"}</span><input name="max_pct" type="number" min={1} max={100} defaultValue={s.max_pct} className={input} /></label>
           </div>
-          <p className="mt-2 text-xs text-ink/50">{km ? "អ្នកឈ្នះម្នាក់ៗបានភាគរយចៃដន្យក្នុងចន្លោះនេះ។" : "Each winner gets a random percent in this range."}</p>
+          <p className="mt-2 text-xs text-ink/50">{km ? "ភាគរយតិចចេញញឹកញាប់ ភាគរយច្រើនកម្រ។" : "Small discounts often, big ones rarely."}</p>
+          {/* how often each part of the range comes out */}
+          {(() => {
+            const lo = Math.min(s.min_pct, s.max_pct);
+            const hi = Math.max(s.min_pct, s.max_pct);
+            const n = hi - lo + 1;
+            const share = (a: number, b: number) => Math.round((Math.cbrt(Math.min(1, (b - lo + 1) / n)) - Math.cbrt(Math.max(0, (a - lo) / n))) * 100);
+            const cut1 = lo + Math.max(0, Math.round(n / 3) - 1);
+            const cut2 = lo + Math.max(0, Math.round((2 * n) / 3) - 1);
+            const parts = [
+              [lo, cut1, "bg-emerald-400"],
+              [cut1 + 1, cut2, "bg-amber-400"],
+              [cut2 + 1, hi, "bg-rose-400"],
+            ].filter(([a, b]) => (a as number) <= (b as number)) as [number, number, string][];
+            return (
+              <div className="mt-3 space-y-1">
+                {parts.map(([a, b, c]) => (
+                  <div key={a} className="flex items-center gap-2 text-xs font-bold text-ink/60">
+                    <span className="w-16 flex-shrink-0">{a === b ? `${a}%` : `${a}–${b}%`}</span>
+                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-white"><span className={`block h-full rounded-full ${c}`} style={{ width: `${share(a, b)}%` }} /></span>
+                    <span className="w-9 text-right">{share(a, b)}%</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
         <div className="rounded-2xl bg-light-green/50 p-4">
           <p className="mb-3 flex items-center gap-2 font-bold text-forest"><Users size={16} className="text-primary" /> {km ? "ចំនួនអ្នកឈ្នះ" : "Winners"}</p>
           <label className="block"><span className={lbl}>{km ? "សរុប (នាក់)" : "In total (people)"}</span><input name="winners" type="number" min={0} defaultValue={s.winners} className={input} /></label>
-          <label className="mt-2 block"><span className={lbl}>{km ? "កូដប្រើបាន (ថ្ងៃ)" : "Code valid for (days)"}</span><input name="valid_days" type="number" min={1} defaultValue={s.valid_days} className={input} /></label>
+          <p className="mt-2 text-xs text-ink/50">{km ? "ឱកាសស្មើគ្នាគ្រប់ថ្ងៃ។ បើមិនអស់ចំនួន នៅសល់ទុកជាចំណេញ។" : "The same chance every day. If not all are won, the rest are saved."}</p>
         </div>
         <div className="rounded-2xl bg-sky-50 p-4">
           <p className="mb-3 flex items-center gap-2 font-bold text-forest"><CalendarRange size={16} className="text-primary" /> {km ? "រយៈពេល" : "Dates"}</p>
@@ -80,8 +105,8 @@ export function ScratchSettingsForm({ s, st, km, used }: { s: ScratchSettings; s
       <p className="flex items-start gap-2 text-xs text-ink/55">
         <Sparkles size={14} className="mt-0.5 flex-shrink-0 text-amber-500" />
         {km
-          ? "ឧ. បញ្ចុះ 5%–25%, អ្នកឈ្នះ 100 នាក់, ពីថ្ងៃទី 1 ដល់ 22 សីហា៖ ប្រព័ន្ធចែករង្វាន់ដោយចៃដន្យពេញរយៈពេល ដើម្បីឲ្យអស់ប្រហែល 100 នាក់ នៅថ្ងៃចុងក្រោយ។ ពេលអស់ចំនួន ឬក្រៅថ្ងៃ អ្នកកោសនឹងឃើញ «អរគុណ»។"
-          : "E.g. 5%–25%, 100 winners, 1–22 August: prizes are spread at random over the dates so about 100 people win by the last day. When they're all given out, or outside the dates, the card says “thank you”."}
+          ? "ឧ. បញ្ចុះ 5%–25%, អ្នកឈ្នះ 100 នាក់, ពីថ្ងៃទី 1 ដល់ 22 សីហា៖ សំបុត្រគ្រប់សន្លឹកមានឱកាសស្មើគ្នារៀងរាល់ថ្ងៃ មិនលើសពី 100 នាក់ទេ។ កូដប្រើបានរហូតដល់ថ្ងៃបញ្ចប់។ ពេលអស់ចំនួន ឬក្រៅថ្ងៃ អ្នកកោសនឹងឃើញ «អរគុណ»។"
+          : "E.g. 5%–25%, 100 winners, 1–22 August: every ticket has the same chance each day, never more than 100 winners. Codes work until the end date. When they're all given out, or outside the dates, the card says “thank you”."}
       </p>
       <div className="flex justify-end">
         <SubmitButton label={km ? "រក្សាទុកកាតកោស" : "Save scratch card"} pendingLabel="…" />
