@@ -1,4 +1,4 @@
-import { Gift, Heart, CalendarRange, Percent, Users, Sparkles } from "lucide-react";
+import { Gift, Heart, CalendarRange, Percent, Users } from "lucide-react";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { saveScratchSettings } from "@/app/admin/(dashboard)/settings/actions";
 import type { ScratchSettings, ScratchStats } from "@/lib/server/scratch";
@@ -55,7 +55,6 @@ export function ScratchSettingsForm({ s, st, km, used }: { s: ScratchSettings; s
             <label className="block"><span className={lbl}>{km ? "ចាប់ពី (%)" : "From (%)"}</span><input name="min_pct" type="number" min={1} max={100} defaultValue={s.min_pct} className={input} /></label>
             <label className="block"><span className={lbl}>{km ? "ដល់ (%)" : "To (%)"}</span><input name="max_pct" type="number" min={1} max={100} defaultValue={s.max_pct} className={input} /></label>
           </div>
-          <p className="mt-2 text-xs text-ink/50">{km ? "ភាគរយតិចចេញញឹកញាប់ ភាគរយច្រើនកម្រ។" : "Small discounts often, big ones rarely."}</p>
           {/* how often each part of the range comes out */}
           {(() => {
             const lo = Math.min(s.min_pct, s.max_pct);
@@ -85,7 +84,6 @@ export function ScratchSettingsForm({ s, st, km, used }: { s: ScratchSettings; s
         <div className="rounded-2xl bg-light-green/50 p-4">
           <p className="mb-3 flex items-center gap-2 font-bold text-forest"><Users size={16} className="text-primary" /> {km ? "ចំនួនអ្នកឈ្នះ" : "Winners"}</p>
           <label className="block"><span className={lbl}>{km ? "សរុប (នាក់)" : "In total (people)"}</span><input name="winners" type="number" min={0} defaultValue={s.winners} className={input} /></label>
-          <p className="mt-2 text-xs text-ink/50">{km ? "ឱកាសស្មើគ្នាគ្រប់ថ្ងៃ។ បើមិនអស់ចំនួន នៅសល់ទុកជាចំណេញ។" : "The same chance every day. If not all are won, the rest are saved."}</p>
         </div>
         <div className="rounded-2xl bg-sky-50 p-4">
           <p className="mb-3 flex items-center gap-2 font-bold text-forest"><CalendarRange size={16} className="text-primary" /> {km ? "រយៈពេល" : "Dates"}</p>
@@ -102,12 +100,6 @@ export function ScratchSettingsForm({ s, st, km, used }: { s: ScratchSettings; s
         </div>
       </div>
 
-      <p className="flex items-start gap-2 text-xs text-ink/55">
-        <Sparkles size={14} className="mt-0.5 flex-shrink-0 text-amber-500" />
-        {km
-          ? "ឧ. បញ្ចុះ 5%–25%, អ្នកឈ្នះ 100 នាក់, ពីថ្ងៃទី 1 ដល់ 22 សីហា៖ សំបុត្រគ្រប់សន្លឹកមានឱកាសស្មើគ្នារៀងរាល់ថ្ងៃ មិនលើសពី 100 នាក់ទេ។ កូដប្រើបានរហូតដល់ថ្ងៃបញ្ចប់។ ពេលអស់ចំនួន ឬក្រៅថ្ងៃ អ្នកកោសនឹងឃើញ «អរគុណ»។"
-          : "E.g. 5%–25%, 100 winners, 1–22 August: every ticket has the same chance each day, never more than 100 winners. Codes work until the end date. When they're all given out, or outside the dates, the card says “thank you”."}
-      </p>
       <div className="flex justify-end">
         <SubmitButton label={km ? "រក្សាទុកកាតកោស" : "Save scratch card"} pendingLabel="…" />
       </div>

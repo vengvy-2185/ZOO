@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Fragment } from "react";
-import { Wand2, CalendarRange, ChevronLeft, ChevronRight, Copy, LifeBuoy, ArrowLeftRight, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
+import { Settings2, Wand2, CalendarRange, ChevronLeft, ChevronRight, Copy, LifeBuoy, ArrowLeftRight, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
@@ -10,8 +10,9 @@ import { StaffShell } from "@/components/staff/StaffShell";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { ShiftRequestForm } from "@/components/staff/ShiftRequestForm";
 import { TASK_SECTIONS } from "@/lib/staff-extras";
-import { saveRosterWeek, copyLastWeek, autoFillWeek, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
+import { saveRosterWeek, copyLastWeek, autoFillWeek, saveRosterRules, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
 import { cn } from "@/lib/utils/cn";
+import { ensureAutoRoster, getRosterRules, ROSTER_SECTIONS } from "@/lib/server/roster";
 
 export const dynamic = "force-dynamic";
 export const generateMetadata = () => staffTitle("Schedule", "កាលវិភាគ");
@@ -52,6 +53,9 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const mySections = sections.filter((k) => access.perms.has(k) && k !== "reports");
   const section = (sections as string[]).includes(searchParams.s ?? "") ? (searchParams.s as keyof typeof TASK_SECTIONS) : manager ? null : mySections[0] ?? null;
 
+  // automatic mode: this week and next are planned for anyone with nothing yet
+  await ensureAutoRoster(today).catch(() => {});
+  const rules = await getRosterRules();
   const db = createServiceRoleClient();
   const [{ data: staffRows }, s] = await Promise.all([
     db.from("staff_members").select("user_id, full_name, staff_no, position:staff_positions(name, name_km, permissions)").eq("status", "active").order("full_name"),
@@ -132,6 +136,51 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
           })}
         </div>
       </div>
+
+      {/* the rules the automatic schedule follows (managers) */}
+      {manager && (
+        <details className="card group p-0">
+          <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-700"><Settings2 size={20} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-lg font-extrabold text-forest">{km ? "ច្បាប់រៀបកាលវិភាគស្វ័យប្រវត្តិ" : "Automatic schedule rules"}</span>
+              <span className="block text-xs font-semibold text-ink/50">{rules.auto ? (km ? "ស្វ័យប្រវត្តិ៖ បើក" : "Automatic: on") : km ? "ស្វ័យប្រវត្តិ៖ បិទ" : "Automatic: off"} · {km ? `ឈប់ ${rules.days_off} ថ្ងៃ/សប្តាហ៍` : `${rules.days_off} day(s) off a week`}</span>
+            </span>
+            <ChevronRight size={18} className="text-ink/40 transition group-open:rotate-90" />
+          </summary>
+          <form action={saveRosterRules} className="space-y-4 px-4 pb-4">
+            <div className="flex flex-wrap gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-violet-50 px-4 py-2 text-sm font-bold text-violet-800"><input type="checkbox" name="auto" defaultChecked={rules.auto} className="h-4 w-4 accent-violet-600" /> {km ? "រៀបចំស្វ័យប្រវត្តិ (សប្តាហ៍នេះ និងសប្តាហ៍ក្រោយ)" : "Plan by itself (this week and next)"}</label>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-sm font-bold text-ink/70"><input type="checkbox" name="allow_full" defaultChecked={rules.allow_full} className="h-4 w-4 accent-violet-600" /> {km ? "អនុញ្ញាតពេញថ្ងៃ ពេលខ្វះមនុស្ស" : "Full day when short of people"}</label>
+              <label className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-sm font-bold text-ink/70">{km ? "ថ្ងៃឈប់/សប្តាហ៍" : "Days off / week"} <input name="days_off" type="number" min={0} max={6} defaultValue={rules.days_off} className="w-14 rounded-lg border border-black/10 px-2 py-1 text-center" /></label>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-bold text-ink/45">
+                    <th className="py-1 pr-2">{km ? "ក្រុម" : "Team"}</th>
+                    <th className="px-2 py-1 text-center">{km ? "ត្រូវការពេលព្រឹក (នាក់)" : "Needed mornings"}</th>
+                    <th className="px-2 py-1 text-center">{km ? "ត្រូវការពេលរសៀល (នាក់)" : "Needed afternoons"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ROSTER_SECTIONS.map((sec) => {
+                    const T = TASK_SECTIONS[sec];
+                    return (
+                      <tr key={sec} className="border-t border-black/5">
+                        <td className="py-2 pr-2 font-bold text-forest"><T.Icon size={14} className="-mt-0.5 mr-1.5 inline text-[#1D4ED8]" />{km ? T.km : T.en}</td>
+                        <td className="px-2 py-2 text-center"><input name={`am_${sec}`} type="number" min={0} max={50} defaultValue={rules.need[sec].am} className="w-20 rounded-lg border border-black/10 px-2 py-1.5 text-center" /></td>
+                        <td className="px-2 py-2 text-center"><input name={`pm_${sec}`} type="number" min={0} max={50} defaultValue={rules.need[sec].pm} className="w-20 rounded-lg border border-black/10 px-2 py-1.5 text-center" /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end"><SubmitButton label={km ? "រក្សាទុកច្បាប់" : "Save rules"} pendingLabel="…" /></div>
+          </form>
+        </details>
+      )}
 
       {/* how it works */}
       <details className="card group p-0" open={!access.admin && !(myUpcoming ?? []).length}>
@@ -299,7 +348,6 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
             <form action={copyLastWeek.bind(null, weekStart, ids)}>
               <button className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-[#1D4ED8] ring-1 ring-[#BFDBFE] hover:bg-[#EEF2FF]"><Copy size={13} /> {L.copy}</button>
             </form>
-            <p className="w-full text-xs text-ink/50">{km ? "ស្វ័យប្រវត្តិ៖ ចាប់ឈ្មោះបុគ្គលិកតាមផ្នែក (មិនរាប់អ្នកគ្រប់គ្រង), ថ្ងៃឈប់របស់សួន = ឈប់, ព្រឹក/រសៀលឆ្លាស់គ្នាឲ្យមានមនុស្សគ្រប់ពេល, ក្រុមធំបានឈប់ម្នាក់មួយថ្ងៃវេនគ្នា។ អាចកែម្តងមួយប្រអប់បន្ទាប់ពីនេះ។" : "Auto: takes staff by team (managers left out), zoo rest days = off, mornings and afternoons alternate so both are covered, bigger teams get a day off each in turn. You can still change any box after."}</p>
           </div>
         )}
       </section>

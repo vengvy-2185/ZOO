@@ -122,12 +122,15 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
   const nowMin = localMinutes();
   let staffQ = db.from("staff_members").select("user_id, staff_no, full_name, status, hired_on, position:staff_positions(name, name_km)").order("staff_no");
   if (onlyUserId) staffQ = staffQ.eq("user_id", onlyUserId);
-  const [{ data: staff }, { data: checks }, { data: holidays }, { data: leaves }] = await Promise.all([
+  const [{ data: staff }, { data: checks }, { data: holidays }, { data: leaves }, { data: roster }] = await Promise.all([
     staffQ,
     db.from("staff_session_checks").select("user_id, day, session, checked_at, late_minutes, status").gte("day", all[0]).lte("day", all[all.length - 1]),
     db.from("staff_holidays").select("day, name").gte("day", all[0]).lte("day", all[all.length - 1]),
     db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", all[all.length - 1]).gte("end_date", all[0]),
+    // the work schedule: people are only expected for the shifts they have
+    db.from("staff_roster").select("user_id, day, shift").gte("day", all[0]).lte("day", all[all.length - 1]),
   ]);
+  const shiftOf = new Map((roster ?? []).map((r: any) => [`${r.user_id}_${r.day}`, r.shift as string]));
   const hol = new Map((holidays ?? []).map((h: any) => [h.day, h.name]));
   // profile photos (set by the admin or by the staff member on their profile)
   const { data: profs } = (staff ?? []).length ? await db.from("profiles").select("id, avatar_url").in("id", (staff ?? []).map((p: any) => p.user_id)) : { data: [] as any[] };
@@ -143,6 +146,9 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
         const mark = (session: Session): DayMark["morning"] => {
           const c = mine.find((x: any) => x.day === d && x.session === session);
           if (c) return c.status === "leave" ? "leave" : c.status === "absent" ? "absent" : c.late_minutes > 0 ? "late" : "ok";
+          // on the schedule: a day off, or the other half of the day, is not expected
+          const sh = shiftOf.get(`${p.user_id}_${d}`);
+          if (sh === "off" || (sh === "morning" && session === "afternoon") || (sh === "afternoon" && session === "morning")) return "off";
           if (d < p.hired_on || d < s.tracking_from) return "none";
           if (hol.has(d)) return "holiday";
           if (s.rest_days.includes(weekday(d))) return "off";

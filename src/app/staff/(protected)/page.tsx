@@ -6,6 +6,7 @@ import { staffAccess, payroll, thisMonth, openShift, staffTitle, leaveUsage } fr
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
+import { ensureAutoRoster } from "@/lib/server/roster";
 import { MySection } from "@/components/staff/MySection";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { clockIn, clockOut } from "./actions";
@@ -19,6 +20,8 @@ const usd = (n: number) => `$${n.toFixed(2)}`;
 export const generateMetadata = () => staffTitle("Home", "ទំព័រដើម");
 
 export default async function StaffHome({ searchParams }: { searchParams: { denied?: string } }) {
+  // the schedule plans itself for this week and next (rules set by managers)
+  await ensureAutoRoster(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date())).catch(() => {});
   const userId = getVerifiedUserId()!;
   const { locale } = getI18n();
   const km = locale === "km";

@@ -6,6 +6,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, openShift, leaveUsage } from "@/lib/server/staff";
 import { getStaffSettings } from "@/lib/server/staff-settings";
+import { planWeek, ROSTER_SECTIONS, type RosterSection } from "@/lib/server/roster";
 
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
@@ -510,55 +511,26 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
   revalidatePath("/staff/roster");
 }
 
-/**
- * Manager: plan a week automatically. Staff are taken from each section by
- * their position (managers are left out), zoo rest days become "off",
- * mornings and afternoons alternate so both are always covered, and in
- * bigger teams everyone gets one extra day off in turn. Only empty boxes are
- * filled unless `replace` is set.
- */
+/** Manager: plan a week by the rules (fill empty boxes, or re-plan everything). */
 export async function autoFillWeek(weekStart: string, section: string | null, replace: boolean) {
   const { id, access } = await me();
   if (!isManager(access) || !isDay(weekStart)) throw new Error("Only managers.");
+  await planWeek(weekStart, { section: (ROSTER_SECTIONS as string[]).includes(section ?? "") ? (section as RosterSection) : null, replace, by: id });
+  revalidatePath("/staff/roster");
+}
+
+/** Manager: the rules the automatic schedule follows. */
+export async function saveRosterRules(formData: FormData) {
+  const { access } = await me();
+  if (!isManager(access)) throw new Error("Only managers.");
+  const num = (k: string, d: number, max: number) => {
+    const v = Number(formData.get(k));
+    return Number.isFinite(v) && String(formData.get(k) ?? "") !== "" ? Math.max(0, Math.min(max, Math.round(v))) : d;
+  };
+  const need = Object.fromEntries(ROSTER_SECTIONS.map((sec) => [sec, { am: num(`am_${sec}`, 1, 50), pm: num(`pm_${sec}`, 1, 50) }]));
+  const roster = { auto: formData.get("auto") === "on", allow_full: formData.get("allow_full") === "on", days_off: num("days_off", 1, 6), need };
   const db = createServiceRoleClient();
-  const [{ data: staff }, { data: settings }] = await Promise.all([
-    db.from("staff_members").select("user_id, full_name, position:staff_positions(permissions)").eq("status", "active").order("full_name"),
-    db.from("staff_attendance_settings").select("rest_days").eq("id", 1).maybeSingle(),
-  ]);
-  const rest: number[] = (settings?.rest_days ?? []) as number[];
-  const ORDER = ["tickets", "animals", "cleaning", "guide"];
-  const primary = (perms: string[]) => ORDER.find((p) => perms.includes(p)) ?? null;
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(`${weekStart}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + i);
-    return { day: d.toISOString().slice(0, 10), weekday: d.getUTCDay() };
-  });
-  const weekNo = Math.floor(Date.parse(`${weekStart}T12:00:00Z`) / (7 * 864e5));
-  const rows: any[] = [];
-  for (const sec of section ? [section] : ORDER) {
-    const team = (staff ?? []).filter((p: any) => {
-      const perms: string[] = p.position?.permissions ?? [];
-      return !perms.includes("reports") && primary(perms) === sec;
-    });
-    const n = team.length;
-    team.forEach((p: any, i: number) => {
-      days.forEach(({ day, weekday }, d) => {
-        let shift: string;
-        if (rest.includes(weekday)) shift = "off";
-        else if (n >= 3 && d === (i * 2 + weekNo) % 7) shift = "off"; // one day off each, in turn
-        else if (n === 1) shift = "full";
-        else shift = (i + d) % 2 === 0 ? "morning" : "afternoon";
-        rows.push({ user_id: p.user_id, day, shift, created_by: id, updated_at: new Date().toISOString() });
-      });
-    });
-  }
-  if (!rows.length) return;
-  let toSave = rows;
-  if (!replace) {
-    const { data: existing } = await db.from("staff_roster").select("user_id, day").in("user_id", [...new Set(rows.map((r) => r.user_id))]).gte("day", days[0].day).lte("day", days[6].day);
-    const have = new Set((existing ?? []).map((e: any) => `${e.user_id}_${e.day}`));
-    toSave = rows.filter((r) => !have.has(`${r.user_id}_${r.day}`));
-  }
-  if (toSave.length) await db.from("staff_roster").upsert(toSave, { onConflict: "user_id,day" });
+  const { data } = await db.from("staff_settings").select("data").eq("id", 1).maybeSingle();
+  await db.from("staff_settings").upsert({ id: 1, data: { ...((data?.data as object) ?? {}), roster }, updated_at: new Date().toISOString() });
   revalidatePath("/staff/roster");
 }
