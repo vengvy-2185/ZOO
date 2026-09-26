@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Gift, Copy, Check, Loader2, PartyPopper } from "lucide-react";
+import { Gift, Copy, Check, Loader2, PartyPopper, Heart } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 import { formatFullDate } from "@/lib/utils/age";
 
-type Prize = { code: string; percent: number; endsOn: string };
+type Prize = { code: string; percent: number; endsOn: string } | { thanks: true; en: string; km: string };
 
 /**
  * A silver card the visitor scratches with a finger or the mouse. The prize is
@@ -90,29 +90,37 @@ export function ScratchCard({ bookingCode, accessKey, initial }: { bookingCode: 
 
   function reveal() {
     setRevealed(true);
-    setBurst(true);
+    setBurst(true); // confetti for a prize; a thank-you gets hearts in the same burst
     navigator.vibrate?.([40, 30, 80]);
     setTimeout(() => setBurst(false), 1800);
   }
 
   // Same month names on the server and in every browser (no hydration mismatch).
-  const until = prize ? formatFullDate(prize.endsOn + "T12:00:00", km ? "km" : "en") ?? "" : "";
+  const won = prize && "code" in prize ? prize : null;
+  const thanks = prize && "thanks" in prize ? prize : null;
+  const until = won ? formatFullDate(won.endsOn + "T12:00:00", km ? "km" : "en") ?? "" : "";
 
   return (
     <section className="relative mt-6 overflow-hidden rounded-[2rem] bg-gradient-to-br from-accent/40 via-cream to-light-green p-5 shadow-lift ring-1 ring-black/5">
       <p className="flex items-center gap-2 font-display text-lg font-extrabold text-forest">
         <Gift size={20} className="text-[#B8791A]" /> {s.title}
       </p>
-      <p className="text-sm text-ink/60">{revealed ? s.wonText : s.subtitle}</p>
+      <p className="text-sm text-ink/60">{revealed ? (thanks ? (km ? "អរគុណច្រើន! ស្វាគមន៍ការមកលេងម្តងទៀត។" : "Thank you so much! Come and see us again.") : s.wonText) : s.subtitle}</p>
 
       <div className="relative mt-4 aspect-[2/1] overflow-hidden rounded-3xl bg-white shadow-soft">
         {/* The prize underneath */}
         <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-          {prize ? (
+          {won ? (
             <>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{s.youWon}</p>
-              <p className="font-display text-5xl font-extrabold leading-none text-forest">{s.percentOff(prize.percent)}</p>
+              <p className="font-display text-5xl font-extrabold leading-none text-forest">{s.percentOff(won.percent)}</p>
               <p className="mt-1 text-xs text-ink/55">{s.nextVisit}</p>
+            </>
+          ) : thanks ? (
+            <>
+              <Heart size={34} className="fill-rose-400 text-rose-400" />
+              <p className="mt-2 font-display text-2xl font-extrabold leading-tight text-forest">{km ? "អរគុណ!" : "Thank you!"}</p>
+              <p className="mt-1 max-w-xs text-sm text-ink/60">{km ? thanks.km : thanks.en}</p>
             </>
           ) : (
             <Loader2 className={cn("text-primary", loading && "animate-spin")} />
@@ -166,13 +174,13 @@ export function ScratchCard({ bookingCode, accessKey, initial }: { bookingCode: 
         </button>
       )}
 
-      {revealed && prize && (
+      {revealed && won && (
         <div className="mt-4 flex flex-wrap items-center gap-3 animate-[gwzPop_.4s_ease]">
           <PartyPopper size={20} className="text-[#B8791A]" />
-          <span className="rounded-xl bg-white px-4 py-2 font-mono text-lg font-extrabold tracking-widest text-forest shadow-soft">{prize.code}</span>
+          <span className="rounded-xl bg-white px-4 py-2 font-mono text-lg font-extrabold tracking-widest text-forest shadow-soft">{won.code}</span>
           <button
             onClick={() => {
-              navigator.clipboard?.writeText(prize.code).catch(() => {});
+              navigator.clipboard?.writeText(won.code).catch(() => {});
               setCopied(true);
               setTimeout(() => setCopied(false), 1800);
             }}

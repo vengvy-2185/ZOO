@@ -108,3 +108,31 @@ export async function updateSiteContact(formData: FormData) {
   revalidateTag(ZOO_TAG);
   revalidatePath("/", "layout");
 }
+
+// Scratch card rules: prizes and their chances, the thank-you, and who can win.
+export async function saveScratchSettings(formData: FormData) {
+  const supabase = createClient();
+  const n = (k: string, d: number, min: number, max: number) => {
+    const raw = String(formData.get(k) ?? "").trim();
+    const v = Number(raw);
+    return raw !== "" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d;
+  };
+  const prizes = Array.from({ length: 6 }, (_, i) => ({ percent: Math.round(n(`p_pct_${i}`, 0, 0, 100)), weight: Math.round(n(`p_w_${i}`, 0, 0, 1000)) })).filter((p) => p.percent > 0 && p.weight > 0);
+  const txt = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 200);
+  const value = {
+    enabled: formData.get("enabled") === "on",
+    prizes,
+    thanks_weight: Math.round(n("thanks_weight", 30, 0, 1000)),
+    thanks_en: txt("thanks_en"),
+    thanks_km: txt("thanks_km"),
+    valid_days: Math.round(n("valid_days", 60, 1, 365)),
+    min_total: n("min_total", 0, 0, 10000),
+    min_visitors: Math.round(n("min_visitors", 1, 1, 100)),
+    members_only: formData.get("members_only") === "on",
+    max_wins_per_day: Math.round(n("max_wins_per_day", 0, 0, 10000)),
+    once_per_member_days: Math.round(n("once_per_member_days", 0, 0, 365)),
+  };
+  const { error } = await supabase.from("app_settings").upsert({ key: "scratch_card", value });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/discounts");
+}

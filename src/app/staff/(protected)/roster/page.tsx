@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarRange, ChevronLeft, ChevronRight, Copy, LifeBuoy, ArrowLeftRight, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
+import { Fragment } from "react";
+import { Wand2, CalendarRange, ChevronLeft, ChevronRight, Copy, LifeBuoy, ArrowLeftRight, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
@@ -9,7 +10,7 @@ import { StaffShell } from "@/components/staff/StaffShell";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { ShiftRequestForm } from "@/components/staff/ShiftRequestForm";
 import { TASK_SECTIONS } from "@/lib/staff-extras";
-import { saveRosterWeek, copyLastWeek, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
+import { saveRosterWeek, copyLastWeek, autoFillWeek, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,16 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
     db.from("staff_members").select("user_id, full_name, staff_no, position:staff_positions(name, name_km, permissions)").eq("status", "active").order("full_name"),
     getAttendanceSettings(),
   ]);
-  const team = (staffRows ?? []).filter((p: any) => !section || (p.position?.permissions ?? []).includes(section));
+  // each person's main team (managers go last), so "everyone" is grouped by team
+  const ORDER = ["tickets", "animals", "cleaning", "guide", "reports"] as const;
+  const primaryOf = (p: any) => {
+    const perms: string[] = p.position?.permissions ?? [];
+    if (perms.includes("reports")) return "reports";
+    return ORDER.find((k) => perms.includes(k)) ?? "reports";
+  };
+  const team = (staffRows ?? [])
+    .filter((p: any) => !section || (p.position?.permissions ?? []).includes(section))
+    .sort((a: any, b: any) => ORDER.indexOf(primaryOf(a) as any) - ORDER.indexOf(primaryOf(b) as any) || String(a.full_name).localeCompare(String(b.full_name)));
   if (!manager && access.staff && !team.some((p: any) => p.user_id === userId)) team.unshift(access.staff as any);
   const ids = team.map((p: any) => p.user_id);
   const [{ data: roster }, { data: requests }, { data: myUpcoming }] = await Promise.all([
@@ -229,8 +239,19 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                   </tr>
                 </thead>
                 <tbody>
-                  {team.map((p: any) => (
-                    <tr key={p.user_id} className={cn(p.user_id === userId && "bg-[#F8FAFF]")}>
+                  {team.map((p: any, idx: number) => (
+                    <Fragment key={p.user_id}>
+                    {!section && (idx === 0 || primaryOf(team[idx - 1]) !== primaryOf(p)) && (() => {
+                      const T = TASK_SECTIONS[primaryOf(p) as keyof typeof TASK_SECTIONS];
+                      return (
+                        <tr>
+                          <td colSpan={days.length + 1} className="sticky left-0 border-t border-black/5 bg-[#EEF2FF] px-3 py-2">
+                            <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-[#1E3A8A]"><T.Icon size={15} /> {km ? T.km : T.en}</span>
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                    <tr className={cn(p.user_id === userId && "bg-[#F8FAFF]")}>
                       <td className="sticky left-0 z-10 border-t border-black/5 bg-inherit px-3 py-2" style={{ background: p.user_id === userId ? "#F8FAFF" : "#fff" }}>
                         <p className="truncate font-bold text-forest">{p.full_name}</p>
                         <p className="truncate text-[11px] text-ink/45">{(km && p.position?.name_km) || p.position?.name}</p>
@@ -255,6 +276,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                         );
                       })}
                     </tr>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -267,9 +289,18 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
           </form>
         )}
         {manager && view === "week" && team.length > 0 && (
-          <form action={copyLastWeek.bind(null, weekStart, ids)} className="border-t border-black/5 px-3 pb-3">
-            <button className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-[#1D4ED8] ring-1 ring-[#BFDBFE] hover:bg-[#EEF2FF]"><Copy size={13} /> {L.copy}</button>
-          </form>
+          <div className="flex flex-wrap items-center gap-2 border-t border-black/5 px-3 py-3">
+            <form action={autoFillWeek.bind(null, weekStart, section, false)}>
+              <button className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white shadow-soft active:scale-95"><Wand2 size={14} /> {km ? "រៀបចំស្វ័យប្រវត្តិ (បំពេញប្រអប់ទទេ)" : "Auto-plan (fill empty boxes)"}</button>
+            </form>
+            <form action={autoFillWeek.bind(null, weekStart, section, true)}>
+              <button className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50"><Wand2 size={13} /> {km ? "រៀបចំឡើងវិញទាំងអស់" : "Re-plan everything"}</button>
+            </form>
+            <form action={copyLastWeek.bind(null, weekStart, ids)}>
+              <button className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-[#1D4ED8] ring-1 ring-[#BFDBFE] hover:bg-[#EEF2FF]"><Copy size={13} /> {L.copy}</button>
+            </form>
+            <p className="w-full text-xs text-ink/50">{km ? "ស្វ័យប្រវត្តិ៖ ចាប់ឈ្មោះបុគ្គលិកតាមផ្នែក (មិនរាប់អ្នកគ្រប់គ្រង), ថ្ងៃឈប់របស់សួន = ឈប់, ព្រឹក/រសៀលឆ្លាស់គ្នាឲ្យមានមនុស្សគ្រប់ពេល, ក្រុមធំបានឈប់ម្នាក់មួយថ្ងៃវេនគ្នា។ អាចកែម្តងមួយប្រអប់បន្ទាប់ពីនេះ។" : "Auto: takes staff by team (managers left out), zoo rest days = off, mornings and afternoons alternate so both are covered, bigger teams get a day off each in turn. You can still change any box after."}</p>
+          </div>
         )}
       </section>
 

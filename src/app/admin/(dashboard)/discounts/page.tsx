@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { TicketPercent, Plus, Pencil, Gift } from "lucide-react";
+import { TicketPercent, Plus, Pencil } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AdminPageHeader, AdminTable } from "@/components/admin/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { cn } from "@/lib/utils/cn";
+import { getScratchSettings } from "@/lib/server/scratch";
+import { ScratchSettingsForm } from "@/components/admin/ScratchSettingsForm";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +16,10 @@ export default async function AdminDiscountsPage() {
   const { locale } = getI18n();
   const km = locale === "km";
   const db = createServiceRoleClient();
-  const [{ data: codes }, { data: redemptions }] = await Promise.all([
+  const [{ data: codes }, { data: redemptions }, scratchSettings] = await Promise.all([
     db.from("discount_codes").select("*").order("created_at", { ascending: false }),
     db.from("discount_redemptions").select("code_id, amount_usd, booking:booking_id(status, created_at)"),
+    getScratchSettings(),
   ]);
   const today = zooToday();
   const fresh = Date.now() - 30 * 60 * 1000;
@@ -101,19 +104,7 @@ export default async function AdminDiscountsPage() {
         })}
       </AdminTable>
 
-      <div className="card mt-6 flex items-center gap-4 p-5">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/30 text-[#B8791A]">
-          <Gift size={22} />
-        </span>
-        <div>
-          <p className="font-display text-lg font-bold text-forest">{km ? "កាតកោសរង្វាន់" : "Scratch card prizes"}</p>
-          <p className="text-sm text-ink/60">
-            {km
-              ? `ភ្ញៀវដែលបានបង់ប្រាក់ទទួលបានកាតកោសម្តង។ បានចែកកូដ ${scratch.length} ហើយត្រូវបានប្រើ ${scratchUsed}។`
-              : `Every paid ticket gets one scratch card. ${scratch.length} prize codes given out, ${scratchUsed} used so far.`}
-          </p>
-        </div>
-      </div>
+      <ScratchSettingsForm s={scratchSettings} km={km} given={scratch.length} used={scratchUsed} />
     </div>
   );
 }

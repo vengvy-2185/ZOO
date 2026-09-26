@@ -18,7 +18,7 @@ import { GateVerdict, VisitorScanNote } from "@/components/visitor/GateVerdict";
 import { checkInTicket, type ScanOutcome } from "@/lib/server/checkin";
 import { getSessionUser } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
-import { existingPrize } from "@/lib/server/scratch";
+import { existingResult } from "@/lib/server/scratch";
 
 // Signed-in owners (and staff/admin) can read their booking through RLS.
 // Guests have no session, so they present the ticket's secret key (`k`,
@@ -70,7 +70,7 @@ export default async function TicketPage({
   const siteUrl = getSiteUrl();
   const shareableUrl = `/ticket/${booking.booking_code}?k=${booking.qr_token}`;
   const scanUrl = `${shareableUrl}&s=1`;
-  const [qrDataUrl, { heroImageUrl }, prize] = await Promise.all([generateQrDataUrl(siteUrl ? `${siteUrl}${scanUrl}` : booking.qr_token, true), getBranding(), existingPrize(booking.scratch_code_id)]);
+  const [qrDataUrl, { heroImageUrl }, prize] = await Promise.all([generateQrDataUrl(siteUrl ? `${siteUrl}${scanUrl}` : booking.qr_token, true), getBranding(), existingResult(booking.scratch_code_id, booking.scratched_at)]);
   const items = (booking.booking_items ?? []) as any[];
   const totalVisitors = items.reduce((s: number, i: any) => s + i.quantity, 0);
   // One-to-one since each booking can be checked in once (object, or array on older schemas).
