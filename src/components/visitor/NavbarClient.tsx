@@ -40,6 +40,8 @@ export function NavbarClient({
 }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // mobile menu: which group is open (the one holding the current page, at first)
+  const [openGroup, setOpenGroup] = useState<string | null>(() => MORE_GROUPS.find((g) => g.links.some((l) => isActivePath(pathname, l.href)))?.key ?? null);
   useEffect(() => setMoreOpen(false), [pathname]);
   const router = useRouter();
   const { locale, t } = useI18n();
@@ -346,33 +348,60 @@ export function NavbarClient({
               })}
             </nav>
 
-            {MORE_GROUPS.map((g) => (
-              <div key={g.key} className="mt-3">
-                <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-ink/40">{t.nav[g.key]}</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {g.links.map(({ href, key, icon: Icon }) => {
-                    const active = isActivePath(pathname, href);
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className={cn(
-                          "flex min-w-0 items-center gap-2 rounded-xl p-2 text-[13px] font-semibold leading-tight transition",
-                          active ? "bg-primary text-white shadow-soft" : "bg-white text-forest shadow-sm hover:bg-light-green"
-                        )}
-                      >
-                        <span className={cn("flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg", active ? "bg-white/15" : "bg-light-green text-primary")}>
-                          <Icon size={16} strokeWidth={2.3} />
-                        </span>
-                        <span className="min-w-0">{t.nav[key]}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            <Link href="/discover" className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-forest px-3 py-2.5 text-sm font-bold text-white">
-              <LayoutGrid size={16} /> {t.nav.allFeatures}
+            {/* the extra pages, in groups that open and close (one list, nothing squeezed) */}
+            <div className="mt-2 space-y-1.5">
+              {MORE_GROUPS.map((g) => {
+                const open = openGroup === g.key;
+                const hasActive = g.links.some((l) => isActivePath(pathname, l.href));
+                const GIcon = g.links[0].icon;
+                return (
+                  <div key={g.key} className={cn("overflow-hidden rounded-2xl transition-colors", open ? "bg-white shadow-soft" : "")}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenGroup(open ? null : g.key)}
+                      aria-expanded={open}
+                      className={cn("flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[15px] font-semibold transition", open ? "text-primary" : "text-forest hover:bg-white")}
+                    >
+                      <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition", open || hasActive ? "bg-primary text-white" : "bg-light-green text-primary")}>
+                        <GIcon size={17} strokeWidth={2.3} />
+                      </span>
+                      <span className="min-w-0 flex-1">{t.nav[g.key]}</span>
+                      <span className="rounded-full bg-light-green px-2 text-[11px] font-bold text-primary">{g.links.length}</span>
+                      <ChevronDown size={16} className={cn("text-ink/40 transition-transform duration-300", open && "rotate-180 text-primary")} />
+                    </button>
+                    <div className={cn("grid transition-[grid-template-rows] duration-300 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                      <div className="min-h-0 overflow-hidden">
+                        <div className="space-y-0.5 px-2 pb-2 pl-6">
+                          {g.links.map(({ href, key, icon: Icon }, i) => {
+                            const active = isActivePath(pathname, href);
+                            return (
+                              <Link
+                                key={href}
+                                href={href}
+                                style={{ transitionDelay: open ? `${60 + i * 45}ms` : "0ms" }}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-xl border-l-2 px-3 py-2 text-[14px] font-semibold transition-all duration-300",
+                                  open ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0",
+                                  active ? "border-primary bg-light-green text-primary" : "border-transparent text-forest/85 hover:border-primary/40 hover:bg-cream"
+                                )}
+                              >
+                                <Icon size={16} strokeWidth={2.3} className={active ? "text-primary" : "text-primary/70"} />
+                                {t.nav[key]}
+                                <ChevronRight size={14} className="ml-auto text-ink/25" />
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Link href="/discover" className="mt-3 flex items-center gap-2.5 rounded-xl px-3 py-2 text-[15px] font-semibold text-forest transition hover:bg-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-forest text-white"><LayoutGrid size={16} /></span>
+              {t.nav.allFeatures}
+              <ChevronRight size={14} className="ml-auto text-ink/25" />
             </Link>
 
             {dashboard && (

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wrench, Ticket, Map as MapIcon, Sparkles, ScanLine, UserRoundPlus, PawPrint, BarChart3, LogIn, LogOut, Clock, Wallet, ShieldAlert, BadgeCheck, CheckCircle2, CalendarOff, Megaphone, Pin, ChevronRight, Users } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, payroll, thisMonth, openShift, staffTitle } from "@/lib/server/staff";
+import { staffAccess, payroll, thisMonth, openShift, staffTitle, leaveUsage } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
@@ -33,11 +33,11 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
     getAttendanceSettings(),
     access.staff ? db.from("staff_session_checks").select("session, checked_at, late_minutes").eq("user_id", userId).eq("day", today) : Promise.resolve({ data: [] as any[] }),
   ]);
-  const [[pay], shift, { data: notices }, { count: pendingLeave }, reports, team] = await Promise.all([
+  const [[pay], shift, { data: notices }, { count: pendingLeave, usage: leaveUse }, reports, team] = await Promise.all([
     access.staff ? payroll(month, userId) : Promise.resolve([]),
     access.staff ? openShift(userId) : Promise.resolve(null),
     db.from("staff_announcements").select("id, title, body, pinned, created_at").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(3),
-    access.staff ? db.from("staff_leave_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending") : Promise.resolve({ count: 0 }),
+    access.staff ? leaveUsage(userId, access.staff.leave_quota).then((u) => ({ count: u.pending, usage: u })) : Promise.resolve({ count: 0, usage: null }),
     access.perms.has("reports")
       ? Promise.all([
           db.from("bookings").select("id", { count: "exact", head: true }).eq("visit_date", today).eq("status", "confirmed"),
@@ -180,6 +180,12 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
                 <span className="block font-display text-lg font-extrabold text-forest">{L.leave}</span>
                 <span className={`block text-xs ${pendingLeave ? "font-bold text-[#1D4ED8]" : "text-ink/55"}`}>{L.leaveT(pendingLeave ?? 0)}</span>
               </span>
+              {leaveUse && (
+                <span className={`flex flex-col items-center rounded-2xl px-3 py-1.5 ${leaveUse.remaining === 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+                  <span className="font-display text-xl font-extrabold leading-none">{leaveUse.remaining}/{leaveUse.quota}</span>
+                  <span className="text-[10px] font-bold">{km ? "នៅសល់" : "left"}</span>
+                </span>
+              )}
               <ChevronRight size={18} className="text-ink/25 transition group-hover:translate-x-0.5 group-hover:text-ink/60" />
             </Link>
           )}

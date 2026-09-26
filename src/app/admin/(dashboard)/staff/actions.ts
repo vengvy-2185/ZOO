@@ -104,6 +104,7 @@ export async function updateStaff(userId: string, formData: FormData) {
       position_id: str(formData, "position_id") || null,
       phone: str(formData, "phone") || null,
       allowance: money(formData, "allowance"),
+      ...(/^\d{1,3}$/.test(str(formData, "leave_quota")) ? { leave_quota: Math.min(365, Number(str(formData, "leave_quota"))) } : {}),
       ...(["active", "suspended", "left"].includes(status) ? { status } : {}),
     })
     .eq("user_id", userId);

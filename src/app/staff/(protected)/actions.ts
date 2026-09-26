@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, openShift } from "@/lib/server/staff";
+import { staffAccess, openShift, leaveUsage } from "@/lib/server/staff";
 
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
@@ -56,9 +56,12 @@ export async function requestLeave(_prev: LeaveState, formData: FormData): Promi
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 400);
   if (!["annual", "sick", "personal", "other"].includes(kind) || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start || !reason)
     return { error: "invalid" };
+  // the admin sets how many times a year each person may ask
+  if ((await leaveUsage(id, access.staff.leave_quota)).remaining <= 0) return { error: "quota" };
   const { error } = await createServiceRoleClient().from("staff_leave_requests").insert({ user_id: id, kind, start_date: start, end_date: end, reason });
   if (error) return { error: error.message };
   revalidatePath("/staff/leave");
+  revalidatePath("/staff");
   return { ok: true };
 }
 export async function cancelLeave(requestId: string) {

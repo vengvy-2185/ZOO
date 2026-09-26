@@ -38,6 +38,7 @@ export type StaffRow = {
   phone: string | null;
   hired_on: string;
   allowance: number;
+  leave_quota: number;
   status: "active" | "suspended" | "left";
   created_at: string;
   position: Position | null;
@@ -171,4 +172,24 @@ export async function staffTitle(en: string, km: string) {
   const { getI18n } = await import("@/lib/i18n/server");
   const isKm = getI18n().locale === "km";
   return { title: `${isKm ? km : en} · ${isKm ? "បុគ្គលិក GWZ" : "GWZ Staff"}` };
+}
+
+// ── Leave allowance ───────────────────────────────────────────────────
+export type LeaveUsage = { quota: number; used: number; approved: number; pending: number; remaining: number; days: number };
+/**
+ * How many leave requests someone has made this (calendar) year against the
+ * number the admin allows. Waiting requests count too, so nobody can send
+ * more than the allowance at once; cancelled and refused ones don't count.
+ */
+export async function leaveUsage(userId: string, quota?: number): Promise<LeaveUsage> {
+  const db = createServiceRoleClient();
+  const year = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date()).slice(0, 4);
+  const [{ data: rows }, q] = await Promise.all([
+    db.from("staff_leave_requests").select("status, start_date, end_date").eq("user_id", userId).in("status", ["pending", "approved"]).gte("start_date", `${year}-01-01`).lte("start_date", `${year}-12-31`),
+    quota ?? db.from("staff_members").select("leave_quota").eq("user_id", userId).maybeSingle().then((r) => Number(r.data?.leave_quota ?? 12)),
+  ]);
+  const list = rows ?? [];
+  const approved = list.filter((r: any) => r.status === "approved");
+  const days = approved.reduce((n: number, r: any) => n + Math.round((Date.parse(r.end_date) - Date.parse(r.start_date)) / 864e5) + 1, 0);
+  return { quota: q, used: list.length, approved: approved.length, pending: list.length - approved.length, remaining: Math.max(0, q - list.length), days };
 }

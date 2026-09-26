@@ -29,7 +29,7 @@ function Err({ text }: { text: string }) {
 }
 
 // ── Leave request ─────────────────────────────────────────────────────
-export function LeaveForm({ km, today }: { km: boolean; today: string }) {
+export function LeaveForm({ km, today, disabled = false }: { km: boolean; today: string; disabled?: boolean }) {
   const [state, action] = useFormState<LeaveState, FormData>(requestLeave, {});
   const ref = useRef<HTMLFormElement>(null);
   const [start, setStart] = useState(today);
@@ -37,10 +37,11 @@ export function LeaveForm({ km, today }: { km: boolean; today: string }) {
     if (state.ok) ref.current?.reset();
   }, [state]);
   const L = km
-    ? { kind: "ប្រភេទច្បាប់", kinds: { annual: "ច្បាប់ប្រចាំឆ្នាំ", sick: "ឈឺ", personal: "កិច្ចការផ្ទាល់ខ្លួន", other: "ផ្សេងៗ" }, from: "ចាប់ពីថ្ងៃ", to: "ដល់ថ្ងៃ", reason: "មូលហេតុ", send: "ផ្ញើសំណើ", busy: "កំពុងផ្ញើ…", done: "បានផ្ញើសំណើហើយ។ អ្នកគ្រប់គ្រងនឹងពិនិត្យ។", invalid: "សូមពិនិត្យថ្ងៃ និងមូលហេតុ។" }
-    : { kind: "Type", kinds: { annual: "Annual leave", sick: "Sick", personal: "Personal", other: "Other" }, from: "From", to: "To", reason: "Reason", send: "Send request", busy: "Sending…", done: "Request sent. An admin will review it.", invalid: "Please check the dates and reason." };
+    ? { kind: "ប្រភេទច្បាប់", kinds: { annual: "ច្បាប់ប្រចាំឆ្នាំ", sick: "ឈឺ", personal: "កិច្ចការផ្ទាល់ខ្លួន", other: "ផ្សេងៗ" }, from: "ចាប់ពីថ្ងៃ", to: "ដល់ថ្ងៃ", reason: "មូលហេតុ", send: "ផ្ញើសំណើ", busy: "កំពុងផ្ញើ…", done: "បានផ្ញើសំណើហើយ។ អ្នកគ្រប់គ្រងនឹងពិនិត្យ។", invalid: "សូមពិនិត្យថ្ងៃ និងមូលហេតុ។", quota: "អ្នកបានប្រើច្បាប់អស់ចំនួនដងសម្រាប់ឆ្នាំនេះហើយ។ សូមទាក់ទងអ្នកគ្រប់គ្រង។" }
+    : { kind: "Type", kinds: { annual: "Annual leave", sick: "Sick", personal: "Personal", other: "Other" }, from: "From", to: "To", reason: "Reason", send: "Send request", busy: "Sending…", done: "Request sent. An admin will review it.", invalid: "Please check the dates and reason.", quota: "You have used all your leave requests for this year. Please talk to an admin." };
   return (
     <form ref={ref} action={action} className="space-y-4">
+      <fieldset disabled={disabled} className="space-y-4 disabled:opacity-50">
       <fieldset>
         <legend className={label}>{L.kind}</legend>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -68,10 +69,11 @@ export function LeaveForm({ km, today }: { km: boolean; today: string }) {
         <span className={label}>{L.reason}</span>
         <textarea name="reason" required maxLength={400} rows={3} className={cn(field, "resize-none")} />
       </label>
+      </fieldset>
       {state.ok && <Done text={L.done} />}
-      {state.error && <Err text={state.error === "invalid" ? L.invalid : state.error} />}
+      {state.error && <Err text={state.error === "invalid" ? L.invalid : state.error === "quota" ? L.quota : state.error} />}
       <div className="flex justify-end">
-        <Submit text={L.send} busy={L.busy} icon={Send} />
+        {!disabled && <Submit text={L.send} busy={L.busy} icon={Send} />}
       </div>
     </form>
   );

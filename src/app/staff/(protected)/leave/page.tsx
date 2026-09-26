@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { CalendarOff, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, staffTitle } from "@/lib/server/staff";
+import { staffAccess, staffTitle, leaveUsage } from "@/lib/server/staff";
+import { LeaveQuota } from "@/components/staff/LeaveQuota";
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { StaffShell } from "@/components/staff/StaffShell";
@@ -28,7 +29,10 @@ export default async function LeavePage() {
   if (!access.staff) redirect("/staff");
   const { locale } = getI18n();
   const km = locale === "km";
-  const { data } = await createServiceRoleClient().from("staff_leave_requests").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(30);
+  const [{ data }, usage] = await Promise.all([
+    createServiceRoleClient().from("staff_leave_requests").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(30),
+    leaveUsage(userId, access.staff!.leave_quota),
+  ]);
   const d = (s: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC", numberingSystem: "latn" }).format(new Date(`${s}T00:00:00Z`));
   const nDays = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1;
   const approvedDays = (data ?? []).filter((r: any) => r.status === "approved" && r.start_date.slice(0, 4) === zooToday().slice(0, 4)).reduce((s: number, r: any) => s + nDays(r.start_date, r.end_date), 0);
@@ -41,12 +45,13 @@ export default async function LeavePage() {
       active="leave"
       title={L.title}
       subtitle={L.sub}
-      hero={<p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-bold ring-1 ring-white/20"><CalendarOff size={15} /> {L.used}: {approvedDays} {L.days}</p>}
+      hero={<p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-bold ring-1 ring-white/20"><CalendarOff size={15} /> {km ? `នៅសល់ ${usage.remaining} / ${usage.quota} ដង` : `${usage.remaining} of ${usage.quota} left`} · {L.used}: {approvedDays} {L.days}</p>}
     >
+      <LeaveQuota u={usage} km={km} />
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_1.1fr]">
         <section className="card p-5 md:p-6">
           <h2 className="mb-4 font-display text-xl font-extrabold text-forest">{L.ask}</h2>
-          <LeaveForm km={km} today={zooToday()} />
+          <LeaveForm km={km} today={zooToday()} disabled={usage.remaining <= 0} />
         </section>
         <section>
           <h2 className="mb-3 font-display text-xl font-extrabold text-forest">{L.mine}</h2>

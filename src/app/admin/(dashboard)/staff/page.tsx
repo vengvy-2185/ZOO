@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn";
 import { AttendanceManager, type AttTab } from "@/components/staff/AttendanceManager";
 import { ClipboardCheck } from "lucide-react";
 import { AddStaffForm, ResetPassword } from "./StaffClient";
+import { leaveUsage } from "@/lib/server/staff";
 import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,8 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
     db.from("staff_announcements").select("*").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(30),
   ]);
   const pendingLeaves = (leaves ?? []).filter((r: any) => r.status === "pending");
+  // leave used this year vs the allowance, per person (shown on each request)
+  const leaveUse = tab === "leave" ? new Map(await Promise.all([...new Set((leaves ?? []).map((r: any) => r.user_id as string))].map(async (id) => [id, await leaveUsage(id, lines.find((l) => l.staff.user_id === id)?.staff.leave_quota)] as const))) : new Map();
   const staffName = (id: string) => lines.find((l) => l.staff.user_id === id)?.staff.full_name ?? "—";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
   const pn = (p: Position | null) => (p ? (km && p.name_km) || p.name : "—");
@@ -138,7 +141,14 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                           ))}
                         </select>
                         <input name="phone" defaultValue={s.phone ?? ""} placeholder={L.phone} className={input} />
-                        <input name="allowance" type="number" step="0.5" min="0" defaultValue={s.allowance} className={input} title={L.allowanceM} />
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-ink/45">{L.allowanceM} ($)</span>
+                          <input name="allowance" type="number" step="0.5" min="0" defaultValue={s.allowance} className={input} title={L.allowanceM} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-ink/45">{km ? "ច្បាប់អនុញ្ញាត (ដង/ឆ្នាំ)" : "Leave allowed (times/year)"}</span>
+                          <input name="leave_quota" type="number" min="0" max="365" step="1" defaultValue={s.leave_quota ?? 12} className={input} />
+                        </label>
                         <div className="sm:col-span-2 flex justify-end">
                           <SubmitButton label={L.save} pendingLabel={L.saving} />
                         </div>
@@ -280,6 +290,10 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-display font-extrabold text-forest">{staffName(r.user_id)}</span>
                   <span className="rounded-full bg-[#EEF2FF] px-2.5 py-0.5 text-xs font-bold text-[#1E3A8A]">{K[r.kind as keyof typeof K]}</span>
+                  {leaveUse.get(r.user_id) && (() => {
+                    const u = leaveUse.get(r.user_id)!;
+                    return <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold", u.remaining === 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")} title={km ? "បានប្រើ / អនុញ្ញាត ឆ្នាំនេះ" : "Used / allowed this year"}>{u.used}/{u.quota} · {km ? `នៅសល់ ${u.remaining}` : `${u.remaining} left`}</span>;
+                  })()}
                   <span className={cn("ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold", r.status === "pending" ? "bg-amber-50 text-amber-700" : r.status === "approved" ? "bg-emerald-50 text-emerald-700" : r.status === "rejected" ? "bg-red-50 text-red-700" : "bg-black/5 text-ink/50")}>{S[r.status as keyof typeof S]}</span>
                 </div>
                 <p className="mt-1 text-sm font-bold text-ink/70">{d(r.start_date)}{r.end_date !== r.start_date && ` → ${d(r.end_date)}`} · {nDays(r.start_date, r.end_date)} {L.days}</p>
