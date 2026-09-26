@@ -78,9 +78,9 @@ export const getTicketTypes = unstable_cache(
 
 export const getSettings = unstable_cache(
   async () => {
-    const { data } = await must(createPublicClient().from("app_settings").select("key, value").in("key", ["branding", "zoo_profile"]));
+    const { data } = await must(createPublicClient().from("app_settings").select("key, value").in("key", ["branding", "zoo_profile", "site_contact"]));
     const byKey = Object.fromEntries((data ?? []).map((r) => [r.key, r.value]));
-    return { branding: (byKey.branding ?? {}) as Record<string, any>, zooProfile: (byKey.zoo_profile ?? {}) as Record<string, any> };
+    return { branding: (byKey.branding ?? {}) as Record<string, any>, zooProfile: (byKey.zoo_profile ?? {}) as Record<string, any>, siteContact: (byKey.site_contact ?? {}) as Record<string, any> };
   },
   ["settings"],
   opts

@@ -38,14 +38,15 @@ export async function StaffShell({ title, subtitle, hero, children }: { active?:
   const senderOf = new Map((senders ?? []).map((x: any) => [x.user_id, x]));
 
   const T = km
-    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", kudos: "ពាក្យអរគុណ", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
-    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", kudos: "Thanks", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
+    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "ម៉ោងធ្វើការ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", kudos: "ពាក្យអរគុណ", chat: "ជជែកក្រុម", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
+    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "Hours", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", kudos: "Thanks", chat: "Team chat", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
 
   const items: StaffNavItem[] = (
     [
       ["home", "/staff", "main", true],
       ["checkin", "/staff/checkin", "main", isStaff],
       ["team", "/staff/team", "main", access.admin || can("reports")],
+      ["chat", "/staff/chat", "main", true],
       ["tasks", "/staff/tasks", "main", true],
       ["issues", "/staff/issues", "main", true],
       ["supplies", "/staff/supplies", "main", true],

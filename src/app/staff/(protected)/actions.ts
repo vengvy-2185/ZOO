@@ -373,3 +373,29 @@ export async function resolveSos(alertId: string) {
   await db.from("staff_alerts").update({ status: "resolved", resolved_by: id, resolved_at: new Date().toISOString() }).eq("id", alertId);
   revalidatePath("/staff", "layout");
 }
+
+// ── Team chat (admins and staff) ──────────────────────────────────────
+function canUseChannel(access: Awaited<ReturnType<typeof staffAccess>>, ch: string) {
+  if (access.admin || ch === "all") return true;
+  if (ch === "managers") return access.perms.has("reports");
+  return access.perms.has(ch as any);
+}
+export type ChatState = { ok?: boolean; error?: string; at?: number };
+export async function sendChat(_prev: ChatState, formData: FormData): Promise<ChatState> {
+  const { id, access } = await me();
+  const channel = String(formData.get("channel") ?? "all");
+  const body = String(formData.get("body") ?? "").trim().slice(0, 1000);
+  if (!body || !canUseChannel(access, channel)) return { error: "invalid" };
+  const { error } = await createServiceRoleClient().from("staff_messages").insert({ channel, body, user_id: id });
+  if (error) return { error: error.message };
+  revalidatePath("/staff/chat");
+  return { ok: true, at: Date.now() };
+}
+export async function deleteChat(messageId: string) {
+  const { id, access } = await me();
+  const db = createServiceRoleClient();
+  let q = db.from("staff_messages").delete().eq("id", messageId);
+  if (!access.admin && !access.perms.has("reports")) q = q.eq("user_id", id);
+  await q;
+  revalidatePath("/staff/chat");
+}

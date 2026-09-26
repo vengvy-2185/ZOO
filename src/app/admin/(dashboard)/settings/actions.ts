@@ -76,3 +76,35 @@ export async function updateBranding(formData: FormData) {
   revalidatePath("/staff/login");
   revalidatePath("/admin/login");
 }
+
+// Contact details, social links, footer text and the site-wide notice bar.
+export async function updateSiteContact(formData: FormData) {
+  const supabase = createClient();
+  const url = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim().slice(0, 300);
+    if (!v) return "";
+    return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  };
+  const txt = (k: string, n = 300) => String(formData.get(k) ?? "").trim().slice(0, n);
+  const value = {
+    facebook: url("facebook"),
+    instagram: url("instagram"),
+    youtube: url("youtube"),
+    tiktok: url("tiktok"),
+    telegram: url("telegram"),
+    email: txt("email", 120),
+    phone2: txt("phone2", 40),
+    map_link: url("map_link"),
+    about_en: txt("about_en", 400),
+    about_km: txt("about_km", 400),
+    notice_on: formData.get("notice_on") === "on",
+    notice_en: txt("notice_en", 200),
+    notice_km: txt("notice_km", 200),
+    notice_link: txt("notice_link", 300),
+    notice_color: ["green", "amber", "red", "blue"].includes(txt("notice_color")) ? txt("notice_color") : "green",
+  };
+  const { error } = await supabase.from("app_settings").upsert({ key: "site_contact", value });
+  if (error) throw new Error(error.message);
+  revalidateTag(ZOO_TAG);
+  revalidatePath("/", "layout");
+}

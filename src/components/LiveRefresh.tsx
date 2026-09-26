@@ -23,6 +23,8 @@ export function LiveRefresh() {
 
     const typing = () => {
       const el = document.activeElement as HTMLElement | null;
+      // boxes marked data-live-ok (the chat box) keep what's typed across a refresh
+      if (el?.dataset.liveOk !== undefined) return false;
       return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
     };
     const run = () => {

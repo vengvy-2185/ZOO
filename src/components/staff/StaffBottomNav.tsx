@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, LayoutGrid, X, Package, HandHeart, ListChecks, Archive, NotebookPen } from "lucide-react";
+import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, LayoutGrid, X, Package, HandHeart, ListChecks, Archive, NotebookPen, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { StaffNavItem } from "./StaffNav";
 
-const ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, kudos: HandHeart, tasks: ListChecks, lost: Archive, handover: NotebookPen };
+const ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, kudos: HandHeart, tasks: ListChecks, lost: Archive, handover: NotebookPen, chat: MessagesSquare };
 
 /**
  * Phones: the staff menu sits at the bottom of the screen (thumb reach):

@@ -1,12 +1,24 @@
 import Link from "next/link";
-import { Clock, MapPin, Phone, Facebook, Instagram, Youtube } from "lucide-react";
+import { Clock, MapPin, Phone, Mail, Facebook, Instagram, Youtube, Music2, Send } from "lucide-react";
+import { getSettings } from "@/lib/data/zoo";
 import { Logo } from "./Logo";
 import { NAV_LINKS, MORE_LINKS } from "./nav-links";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { getI18n } from "@/lib/i18n/server";
 
-export function SiteFooter() {
+export async function SiteFooter() {
   const { t, locale } = getI18n();
+  const km = locale === "km";
+  const { siteContact: c, zooProfile: z } = await getSettings().catch(() => ({ siteContact: {} as Record<string, any>, zooProfile: {} as Record<string, any> }));
+  // only the networks the admin filled in
+  const socials = [
+    { url: c.facebook, Icon: Facebook, name: "Facebook" },
+    { url: c.instagram, Icon: Instagram, name: "Instagram" },
+    { url: c.youtube, Icon: Youtube, name: "YouTube" },
+    { url: c.tiktok, Icon: Music2, name: "TikTok" },
+    { url: c.telegram, Icon: Send, name: "Telegram" },
+  ].filter((x) => x.url);
+  const address = (km && z.address_km) || z.address || t.footer.address;
   return (
     <footer className="relative mt-20 overflow-hidden bg-forest text-white">
       {/* Leafy silhouette edge */}
@@ -22,16 +34,18 @@ export function SiteFooter() {
         <div className="md:col-span-1">
           <Logo tone="light" subtitle={t.nav.tagline} />
           <p className="mt-4 max-w-xs text-sm text-white/65">
-            {t.footer.about}
+            {(km ? c.about_km : c.about_en) || t.footer.about}
           </p>
           <LanguageSwitcher tone="dark" className="mt-5 w-fit" />
-          <div className="mt-4 flex gap-2">
-            {[Facebook, Instagram, Youtube].map((Icon, i) => (
-              <span key={i} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-leaf hover:text-forest">
-                <Icon size={16} />
-              </span>
-            ))}
-          </div>
+          {socials.length > 0 && (
+            <div className="mt-4 flex gap-2">
+              {socials.map(({ url, Icon, name }) => (
+                <a key={name} href={url} target="_blank" rel="noopener noreferrer" aria-label={name} title={name} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:-translate-y-0.5 hover:bg-leaf hover:text-forest">
+                  <Icon size={16} />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -54,11 +68,20 @@ export function SiteFooter() {
               <Clock size={16} className="mt-0.5 flex-shrink-0 text-leaf" /> {t.footer.openDaily}
             </li>
             <li className="flex gap-2.5">
-              <MapPin size={16} className="mt-0.5 flex-shrink-0 text-leaf" /> {t.footer.address}
+              <MapPin size={16} className="mt-0.5 flex-shrink-0 text-leaf" /> {c.map_link ? <a href={c.map_link} target="_blank" rel="noopener noreferrer" className="hover:text-leaf">{address}</a> : address}
             </li>
             <li className="flex gap-2.5">
-              <Phone size={16} className="mt-0.5 flex-shrink-0 text-leaf" /> +855 00 000 000
+              <Phone size={16} className="mt-0.5 flex-shrink-0 text-leaf" />
+              <span className="flex flex-col">
+                {[z.phone, c.phone2].filter(Boolean).map((p: string) => <a key={p} href={`tel:${p.replace(/\s/g, "")}`} className="hover:text-leaf">{p}</a>)}
+                {!z.phone && !c.phone2 && "—"}
+              </span>
             </li>
+            {c.email && (
+              <li className="flex gap-2.5">
+                <Mail size={16} className="mt-0.5 flex-shrink-0 text-leaf" /> <a href={`mailto:${c.email}`} className="break-all hover:text-leaf">{c.email}</a>
+              </li>
+            )}
           </ul>
         </div>
 
@@ -75,9 +98,6 @@ export function SiteFooter() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-6 py-5 text-xs text-white/50 md:flex-row">
           <span>© {new Date().getFullYear()} Green Wild Zoo. {t.footer.rights}</span>
           <span className="flex items-center gap-3">
-            <Link href="/credits" className="hover:text-leaf">
-              {t.common.photoCredits}
-            </Link>
             <Link href="/staff/login" className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 font-bold text-white/70 hover:bg-white/20 hover:text-leaf">
               {locale === "km" ? "ចូលសម្រាប់បុគ្គលិក" : "Staff sign-in"}
             </Link>

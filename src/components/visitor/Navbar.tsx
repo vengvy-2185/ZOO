@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
 import { NavbarClient } from "./NavbarClient";
+import { NoticeBar } from "./NoticeBar";
 import { getActiveAnimals } from "@/lib/data/zoo";
 
 // Server half: works out who is signed in (and whether they're staff/admin,
@@ -22,5 +23,10 @@ export async function Navbar() {
   // user.id comes from a signature-verified token, so the cached role lookup is safe.
   const role = user ? (await getCachedRole(user.id)).role : null;
 
-  return <NavbarClient signedIn={!!user} displayName={user?.fullName ?? user?.email ?? null} avatarUrl={user?.avatarUrl ?? null} role={role} animals={animals} />;
+  return (
+    <>
+      <NoticeBar />
+      <NavbarClient signedIn={!!user} displayName={user?.fullName ?? user?.email ?? null} avatarUrl={user?.avatarUrl ?? null} role={role} animals={animals} />
+    </>
+  );
 }

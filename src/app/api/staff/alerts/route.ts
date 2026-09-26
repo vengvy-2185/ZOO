@@ -26,6 +26,9 @@ export async function GET() {
     manager ? db.from("staff_supply_requests").select("id").eq("status", "pending").limit(50) : Promise.resolve({ data: [] as any[] }),
     manager ? db.from("staff_issues").select("id").eq("status", "open").limit(50) : Promise.resolve({ data: [] as any[] }),
   ]);
+  // chat messages from others in my channels, last 2 hours
+  const channels = ["all", ...(manager ? ["managers"] : []), ...(["tickets", "animals", "cleaning", "guide"] as const).filter((c) => access.admin || access.perms.has(c))];
+  const { data: msgs } = await db.from("staff_messages").select("id, user_id").in("channel", channels).gte("created_at", new Date(Date.now() - 2 * 3600e3).toISOString()).limit(60);
   const mine = (alerts ?? []).filter((a: any) => manager || a.user_id === me.id);
   const ids = [...new Set(mine.map((a: any) => a.user_id).filter(Boolean))];
   const { data: who } = ids.length ? await db.from("staff_members").select("user_id, full_name").in("user_id", ids) : { data: [] as any[] };
@@ -39,6 +42,7 @@ export async function GET() {
       chime: [
         ...(s.chime_tasks ? (tasks ?? []).filter((t: any) => t.assigned_to === me.id || (t.section && access.perms.has(t.section))).map((t: any) => `t:${t.id}`) : []),
         ...(s.chime_notices ? (notices ?? []).map((n: any) => `n:${n.id}`) : []),
+        ...(msgs ?? []).filter((m: any) => m.user_id !== me.id).map((m: any) => `m:${m.id}`),
         ...(s.chime_manager ? [...(supplies.data ?? []).map((x: any) => `s:${x.id}`), ...(issues.data ?? []).map((x: any) => `i:${x.id}`)] : []),
       ],
       sound: { enabled: s.sound_enabled, volume: s.sound_volume, every: s.siren_every },

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { Settings, Building2, Palette, Satellite } from "lucide-react";
-import { updateZooProfile, updateMapCalibration, updateBranding } from "./actions";
+import { Settings, Building2, Palette, Satellite, Share2, Megaphone } from "lucide-react";
+import { updateZooProfile, updateMapCalibration, updateBranding, updateSiteContact } from "./actions";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -11,10 +11,20 @@ export default async function AdminSettingsPage() {
     supabase.from("app_settings").select("value").eq("key", "map_calibration").maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "branding").maybeSingle(),
   ]);
+  const { data: contactSetting } = await supabase.from("app_settings").select("value").eq("key", "site_contact").maybeSingle();
+  const c = (contactSetting?.value ?? {}) as any;
   const profile = (profileSetting?.value ?? {}) as any;
   const cal = (calSetting?.value ?? {}) as any;
   const branding = (brandingSetting?.value ?? {}) as any;
-  const { t } = getI18n();
+  const { t, locale } = getI18n();
+  const km = locale === "km";
+  const inp = "mt-1 w-full rounded-xl border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary";
+  const F = ({ label, name, value, ph, type = "text" }: { label: string; name: string; value?: string; ph?: string; type?: string }) => (
+    <label className="block text-sm">
+      <span className="font-medium">{label}</span>
+      <input name={name} type={type} defaultValue={value ?? ""} placeholder={ph} className={inp} />
+    </label>
+  );
 
   return (
     <div className="mx-auto max-w-3xl p-8">
@@ -30,6 +40,45 @@ export default async function AdminSettingsPage() {
         <Field label="Address (English)" name="address" defaultValue={profile.address} />
         <Field label="Address (ខ្មែរ)" name="address_km" defaultValue={profile.address_km} />
         <Field label="Phone" name="phone" defaultValue={profile.phone} />
+        <button className="btn-primary">{t.admin.save}</button>
+      </form>
+
+      <form action={updateSiteContact} className="card mt-6 space-y-4 p-6">
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest"><Share2 size={18} className="text-primary" /> {km ? "ទំនាក់ទំនង និងបណ្តាញសង្គម" : "Contact and social links"}</h2>
+        <p className="-mt-2 text-xs text-ink/50">{km ? "បង្ហាញនៅខាងក្រោមគេហទំព័រ (footer)។ ទុកទទេ = មិនបង្ហាញរូបនោះទេ។" : "Shown in the website footer. Leave empty to hide that icon."}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F label="Facebook" name="facebook" value={c.facebook} ph="https://facebook.com/greenwildzoo" />
+          <F label="Instagram" name="instagram" value={c.instagram} ph="https://instagram.com/…" />
+          <F label="YouTube" name="youtube" value={c.youtube} ph="https://youtube.com/@…" />
+          <F label="TikTok" name="tiktok" value={c.tiktok} ph="https://tiktok.com/@…" />
+          <F label="Telegram" name="telegram" value={c.telegram} ph="https://t.me/…" />
+          <F label={km ? "អ៊ីមែល" : "Email"} name="email" value={c.email} ph="hello@greenwildzoo.com" type="email" />
+          <F label={km ? "លេខទូរស័ព្ទទី ២" : "Second phone"} name="phone2" value={c.phone2} ph="+855 …" />
+          <F label={km ? "Link ផែនទី Google" : "Google Maps link"} name="map_link" value={c.map_link} ph="https://maps.google.com/…" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm"><span className="font-medium">{km ? "អំពីសួនសត្វ (EN)" : "About text (English)"}</span><textarea name="about_en" rows={3} defaultValue={c.about_en ?? ""} className={inp} /></label>
+          <label className="block text-sm"><span className="font-medium">{km ? "អំពីសួនសត្វ (ខ្មែរ)" : "About text (Khmer)"}</span><textarea name="about_km" rows={3} defaultValue={c.about_km ?? ""} className={inp} /></label>
+        </div>
+
+        <div className="rounded-2xl bg-cream/60 p-4">
+          <h3 className="flex items-center gap-2 font-display font-bold text-forest"><Megaphone size={16} className="text-primary" /> {km ? "របារដំណឹងខាងលើគេហទំព័រ" : "Notice bar at the top of the website"}</h3>
+          <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-sm font-semibold"><input type="checkbox" name="notice_on" defaultChecked={Boolean(c.notice_on)} className="h-4 w-4 accent-[#176B3A]" /> {km ? "បង្ហាញ" : "Show it"}</label>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <F label={km ? "សារ (EN)" : "Message (English)"} name="notice_en" value={c.notice_en} ph="Open late on Saturday until 8pm!" />
+            <F label={km ? "សារ (ខ្មែរ)" : "Message (Khmer)"} name="notice_km" value={c.notice_km} ph="ថ្ងៃសៅរ៍ បើកដល់ម៉ោង ៨ យប់!" />
+            <F label={km ? "Link (ស្រេចចិត្ត)" : "Link (optional)"} name="notice_link" value={c.notice_link} ph="/events" />
+            <label className="block text-sm">
+              <span className="font-medium">{km ? "ពណ៌" : "Colour"}</span>
+              <select name="notice_color" defaultValue={c.notice_color ?? "green"} className={inp}>
+                <option value="green">{km ? "បៃតង" : "Green"}</option>
+                <option value="amber">{km ? "លឿង" : "Yellow"}</option>
+                <option value="red">{km ? "ក្រហម" : "Red"}</option>
+                <option value="blue">{km ? "ខៀវ" : "Blue"}</option>
+              </select>
+            </label>
+          </div>
+        </div>
         <button className="btn-primary">{t.admin.save}</button>
       </form>
 
