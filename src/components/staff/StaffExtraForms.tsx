@@ -6,6 +6,7 @@ import { Send, CheckCircle2, MapPin, Siren, Loader2 } from "lucide-react";
 import { createTask, addLostItem, addHandover, sendSos, type TaskState, type LostState, type HandoverState, type SosState } from "@/app/staff/(protected)/actions";
 import { LOST_CATS, SOS_KINDS, SUPPLY_SECTIONS, TASK_SECTIONS, type LostCat, type SosKind, type Section } from "@/lib/staff-extras";
 import { cn } from "@/lib/utils/cn";
+import { playSound } from "@/lib/client-sound";
 
 const field = "w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-ink outline-none focus:border-[#2563EB]";
 const label = "mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink/45";
@@ -154,6 +155,10 @@ export function SosForm({ km }: { km: boolean }) {
   const [state, action] = useFormState<SosState, FormData>(sendSos, {});
   const [kind, setKind] = useState<SosKind | null>(null);
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+  // the sender hears a short "sent" tone
+  useEffect(() => {
+    if (state.ok) playSound("ok", 0.8);
+  }, [state]);
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition((p) => setGeo({ lat: p.coords.latitude, lng: p.coords.longitude }), () => {}, { enableHighAccuracy: true, timeout: 8000 });
   }, []);

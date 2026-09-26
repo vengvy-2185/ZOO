@@ -9,6 +9,7 @@ import { TEXT_SIZE_SCRIPT } from "@/lib/text-size";
 import { ZooAssistant } from "@/components/ZooAssistant";
 import { LiveRefresh } from "@/components/LiveRefresh";
 import { GlobalAttendanceQR } from "@/components/staff/GlobalAttendanceQR";
+import { GlobalStaffSound } from "@/components/staff/GlobalStaffSound";
 import { getBranding } from "@/lib/branding";
 import { ScrollTopOnSameLink } from "@/components/ScrollTopOnSameLink";
 import { getLocale } from "@/lib/i18n/server";
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AuthToast />
           <ZooAssistant />
           <GlobalAttendanceQR />
+          <GlobalStaffSound />
           <IntroSplash videoUrl={heroVideoUrl} />
         </LocaleProvider>
         <ScrollReveal />

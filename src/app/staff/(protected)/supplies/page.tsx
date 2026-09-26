@@ -5,6 +5,7 @@ import { staffAccess, staffTitle } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { SupplyForm } from "@/components/staff/SupplyForm";
+import { getStaffSettings, supplyPicks } from "@/lib/server/staff-settings";
 import { SUPPLY_SECTIONS, type Section } from "@/lib/staff-extras";
 import { setSupplyStatus } from "../actions";
 import { cn } from "@/lib/utils/cn";
@@ -30,6 +31,7 @@ export default async function SuppliesPage({ searchParams }: { searchParams: { v
   const sections: Section[] = (["tickets", "animals", "cleaning", "guide"] as const).filter((s) => access.perms.has(s));
   sections.push("general");
   const db = createServiceRoleClient();
+  const settings = await getStaffSettings();
   let q = db.from("staff_supply_requests").select("*").order("created_at", { ascending: false }).limit(80);
   if (view === "mine") q = q.eq("user_id", userId);
   const { data } = await q;
@@ -52,7 +54,7 @@ export default async function SuppliesPage({ searchParams }: { searchParams: { v
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_1.1fr]">
         <section className="card p-5 md:p-6">
           <h2 className="mb-4 font-display text-xl font-extrabold text-forest">{L.ask}</h2>
-          <SupplyForm km={km} sections={sections} />
+          <SupplyForm km={km} sections={sections} picks={Object.fromEntries(sections.map((k) => [k, supplyPicks(settings.supplies[k])]))} />
         </section>
 
         <section>

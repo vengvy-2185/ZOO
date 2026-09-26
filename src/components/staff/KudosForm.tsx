@@ -34,8 +34,8 @@ export function KudosForm({ km, colleagues }: { km: boolean; colleagues: Colleag
   }, [state]);
   const list = useMemo(() => colleagues.filter((c) => !q || c.name.toLowerCase().includes(q.toLowerCase())), [colleagues, q]);
   const L = km
-    ? { who: "អរគុណអ្នកណា?", search: "ស្វែងរកឈ្មោះ…", badge: "ផ្លាកសញ្ញា", msg: "សារខ្លី (ស្រេចចិត្ត)", msgPh: "ឧ. អរគុណដែលជួយខ្ញុំថ្ងៃនេះ!", send: "ផ្ញើពាក្យអរគុណ", busy: "កំពុងផ្ញើ…", done: "បានផ្ញើហើយ! 🎉", limit: "អ្នកផ្ញើបាន ១០ ដងក្នុងមួយថ្ងៃ។", invalid: "សូមជ្រើសមិត្តរួមការងារ។", nobody: "មិនទាន់មានមិត្តរួមការងារ។" }
-    : { who: "Who do you want to thank?", search: "Search a name…", badge: "Badge", msg: "Short message (optional)", msgPh: "e.g. Thanks for helping me today!", send: "Send thanks", busy: "Sending…", done: "Sent! 🎉", limit: "You can send 10 a day.", invalid: "Please pick a colleague.", nobody: "No colleagues yet." };
+    ? { who: "អរគុណអ្នកណា?", search: "ស្វែងរកឈ្មោះ…", badge: "ផ្លាកសញ្ញា", msg: "សារខ្លី (ស្រេចចិត្ត)", msgPh: "ឧ. អរគុណដែលជួយខ្ញុំថ្ងៃនេះ!", send: "ផ្ញើពាក្យអរគុណ", busy: "កំពុងផ្ញើ…", done: "បានផ្ញើហើយ! 🎉", limit: "អ្នកផ្ញើគ្រប់ចំនួនសម្រាប់ថ្ងៃនេះហើយ។", invalid: "សូមជ្រើសមិត្តរួមការងារ។", nobody: "មិនទាន់មានមិត្តរួមការងារ។" }
+    : { who: "Who do you want to thank?", search: "Search a name…", badge: "Badge", msg: "Short message (optional)", msgPh: "e.g. Thanks for helping me today!", send: "Send thanks", busy: "Sending…", done: "Sent! 🎉", limit: "You have sent today's maximum.", invalid: "Please pick a colleague.", nobody: "No colleagues yet." };
 
   return (
     <form ref={ref} action={action} className="relative space-y-4">

@@ -16,7 +16,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
   );
 }
 
-export function SupplyForm({ km, sections }: { km: boolean; sections: Section[] }) {
+export function SupplyForm({ km, sections, picks }: { km: boolean; sections: Section[]; picks?: Partial<Record<Section, [string, string][]>> }) {
   const [state, action] = useFormState<SupplyState, FormData>(requestSupply, {});
   const [section, setSection] = useState<Section>(sections[0]);
   const [item, setItem] = useState("");
@@ -64,7 +64,7 @@ export function SupplyForm({ km, sections }: { km: boolean; sections: Section[] 
       <div>
         <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-ink/45">{L.pick}</p>
         <div key={section} className="flex flex-wrap gap-2">
-          {S.items.map(([en, kh], i) => {
+          {(picks?.[section] ?? S.items).map(([en, kh], i) => {
             const label = km ? kh : en;
             const on = item === label;
             return (

@@ -5,6 +5,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { LostForm } from "@/components/staff/StaffExtraForms";
 import { LOST_CATS, type LostCat } from "@/lib/staff-extras";
+import { getStaffSettings } from "@/lib/server/staff-settings";
 import { returnLostItem } from "../actions";
 import { cn } from "@/lib/utils/cn";
 
@@ -20,7 +21,8 @@ export default async function LostPage({ searchParams }: { searchParams: { q?: s
   const db = createServiceRoleClient();
   let query = db.from("lost_found").select("*").eq("status", tab).order("created_at", { ascending: false }).limit(100);
   if (q) query = query.or(`item.ilike.%${q.replace(/[%,()]/g, "")}%,place.ilike.%${q.replace(/[%,()]/g, "")}%,description.ilike.%${q.replace(/[%,()]/g, "")}%`);
-  const [{ data }, { count: held }, { count: returned }, { data: staff }] = await Promise.all([
+  const [settings, { data }, { count: held }, { count: returned }, { data: staff }] = await Promise.all([
+    getStaffSettings(),
     query,
     db.from("lost_found").select("id", { count: "exact", head: true }).eq("status", "held"),
     db.from("lost_found").select("id", { count: "exact", head: true }).eq("status", "returned"),
@@ -67,6 +69,8 @@ export default async function LostPage({ searchParams }: { searchParams: { q?: s
                       <span className="inline-flex items-center gap-1"><MapPin size={12} /> {r.place}</span>
                       <span className="inline-flex items-center gap-1"><Clock size={12} /> {when(r.created_at)} · {L.daysAgo(days(r.created_at))}</span>
                       <span>{L.found} {nameOf.get(r.found_by) ?? "Admin"}</span>
+                      {r.status === "held" && days(r.created_at) >= settings.lost_old_days && <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">{km ? "យូរហើយ" : "Waiting long"}</span>}
+                      {settings.office_phone && r.status === "held" && <a href={`tel:${settings.office_phone}`} className="font-bold text-[#1D4ED8]">📞 {settings.office_phone}</a>}
                     </p>
                     {r.status === "returned" && (
                       <p className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><PackageCheck size={13} /> {L.to} {r.owner_name}{r.owner_contact && ` · ${r.owner_contact}`} · {when(r.returned_at)}</p>

@@ -5,6 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { resolveImage } from "@/lib/admin/upload";
+import { getStaffSettings } from "@/lib/server/staff-settings";
 import { getMembers, ensureCard } from "@/lib/server/members";
 import { makePassword, staffEmail, monthRange, payroll, isStaffNo, type Permission, type PayType } from "@/lib/server/staff";
 
@@ -77,6 +78,7 @@ export async function createStaff(_prev: CreateStaffState, formData: FormData): 
     phone: str(formData, "phone") || null,
     hired_on: str(formData, "hired_on") || undefined,
     allowance: money(formData, "allowance"),
+    leave_quota: (await getStaffSettings()).default_leave_quota,
     created_by: adminId,
   });
   if (staffErr) {
@@ -224,4 +226,47 @@ export async function togglePin(id: string, pinned: boolean) {
   await requireAdmin();
   await createServiceRoleClient().from("staff_announcements").update({ pinned }).eq("id", id);
   done();
+}
+
+// ── Numbers and lists for the staff area ──────────────────────────────
+export async function saveStaffSettings(formData: FormData) {
+  await requireAdmin();
+  const num = (k: string, d: number, min: number, max: number) => {
+    const n = Number(str(formData, k));
+    return Number.isFinite(n) && str(formData, k) !== "" ? Math.round(Math.min(max, Math.max(min, n))) : d;
+  };
+  const phones = Array.from({ length: 6 }, (_, i) => ({
+    label: str(formData, `ph_label_${i}`).slice(0, 40),
+    label_km: str(formData, `ph_km_${i}`).slice(0, 40),
+    number: str(formData, `ph_num_${i}`).replace(/[^\d+*#\s-]/g, "").slice(0, 20),
+  })).filter((p) => p.number && (p.label || p.label_km));
+  const text = (k: string) => str(formData, k).slice(0, 1200);
+  const data = {
+    phones,
+    office_phone: str(formData, "office_phone").replace(/[^\d+*#\s-]/g, "").slice(0, 20),
+    sound_enabled: formData.get("sound_enabled") === "on",
+    sound_volume: num("sound_volume", 80, 0, 100),
+    siren_every: num("siren_every", 3, 1, 30),
+    chime_tasks: formData.get("chime_tasks") === "on",
+    chime_notices: formData.get("chime_notices") === "on",
+    chime_manager: formData.get("chime_manager") === "on",
+    kudos_per_day: num("kudos_per_day", 10, 1, 100),
+    default_leave_quota: num("default_leave_quota", 12, 0, 365),
+    handover_new_hours: num("handover_new_hours", 12, 1, 168),
+    task_keep_days: num("task_keep_days", 3, 1, 60),
+    lost_old_days: num("lost_old_days", 7, 1, 365),
+    supplies: { tickets: text("sup_tickets"), animals: text("sup_animals"), cleaning: text("sup_cleaning"), guide: text("sup_guide"), general: text("sup_general") },
+  };
+  await createServiceRoleClient().from("staff_settings").upsert({ id: 1, data, updated_at: new Date().toISOString() });
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff", "layout");
+}
+
+/** Everyone who still has the old default gets the new one (people with a custom number keep theirs). */
+export async function applyLeaveQuotaToAll(oldQuota: number, newQuota: number) {
+  await requireAdmin();
+  if (!Number.isInteger(newQuota) || newQuota < 0 || newQuota > 365) return;
+  await createServiceRoleClient().from("staff_members").update({ leave_quota: newQuota }).eq("leave_quota", oldQuota);
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff", "layout");
 }

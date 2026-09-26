@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Briefcase, Wallet, Users, Printer, Clock, Trash2, CheckCircle2, Undo2, Plus, CalendarOff, Megaphone, Pin, PinOff, XCircle } from "lucide-react";
+import { BadgeCheck, Briefcase, Wallet, Users, Printer, Clock, Trash2, CheckCircle2, Undo2, Plus, CalendarOff, Megaphone, Pin, PinOff, XCircle, Settings2 } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/ui-client";
@@ -10,11 +10,13 @@ import { AttendanceManager, type AttTab } from "@/components/staff/AttendanceMan
 import { ClipboardCheck } from "lucide-react";
 import { AddStaffForm, ResetPassword } from "./StaffClient";
 import { leaveUsage } from "@/lib/server/staff";
+import { getStaffSettings } from "@/lib/server/staff-settings";
+import { StaffSettingsPanel } from "@/components/admin/StaffSettingsPanel";
 import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["people", "attendance", "payroll", "leave", "notices", "positions"] as const;
+const TABS = ["people", "attendance", "payroll", "leave", "notices", "positions", "settings"] as const;
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const input = "w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary";
 
@@ -30,6 +32,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
     db.from("staff_leave_requests").select("*").order("status", { ascending: false }).order("start_date", { ascending: false }).limit(60),
     db.from("staff_announcements").select("*").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(30),
   ]);
+  const settings = tab === "settings" ? await getStaffSettings() : null;
   const pendingLeaves = (leaves ?? []).filter((r: any) => r.status === "pending");
   // leave used this year vs the allowance, per person (shown on each request)
   const leaveUse = tab === "leave" ? new Map(await Promise.all([...new Set((leaves ?? []).map((r: any) => r.user_id as string))].map(async (id) => [id, await leaveUsage(id, lines.find((l) => l.staff.user_id === id)?.staff.leave_quota)] as const))) : new Map();
@@ -48,8 +51,8 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
   };
 
   const L = km
-    ? { title: "បុគ្គលិក និងប្រាក់ខែ", sub: "មានតែអ្នកគ្រប់គ្រងទេដែលបង្កើតគណនីបុគ្គលិក។ បុគ្គលិកម្នាក់ៗទទួលបានលេខសម្គាល់ (GWZ-S-…) សម្រាប់ចូលប្រើ និងកាតសម្គាល់ភ្លាមៗ។", tabs: { people: "បុគ្គលិក", attendance: "វត្តមាន", payroll: "ប្រាក់ខែ", leave: "ច្បាប់", notices: "ជូនដំណឹង", positions: "តួនាទី និងអត្រា" }, staff: "បុគ្គលិកសកម្ម", shift: "កំពុងធ្វើការឥឡូវ", total: "ប្រាក់ខែសរុបខែនេះ", paid: "បានបើករួច", pos: "តួនាទី", status: "ស្ថានភាព", st: { active: "សកម្ម", suspended: "ផ្អាក", left: "លាឈប់" }, month: "ខែនេះ", card: "កាត", edit: "កែប្រែ", save: "រក្សាទុក", saving: "កំពុងរក្សាទុក…", none: "មិនទាន់មានបុគ្គលិកទេ។ បន្ថែមម្នាក់ខាងលើ។", days: "ថ្ងៃ", hours: "ម៉ោង", base: "ប្រាក់គោល", allowance: "ឧបត្ថម្ភ", adj: "បន្ថែម/កាត់", gross: "សរុប", markPaid: "បានបើកប្រាក់", undo: "មិនទាន់", paidOn: "បានបើក", bonus: "ប្រាក់រង្វាន់ / កាត់", note: "មូលហេតុ", add: "បន្ថែម", rate: "អត្រា", payType: "របៀបគិតប្រាក់", perms: "អាចប្រើ", newPos: "តួនាទីថ្មី", del: "លុប", phone: "ទូរស័ព្ទ", allowanceM: "ឧបត្ថម្ភ/ខែ", onShiftNow: "កំពុងធ្វើការ" }
-    : { title: "Staff and payroll", sub: "Only admins create staff accounts. Each person gets a Staff ID (GWZ-S-…) to sign in with and an ID card straight away.", tabs: { people: "Staff", attendance: "Attendance", payroll: "Payroll", leave: "Leave", notices: "Notices", positions: "Positions and pay" }, staff: "Active staff", shift: "Working right now", total: "Payroll this month", paid: "Already paid", pos: "Position", status: "Status", st: { active: "Active", suspended: "Suspended", left: "Left" }, month: "This month", card: "Card", edit: "Edit", save: "Save", saving: "Saving…", none: "No staff yet. Add someone above.", days: "days", hours: "hours", base: "Base", allowance: "Allowance", adj: "Bonus/deduction", gross: "Total", markPaid: "Mark paid", undo: "Undo", paidOn: "Paid", bonus: "Bonus / deduction", note: "Reason", add: "Add", rate: "Rate", payType: "Pay type", perms: "Can use", newPos: "New position", del: "Delete", phone: "Phone", allowanceM: "Allowance/month", onShiftNow: "On shift" };
+    ? { title: "បុគ្គលិក និងប្រាក់ខែ", sub: "មានតែអ្នកគ្រប់គ្រងទេដែលបង្កើតគណនីបុគ្គលិក។ បុគ្គលិកម្នាក់ៗទទួលបានលេខសម្គាល់ (GWZ-S-…) សម្រាប់ចូលប្រើ និងកាតសម្គាល់ភ្លាមៗ។", tabs: { people: "បុគ្គលិក", attendance: "វត្តមាន", payroll: "ប្រាក់ខែ", leave: "ច្បាប់", notices: "ជូនដំណឹង", positions: "តួនាទី និងអត្រា", settings: "ការកំណត់" }, staff: "បុគ្គលិកសកម្ម", shift: "កំពុងធ្វើការឥឡូវ", total: "ប្រាក់ខែសរុបខែនេះ", paid: "បានបើករួច", pos: "តួនាទី", status: "ស្ថានភាព", st: { active: "សកម្ម", suspended: "ផ្អាក", left: "លាឈប់" }, month: "ខែនេះ", card: "កាត", edit: "កែប្រែ", save: "រក្សាទុក", saving: "កំពុងរក្សាទុក…", none: "មិនទាន់មានបុគ្គលិកទេ។ បន្ថែមម្នាក់ខាងលើ។", days: "ថ្ងៃ", hours: "ម៉ោង", base: "ប្រាក់គោល", allowance: "ឧបត្ថម្ភ", adj: "បន្ថែម/កាត់", gross: "សរុប", markPaid: "បានបើកប្រាក់", undo: "មិនទាន់", paidOn: "បានបើក", bonus: "ប្រាក់រង្វាន់ / កាត់", note: "មូលហេតុ", add: "បន្ថែម", rate: "អត្រា", payType: "របៀបគិតប្រាក់", perms: "អាចប្រើ", newPos: "តួនាទីថ្មី", del: "លុប", phone: "ទូរស័ព្ទ", allowanceM: "ឧបត្ថម្ភ/ខែ", onShiftNow: "កំពុងធ្វើការ" }
+    : { title: "Staff and payroll", sub: "Only admins create staff accounts. Each person gets a Staff ID (GWZ-S-…) to sign in with and an ID card straight away.", tabs: { people: "Staff", attendance: "Attendance", payroll: "Payroll", leave: "Leave", notices: "Notices", positions: "Positions and pay", settings: "Settings" }, staff: "Active staff", shift: "Working right now", total: "Payroll this month", paid: "Already paid", pos: "Position", status: "Status", st: { active: "Active", suspended: "Suspended", left: "Left" }, month: "This month", card: "Card", edit: "Edit", save: "Save", saving: "Saving…", none: "No staff yet. Add someone above.", days: "days", hours: "hours", base: "Base", allowance: "Allowance", adj: "Bonus/deduction", gross: "Total", markPaid: "Mark paid", undo: "Undo", paidOn: "Paid", bonus: "Bonus / deduction", note: "Reason", add: "Add", rate: "Rate", payType: "Pay type", perms: "Can use", newPos: "New position", del: "Delete", phone: "Phone", allowanceM: "Allowance/month", onShiftNow: "On shift" };
 
   const units = (l: PayLine) => {
     const t = l.staff.position?.pay_type;
@@ -78,7 +81,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
       <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
         {TABS.map((k) => (
           <Link key={k} href={`/admin/staff?tab=${k}&month=${month}`} className={cn("flex-shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold", tab === k ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10 hover:bg-light-green")}>
-            {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "attendance" ? <ClipboardCheck size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "leave" ? <CalendarOff size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "notices" ? <Megaphone size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
+            {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "attendance" ? <ClipboardCheck size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "leave" ? <CalendarOff size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "notices" ? <Megaphone size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "settings" ? <Settings2 size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
             {L.tabs[k]}
             {k === "leave" && pendingLeaves.length > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-xs font-extrabold text-forest">{pendingLeaves.length}</span>}
           </Link>
@@ -417,6 +420,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
           ))}
         </div>
       )}
+      {tab === "settings" && settings && <StaffSettingsPanel s={settings} km={km} usingDefault={settings.default_leave_quota === 12 ? 0 : lines.filter((l) => l.staff.leave_quota === 12).length} />}
     </div>
   );
 }

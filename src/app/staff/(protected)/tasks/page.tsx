@@ -6,6 +6,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { TaskForm } from "@/components/staff/StaffExtraForms";
 import { TASK_SECTIONS } from "@/lib/staff-extras";
+import { getStaffSettings } from "@/lib/server/staff-settings";
 import { toggleStaffTask, deleteStaffTask } from "../actions";
 import { cn } from "@/lib/utils/cn";
 
@@ -21,7 +22,7 @@ export default async function TasksPage({ searchParams }: { searchParams: { v?: 
   const km = locale === "km";
   const db = createServiceRoleClient();
   const mySections = [...access.perms];
-  const since = new Date(Date.now() - 3 * 864e5).toISOString();
+  const since = new Date(Date.now() - (await getStaffSettings()).task_keep_days * 864e5).toISOString();
   const [{ data }, { data: staff }] = await Promise.all([
     db.from("staff_tasks").select("*").or(`status.eq.open,done_at.gte.${since}`).order("status").order("due_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }).limit(150),
     db.from("staff_members").select("user_id, full_name").eq("status", "active").order("full_name"),

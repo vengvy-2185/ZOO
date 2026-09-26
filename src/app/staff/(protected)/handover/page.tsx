@@ -6,6 +6,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { HandoverForm } from "@/components/staff/StaffExtraForms";
 import { SUPPLY_SECTIONS, type Section } from "@/lib/staff-extras";
+import { getStaffSettings } from "@/lib/server/staff-settings";
 
 export const dynamic = "force-dynamic";
 export const generateMetadata = () => staffTitle("Shift handover", "ប្រគល់វេន");
@@ -25,7 +26,8 @@ export default async function HandoverPage() {
   ]);
   const nameOf = new Map((staff ?? []).map((s: any) => [s.user_id, s.full_name]));
   const when = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
-  const fresh = (iso: string) => Date.now() - Date.parse(iso) < 12 * 3600e3;
+  const { handover_new_hours } = await getStaffSettings();
+  const fresh = (iso: string) => Date.now() - Date.parse(iso) < handover_new_hours * 3600e3;
   const L = km
     ? { title: "ប្រគល់វេន", sub: "សរសេរអ្វីដែលវេនបន្ទាប់ត្រូវដឹង មុនពេលអ្នកចេញ។ អ្នកធ្វើការផ្នែកដូចគ្នាឃើញភ្លាម។", write: "សរសេរកំណត់ចំណាំ", latest: "កំណត់ចំណាំថ្មីៗ", none: "មិនទាន់មានកំណត់ចំណាំទេ។", isNew: "ថ្មី" }
     : { title: "Shift handover", sub: "Before you leave, write what the next shift should know. People in the same section see it straight away.", write: "Write a note", latest: "Latest notes", none: "No notes yet.", isNew: "New" };

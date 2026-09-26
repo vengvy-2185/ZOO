@@ -5,6 +5,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { SosForm } from "@/components/staff/StaffExtraForms";
 import { SOS_KINDS, type SosKind } from "@/lib/staff-extras";
+import { getStaffSettings } from "@/lib/server/staff-settings";
+import { SoundTest } from "@/components/staff/SoundTest";
 
 export const dynamic = "force-dynamic";
 export const generateMetadata = () => staffTitle("SOS", "SOS បន្ទាន់");
@@ -14,7 +16,8 @@ export default async function SosPage() {
   const { locale } = getI18n();
   const km = locale === "km";
   const db = createServiceRoleClient();
-  const [{ data: recent }, { data: staff }] = await Promise.all([
+  const [settings, { data: recent }, { data: staff }] = await Promise.all([
+    getStaffSettings(),
     db.from("staff_alerts").select("*").eq("status", "resolved").order("created_at", { ascending: false }).limit(8),
     db.from("staff_members").select("user_id, full_name"),
   ]);
@@ -23,11 +26,8 @@ export default async function SosPage() {
   const L = km
     ? { title: "SOS បន្ទាន់", sub: "ប្រើតែពេលមានគ្រោះថ្នាក់ពិតប្រាកដ។ អ្នកគ្រប់គ្រងទាំងអស់នឹងឃើញភ្លាមៗលើគ្រប់ទំព័រ។", call: "លេខទូរស័ព្ទបន្ទាន់", police: "ប៉ូលីស", ambulance: "សង្គ្រោះបន្ទាន់", fire: "ពន្លត់អគ្គិភ័យ", past: "SOS ដែលបានដោះស្រាយរួច", none: "មិនទាន់មានទេ។" }
     : { title: "SOS emergency", sub: "Only for a real emergency. Every manager sees it at once on every staff page.", call: "Emergency numbers", police: "Police", ambulance: "Ambulance", fire: "Fire", past: "Resolved alerts", none: "None yet." };
-  const phones = [
-    { n: "117", k: L.police },
-    { n: "119", k: L.ambulance },
-    { n: "118", k: L.fire },
-  ];
+  const phones = settings.phones.map((p) => ({ n: p.number, k: km ? p.label_km || p.label : p.label }));
+  if (settings.office_phone) phones.unshift({ n: settings.office_phone, k: km ? "ការិយាល័យសួនសត្វ" : "Zoo office" });
 
   return (
     <StaffShell title={L.title} subtitle={L.sub}>
@@ -47,7 +47,7 @@ export default async function SosPage() {
         <div className="space-y-5">
           <section className="card p-5">
             <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-extrabold text-forest"><Phone size={18} className="text-red-600" /> {L.call}</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {phones.map((p) => (
                 <a key={p.n} href={`tel:${p.n}`} className="flex flex-col items-center rounded-2xl bg-red-50 p-3 text-red-700 ring-1 ring-red-100 transition hover:-translate-y-0.5 hover:bg-red-100">
                   <span className="font-display text-2xl font-extrabold">{p.n}</span>
@@ -55,6 +55,9 @@ export default async function SosPage() {
                 </a>
               ))}
             </div>
+          </section>
+          <section className="card p-5">
+            <SoundTest km={km} volume={settings.sound_volume} />
           </section>
           <section>
             <h2 className="mb-3 font-display text-lg font-extrabold text-forest">{L.past}</h2>

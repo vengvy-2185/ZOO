@@ -5,6 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, openShift, leaveUsage } from "@/lib/server/staff";
+import { getStaffSettings } from "@/lib/server/staff-settings";
 
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
@@ -234,10 +235,11 @@ export async function sendKudos(_prev: KudosState, formData: FormData): Promise<
   const db = createServiceRoleClient();
   const { data: person } = await db.from("staff_members").select("user_id").eq("user_id", to).eq("status", "active").maybeSingle();
   if (!person) return { error: "invalid" };
-  // at most 10 thanks a day each, so it stays meaningful
+  // a daily limit each (set by the admin), so it stays meaningful
+  const limit = (await getStaffSettings()).kudos_per_day;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
   const { count } = await db.from("staff_kudos").select("id", { count: "exact", head: true }).eq("from_user", id).gte("created_at", `${today}T00:00:00+07:00`);
-  if ((count ?? 0) >= 10) return { error: "limit" };
+  if ((count ?? 0) >= limit) return { error: "limit" };
   const { error } = await db.from("staff_kudos").insert({ from_user: id, to_user: to, badge, message: message || null });
   if (error) return { error: error.message };
   revalidatePath("/staff/kudos");
