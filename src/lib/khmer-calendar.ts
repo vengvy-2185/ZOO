@@ -21,9 +21,13 @@ export type LunarDay = {
   sak: string;
   /** ថ្ងៃសីល: 8 and 15 waxing, 8 and the last day waning */
   sil: boolean;
+  /** ថ្ងៃកោរ: the day before the full-moon and new-moon sil days */
+  shave: boolean;
+  /** 15 waxing: ពេញបូណ៌មី */
+  fullMoon: boolean;
 };
 
-export type Holiday = { date: string; km: string; en: string; kind: "public" | "religious" };
+export type Holiday = { date: string; km: string; en: string; kind: "public" | "religious" | "observance" };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const iso = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
@@ -43,6 +47,9 @@ export function lunar(date: string): LunarDay {
   const waxing = k.moonPhase === kh.MoonPhase.Waxing;
   // the last day of a waning half is 14 or 15: it is a sil day when tomorrow is 1 waxing
   const lastWaning = !waxing && (k.day === 15 || (k.day === 14 && kh.fromGregorian(...(addDays(date, 1).split("-").map(Number) as [number, number, number])).khmer.moonPhase === kh.MoonPhase.Waxing));
+  // the day before the last waning day (13 or 14) is a shave day
+  const next = kh.fromGregorian(...(addDays(date, 1).split("-").map(Number) as [number, number, number])).khmer;
+  const nextIsLastWaning = !waxing && next.moonPhase === kh.MoonPhase.Waning && (next.day === 15 || (next.day === 14 && kh.fromGregorian(...(addDays(date, 2).split("-").map(Number) as [number, number, number])).khmer.moonPhase === kh.MoonPhase.Waxing));
   const out: LunarDay = {
     date,
     day: k.day,
@@ -54,6 +61,8 @@ export function lunar(date: string): LunarDay {
     animal: k.animalYearName,
     sak: k.sakName,
     sil: k.day === 8 || (waxing && k.day === 15) || lastWaning,
+    shave: (waxing && k.day === 14) || nextIsLastWaning,
+    fullMoon: waxing && k.day === 15,
   };
   cache.set(date, out);
   return out;
@@ -111,6 +120,29 @@ export function holidaysOf(year: number): Holiday[] {
       // Water Festival: 14 and 15 waxing Kadeuk and 1 waning
       if (is(14, true, M.Kadeuk) || is(15, true, M.Kadeuk) || is(1, false, M.Kadeuk)) out.push({ date, km: "ព្រះរាជពិធីបុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែ អកអំបុក", en: "Water Festival", kind: "public" });
     }
+  // international days and other observances (shown in blue, not days off)
+  const observances: [number, number, string, string][] = [
+    [2, 14, "ទិវានៃក្តីស្រឡាញ់ (Valentine's Day)", "Valentine's Day"],
+    [3, 3, "ទិវាសត្វព្រៃពិភពលោក", "World Wildlife Day"],
+    [3, 21, "ទិវាព្រៃឈើអន្តរជាតិ", "International Day of Forests"],
+    [3, 22, "ទិវាទឹកពិភពលោក", "World Water Day"],
+    [4, 22, "ទិវាផែនដី", "Earth Day"],
+    [5, 22, "ទិវាជីវចម្រុះអន្តរជាតិ", "International Day for Biological Diversity"],
+    [6, 1, "ទិវាកុមារអន្តរជាតិ", "International Children's Day"],
+    [6, 5, "ទិវាបរិស្ថានពិភពលោក", "World Environment Day"],
+    [6, 8, "ទិវាមហាសមុទ្រពិភពលោក", "World Oceans Day"],
+    [7, 29, "ទិវាខ្លាអន្តរជាតិ", "International Tiger Day"],
+    [8, 12, "ទិវាដំរីពិភពលោក", "World Elephant Day"],
+    [9, 8, "ទិវាអក្ខរកម្មអន្តរជាតិ", "International Literacy Day"],
+    [9, 16, "ទិវាអភិរក្សស្រទាប់អូហ្សូនអន្តរជាតិ", "International Day for the Preservation of the Ozone Layer"],
+    [9, 21, "ទិវាសន្តិភាពអន្តរជាតិ", "International Day of Peace"],
+    [9, 27, "ទិវាទេសចរណ៍ពិភពលោក", "World Tourism Day"],
+    [10, 4, "ទិវាសត្វពិភពលោក", "World Animal Day"],
+    [10, 16, "ទិវាស្បៀងអាហារពិភពលោក", "World Food Day"],
+    [12, 10, "ទិវាសិទ្ធិមនុស្សអន្តរជាតិ", "Human Rights Day"],
+    [12, 25, "បុណ្យណូអែល", "Christmas Day"],
+  ];
+  for (const [m, d, km, en] of observances) out.push({ date: iso(year, m, d), km, en, kind: "observance" });
   const seen = new Set<string>();
   return out
     .filter((h) => {
@@ -131,5 +163,14 @@ export function monthInfo(year: number, month: number) {
   const lunarMonths = [...new Set(days.map((d) => d.month))];
   const lead = new Date(`${first}T12:00:00Z`).getUTCDay(); // Sunday first, as on Khmer calendars
   const ny = kh.getNewYear(year);
-  return { days, holidays, lunarMonths, lead, last: days[days.length - 1], firstDay: days[0], newYear: ny };
+  // whole weeks, Sunday first, with the end of last month and the start of next month (faded)
+  const grid: { lunar: LunarDay; inMonth: boolean }[] = [];
+  for (let i = lead; i > 0; i--) grid.push({ lunar: lunar(addDays(first, -i)), inMonth: false });
+  for (const d of days) grid.push({ lunar: d, inMonth: true });
+  let tail = iso(year, month, n);
+  while (grid.length % 7) {
+    tail = addDays(tail, 1);
+    grid.push({ lunar: lunar(tail), inMonth: false });
+  }
+  return { days, holidays, lunarMonths, lead, last: days[days.length - 1], firstDay: days[0], newYear: ny, grid };
 }
