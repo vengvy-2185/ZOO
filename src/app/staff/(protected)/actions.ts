@@ -565,3 +565,34 @@ export async function saveRosterRules(formData: FormData) {
   await planWeek(next.toISOString().slice(0, 10), { replace: true, by: null, from: today });
   revalidatePath("/staff/roster");
 }
+
+/**
+ * Manager: make the zoo's days off for a year match the Khmer calendar's
+ * public holidays (lunar ones included). Days that were set by hand on a
+ * date that isn't a holiday are left alone unless they carry a holiday name
+ * the calendar places on another date (e.g. Pchum Ben typed on the wrong day).
+ */
+export async function syncHolidays(year: number) {
+  const { access } = await me();
+  if (!isManager(access) || !Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Only managers.");
+  const { holidaysOf } = await import("@/lib/khmer-calendar");
+  const official = holidaysOf(year).filter((h) => h.kind === "public");
+  const db = createServiceRoleClient();
+  const { data: current } = await db.from("staff_holidays").select("day, name").gte("day", `${year}-01-01`).lte("day", `${year}-12-31`);
+  const officialDays = new Set(official.map((h) => h.date));
+  // a holiday typed on the wrong date (same kind of name, not on an official day) goes away
+  const KEYS = ["ភ្ជុំ", "បិណ្ឌ", "អុំទូក", "ចូលឆ្នាំ", "វិសាខ", "ច្រត់", "Pchum", "Water", "New Year", "Visak", "Ploughing"];
+  const wrong = (current ?? []).filter((c: any) => !officialDays.has(c.day) && KEYS.some((k) => String(c.name).includes(k)));
+  for (const w of wrong) await db.from("staff_holidays").delete().eq("day", w.day);
+  const byDay = new Map<string, string>();
+  for (const h of official) byDay.set(h.date, byDay.has(h.date) ? `${byDay.get(h.date)} · ${h.km}` : h.km);
+  await db.from("staff_holidays").upsert([...byDay].map(([day, name]) => ({ day, name: name.slice(0, 80) })));
+  // the schedule from today follows the holidays
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  const monday = mondayOf(today);
+  await planWeek(monday, { replace: true, by: null, from: today });
+  const nx = new Date(`${monday}T12:00:00Z`);
+  nx.setUTCDate(nx.getUTCDate() + 7);
+  await planWeek(nx.toISOString().slice(0, 10), { replace: true, by: null, from: today });
+  revalidatePath("/staff", "layout");
+}

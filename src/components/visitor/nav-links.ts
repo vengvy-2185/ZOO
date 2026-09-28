@@ -34,6 +34,7 @@ export const MORE_GROUPS: { key: keyof Dictionary["nav"]; links: NavLink[] }[] =
     key: "groupCreate",
     links: [
       { href: "/planner", key: "planner", icon: Route },
+      { href: "/calendar", key: "calendar", icon: CalendarDays },
       { href: "/adopt", key: "adopt", icon: HeartHandshake },
       { href: "/conservation", key: "conservation", icon: ShieldAlert },
       { href: "/news", key: "news", icon: Newspaper },
