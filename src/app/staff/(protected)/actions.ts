@@ -6,7 +6,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, openShift, leaveUsage } from "@/lib/server/staff";
 import { getStaffSettings } from "@/lib/server/staff-settings";
-import { planWeek, ROSTER_SECTIONS, type RosterSection } from "@/lib/server/roster";
+import { planWeek, mondayOf, ROSTER_SECTIONS, type RosterSection } from "@/lib/server/roster";
 
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
@@ -537,7 +537,9 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
 export async function autoFillWeek(weekStart: string, section: string | null, replace: boolean) {
   const { id, access } = await me();
   if (!isManager(access) || !isDay(weekStart)) throw new Error("Only managers.");
-  await planWeek(weekStart, { section: (ROSTER_SECTIONS as string[]).includes(section ?? "") ? (section as RosterSection) : null, replace, by: id });
+  // past days stay as they were (attendance was already counted on them)
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  await planWeek(weekStart, { section: (ROSTER_SECTIONS as string[]).includes(section ?? "") ? (section as RosterSection) : null, replace, by: id, from: today });
   revalidatePath("/staff/roster");
 }
 
@@ -554,5 +556,12 @@ export async function saveRosterRules(formData: FormData) {
   const db = createServiceRoleClient();
   const { data } = await db.from("staff_settings").select("data").eq("id", 1).maybeSingle();
   await db.from("staff_settings").upsert({ id: 1, data: { ...((data?.data as object) ?? {}), roster }, updated_at: new Date().toISOString() });
+  // new rules apply straight away: this week (from today) and next week are planned again
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  const monday = mondayOf(today);
+  await planWeek(monday, { replace: true, by: null, from: today });
+  const next = new Date(`${monday}T12:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 7);
+  await planWeek(next.toISOString().slice(0, 10), { replace: true, by: null, from: today });
   revalidatePath("/staff/roster");
 }

@@ -24,6 +24,7 @@ export function RosterGrid({
   km,
   times,
   save,
+  need,
 }: {
   days: GridDay[];
   groups: GridGroup[];
@@ -33,6 +34,8 @@ export function RosterGrid({
   km: boolean;
   times: Record<Shift, string>;
   save: (fd: FormData) => Promise<void>;
+  /** people needed each day (morning / afternoon) for the teams shown */
+  need?: { am: number; pm: number };
 }) {
   const router = useRouter();
   const [changes, setChanges] = useState<Record<string, Shift | "">>({});
@@ -128,7 +131,15 @@ export function RosterGrid({
               <td className="sticky left-0 z-10 border-t-2 border-black/5 bg-white px-3 py-2 text-[11px] font-bold text-ink/45">{L.total}</td>
               {days.map((d) => (
                 <td key={d.day} className="border-t-2 border-black/5 px-1 py-2 text-center text-[11px] font-extrabold text-ink/55">
-                  <span className="text-amber-600">{counts[d.day].am}</span>/<span className="text-sky-600">{counts[d.day].pm}</span>
+                  {(() => {
+                    const short = !!need && (counts[d.day].am < need.am || counts[d.day].pm < need.pm);
+                    return (
+                      <span className={cn("inline-block rounded-full px-1.5 py-0.5", short && "bg-red-100 text-red-700 ring-1 ring-red-200")} title={short ? (km ? "ខ្វះមនុស្ស" : "Short of people") : undefined}>
+                        <span className={short ? "" : "text-amber-600"}>{counts[d.day].am}</span>/<span className={short ? "" : "text-sky-600"}>{counts[d.day].pm}</span>
+                        {short && <span className="ml-1">⚠</span>}
+                      </span>
+                    );
+                  })()}
                 </td>
               ))}
             </tr>

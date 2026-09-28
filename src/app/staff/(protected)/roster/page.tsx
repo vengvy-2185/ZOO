@@ -300,6 +300,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
           compact={view === "month"}
           times={shiftTimes}
           save={saveRosterWeek}
+          need={(section ? [section] : ROSTER_SECTIONS.filter((k) => (team as any[]).some((p) => primaryOf(p) === k))).reduce((n, k) => (k in rules.need ? { am: n.am + rules.need[k as keyof typeof rules.need].am, pm: n.pm + rules.need[k as keyof typeof rules.need].pm } : n), { am: 0, pm: 0 })}
           days={days.map((d) => ({ day: d, name: dayName(d), num: dayNum(d), today: d === today }))}
           cells={Object.fromEntries((roster ?? []).map((r: any) => [`${r.user_id}_${r.day}`, { shift: r.shift, note: r.note }]))}
           groups={(() => {

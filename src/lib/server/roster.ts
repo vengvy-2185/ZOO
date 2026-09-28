@@ -50,7 +50,7 @@ type Row = { user_id: string; day: string; shift: "morning" | "afternoon" | "ful
  * full day. Existing boxes are kept unless `replace`; with `onlyEmptyPeople`
  * only people with nothing planned that week are planned.
  */
-export async function planWeek(weekStart: string, opts: { section?: RosterSection | null; replace?: boolean; onlyEmptyPeople?: boolean; by?: string | null } = {}) {
+export async function planWeek(weekStart: string, opts: { section?: RosterSection | null; replace?: boolean; onlyEmptyPeople?: boolean; by?: string | null; from?: string } = {}) {
   const db = createServiceRoleClient();
   const rules = await getRosterRules();
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -59,7 +59,7 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
     db.from("staff_attendance_settings").select("rest_days").eq("id", 1).maybeSingle(),
     db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", days[6]).gte("end_date", days[0]),
     db.from("staff_holidays").select("day").gte("day", days[0]).lte("day", days[6]),
-    db.from("staff_roster").select("user_id, day, shift").gte("day", days[0]).lte("day", days[6]),
+    db.from("staff_roster").select("user_id, day, shift, note").gte("day", days[0]).lte("day", days[6]),
   ]);
   const rest = new Set<number>((settings?.rest_days ?? []) as number[]);
   const hol = new Set((holidays ?? []).map((h: any) => h.day));
@@ -69,8 +69,10 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
   // boxes that stay as they are: everything already there, unless re-planning.
   // In automatic mode, a person who already has any box that week is left alone.
   const fixedShift = new Map<string, string>();
-  if (!opts.replace) for (const e of existing ?? []) fixedShift.set(`${e.user_id}_${e.day}`, e.shift);
-  const isFixed = (u: string, d: string) => fixedShift.has(`${u}_${d}`) || (!!opts.onlyEmptyPeople && planned.has(u));
+  // re-planning keeps only agreed changes (cover / swap); otherwise every existing box stays
+  // days before `from` (already past) never change
+  for (const e of existing ?? []) if (!opts.replace || e.note === "cover" || e.note === "swap" || (opts.from && e.day < opts.from)) fixedShift.set(`${e.user_id}_${e.day}`, e.shift);
+  const isFixed = (u: string, d: string) => fixedShift.has(`${u}_${d}`) || (!!opts.onlyEmptyPeople && planned.has(u)) || (!!opts.from && d < opts.from);
   const seed = Math.floor(Date.parse(`${weekStart}T12:00:00Z`) / (7 * 864e5));
   const rows: Row[] = [];
 
@@ -96,8 +98,9 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
         return [d, { needAm: Math.max(0, am - fAm), needPm: Math.max(0, pm - fPm), free }];
       })
     );
-    // days off: each free person gets theirs (a fixed "off" already counts)
-    // on the days where the team can spare someone most
+    // days off: everyone gets the number the rules give (a fixed "off" already
+    // counts), on the days where the team can spare someone most; a team too
+    // small to cover every day then shows those days as short
     const off = new Map<string, Set<string>>(team.map((u) => [u, new Set<string>()]));
     const slack = new Map(open.map((d) => {
       const x = day.get(d)!;
@@ -107,8 +110,11 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
     team.forEach((u, i) => {
       const already = open.filter((d) => fx(u, d) === "off").length;
       for (let k = already; k < rules.days_off; k++) {
-        const order = open.map((d, j) => ({ d, j })).sort((a, b) => slack.get(b.d)! - slack.get(a.d)! || ((a.j + i * 2 + seed) % open.length) - ((b.j + i * 2 + seed) % open.length));
-        const pick = order.find((o) => slack.get(o.d)! > 0 && !off.get(u)!.has(o.d) && day.get(o.d)!.free.includes(u));
+        // spread a person's days off over the week: prefer days far from the ones they already have
+        const mine = [...off.get(u)!, ...open.filter((d) => fx(u, d) === "off")].map((d) => open.indexOf(d));
+        const gap = (j: number) => (mine.length ? Math.min(...mine.map((m) => Math.abs(m - j))) : 0);
+        const order = open.map((d, j) => ({ d, j })).sort((a, b) => slack.get(b.d)! - slack.get(a.d)! || gap(b.j) - gap(a.j) || ((a.j + i * 2 + seed) % open.length) - ((b.j + i * 2 + seed) % open.length));
+        const pick = order.find((o) => !off.get(u)!.has(o.d) && day.get(o.d)!.free.includes(u));
         if (!pick) break;
         off.get(u)!.add(pick.d);
         slack.set(pick.d, slack.get(pick.d)! - 1);
