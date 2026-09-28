@@ -38,9 +38,7 @@ import {
   Utensils,
   Mic,
   Camera,
-  Sparkles, Gamepad2,
-  Brain,
-  Ruler,
+  Sparkles,
   Route,
   Newspaper,
 } from "lucide-react";
@@ -97,10 +95,7 @@ const experiences = (t: Dictionary) => [
   { icon: BookOpen, label: t.home.expStory, desc: t.home.expStoryText, href: "/animals" },
   { icon: MapIcon, label: t.home.expMap, desc: t.home.expMapText, href: "/map" },
   { icon: Trophy, label: t.home.expQuest, desc: t.home.expQuestText, href: "/quest" },
-  { icon: Brain, label: t.extra.quiz, desc: t.extra.quizEyebrow, href: "/quiz" },
   { icon: Route, label: t.nav.planner, desc: t.planner.eyebrow, href: "/planner" },
-  { icon: Gamepad2, label: t.nav.games, desc: t.nav.gamesHint, href: "/games" },
-  { icon: Ruler, label: t.nav.compare, desc: t.compare.eyebrow, href: "/compare" },
   { icon: Camera, label: t.nav.booth, desc: t.booth.eyebrow, href: "/photo-booth" },
 ];
 

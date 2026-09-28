@@ -59,14 +59,18 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
     db.from("staff_attendance_settings").select("rest_days").eq("id", 1).maybeSingle(),
     db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", days[6]).gte("end_date", days[0]),
     db.from("staff_holidays").select("day").gte("day", days[0]).lte("day", days[6]),
-    db.from("staff_roster").select("user_id, day").gte("day", days[0]).lte("day", days[6]),
+    db.from("staff_roster").select("user_id, day, shift").gte("day", days[0]).lte("day", days[6]),
   ]);
   const rest = new Set<number>((settings?.rest_days ?? []) as number[]);
   const hol = new Set((holidays ?? []).map((h: any) => h.day));
   const closed = (d: string) => rest.has(new Date(`${d}T12:00:00Z`).getUTCDay()) || hol.has(d);
   const onLeave = (u: string, d: string) => (leaves ?? []).some((l: any) => l.user_id === u && l.start_date <= d && l.end_date >= d);
-  const have = new Set((existing ?? []).map((e: any) => `${e.user_id}_${e.day}`));
   const planned = new Set((existing ?? []).map((e: any) => e.user_id));
+  // boxes that stay as they are: everything already there, unless re-planning.
+  // In automatic mode, a person who already has any box that week is left alone.
+  const fixedShift = new Map<string, string>();
+  if (!opts.replace) for (const e of existing ?? []) fixedShift.set(`${e.user_id}_${e.day}`, e.shift);
+  const isFixed = (u: string, d: string) => fixedShift.has(`${u}_${d}`) || (!!opts.onlyEmptyPeople && planned.has(u));
   const seed = Math.floor(Date.parse(`${weekStart}T12:00:00Z`) / (7 * 864e5));
   const rows: Row[] = [];
 
@@ -74,18 +78,37 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
     const team = (staff ?? []).filter((p: any) => teamOf(p.position?.permissions ?? []) === sec).map((p: any) => p.user_id as string);
     if (!team.length) continue;
     const n = team.length;
+    const rot = (u: string) => (team.indexOf(u) + seed) % n;
     const { am, pm } = rules.need[sec];
-    const minPeople = rules.allow_full ? Math.max(am, pm) : am + pm;
     const open = days.filter((d) => !closed(d));
-    // who can come each open day (not on leave)
-    const avail = new Map(open.map((d) => [d, team.filter((u) => !onLeave(u, d))]));
-    // days off: put each one where the team has the most people to spare
+    const fx = (u: string, d: string) => fixedShift.get(`${u}_${d}`);
+    // per open day: what the fixed boxes already give, and who is free to plan
+    const day = new Map(
+      open.map((d) => {
+        let fAm = 0;
+        let fPm = 0;
+        for (const u of team) {
+          const f = fx(u, d);
+          if (f === "morning" || f === "full") fAm++;
+          if (f === "afternoon" || f === "full") fPm++;
+        }
+        const free = team.filter((u) => !isFixed(u, d) && !onLeave(u, d));
+        return [d, { needAm: Math.max(0, am - fAm), needPm: Math.max(0, pm - fPm), free }];
+      })
+    );
+    // days off: each free person gets theirs (a fixed "off" already counts)
+    // on the days where the team can spare someone most
     const off = new Map<string, Set<string>>(team.map((u) => [u, new Set<string>()]));
-    const slack = new Map(open.map((d) => [d, (avail.get(d)!.length) - minPeople]));
+    const slack = new Map(open.map((d) => {
+      const x = day.get(d)!;
+      const needPeople = rules.allow_full ? Math.max(x.needAm, x.needPm) : x.needAm + x.needPm;
+      return [d, x.free.length - needPeople];
+    }));
     team.forEach((u, i) => {
-      for (let k = 0; k < rules.days_off; k++) {
+      const already = open.filter((d) => fx(u, d) === "off").length;
+      for (let k = already; k < rules.days_off; k++) {
         const order = open.map((d, j) => ({ d, j })).sort((a, b) => slack.get(b.d)! - slack.get(a.d)! || ((a.j + i * 2 + seed) % open.length) - ((b.j + i * 2 + seed) % open.length));
-        const pick = order.find((o) => slack.get(o.d)! > 0 && !off.get(u)!.has(o.d) && avail.get(o.d)!.includes(u));
+        const pick = order.find((o) => slack.get(o.d)! > 0 && !off.get(u)!.has(o.d) && day.get(o.d)!.free.includes(u));
         if (!pick) break;
         off.get(u)!.add(pick.d);
         slack.set(pick.d, slack.get(pick.d)! - 1);
@@ -93,48 +116,55 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
     });
     // share out mornings / afternoons evenly over the week
     const count = new Map(team.map((u) => [u, { am: 0, pm: 0, full: 0 }]));
+    for (const u of team)
+      for (const d of open) {
+        const f = fx(u, d);
+        if (f === "morning" || f === "full") count.get(u)!.am++;
+        if (f === "afternoon" || f === "full") count.get(u)!.pm++;
+      }
     for (const d of days) {
       if (closed(d)) {
-        team.forEach((u) => rows.push({ user_id: u, day: d, shift: "off", note: null }));
+        team.filter((u) => !isFixed(u, d)).forEach((u) => rows.push({ user_id: u, day: d, shift: "off", note: null }));
         continue;
       }
-      const working = avail.get(d)!.filter((u) => !off.get(u)!.has(d));
-      team.filter((u) => !working.includes(u)).forEach((u) => rows.push({ user_id: u, day: d, shift: "off", note: onLeave(u, d) ? "leave" : null }));
-      const fulls = rules.allow_full ? Math.max(0, am + pm - working.length) : 0;
-      const byFull = [...working].sort((a, b) => count.get(a)!.full - count.get(b)!.full || ((team.indexOf(a) + seed) % n) - ((team.indexOf(b) + seed) % n));
-      const fullSet = new Set(byFull.slice(0, Math.min(fulls, working.length)));
-      let amCount = fullSet.size;
-      let pmCount = fullSet.size;
-      const rest2 = working.filter((u) => !fullSet.has(u)).sort((a, b) => count.get(a)!.am - count.get(a)!.pm - (count.get(b)!.am - count.get(b)!.pm) || ((team.indexOf(a) + seed) % n) - ((team.indexOf(b) + seed) % n));
-      for (const u of working) {
-        if (fullSet.has(u)) {
-          rows.push({ user_id: u, day: d, shift: "full", note: null });
-          count.get(u)!.full++;
-          count.get(u)!.am++;
-          count.get(u)!.pm++;
-        }
-      }
-      for (const u of rest2) {
-        // fill what's still needed first, then keep the two sessions even
+      const { needAm, needPm, free } = day.get(d)!;
+      const working = free.filter((u) => !off.get(u)!.has(d));
+      team.filter((u) => !isFixed(u, d) && !working.includes(u)).forEach((u) => rows.push({ user_id: u, day: d, shift: "off", note: onLeave(u, d) ? "leave" : null }));
+      // short of people: some work the full day
+      const fulls = rules.allow_full ? Math.min(working.length, Math.max(0, needAm + needPm - working.length)) : 0;
+      const fullSet = new Set([...working].sort((a, b) => count.get(a)!.full - count.get(b)!.full || rot(a) - rot(b)).slice(0, fulls));
+      let amC = fullSet.size;
+      let pmC = fullSet.size;
+      for (const u of fullSet) {
+        rows.push({ user_id: u, day: d, shift: "full", note: null });
         const c = count.get(u)!;
-        const wantAm = amCount < am ? true : pmCount < pm ? false : c.am <= c.pm ? amCount <= pmCount : false;
-        const shift = wantAm ? "morning" : "afternoon";
+        c.full++;
+        c.am++;
+        c.pm++;
+      }
+      // the rest: first whatever is still missing, then keep both halves even,
+      // giving each person the half they have done less
+      const rest2 = working.filter((u) => !fullSet.has(u)).sort((a, b) => count.get(a)!.am - count.get(a)!.pm - (count.get(b)!.am - count.get(b)!.pm) || rot(a) - rot(b));
+      for (const u of rest2) {
+        const c = count.get(u)!;
+        let wantAm: boolean;
+        if (amC < needAm && pmC >= needPm) wantAm = true;
+        else if (pmC < needPm && amC >= needAm) wantAm = false;
+        else if (amC < needAm && pmC < needPm) wantAm = needAm - amC > needPm - pmC ? true : needAm - amC < needPm - pmC ? false : c.am <= c.pm;
+        else wantAm = amC - needAm < pmC - needPm ? true : amC - needAm > pmC - needPm ? false : c.am <= c.pm;
         if (wantAm) {
-          amCount++;
+          amC++;
           c.am++;
         } else {
-          pmCount++;
+          pmC++;
           c.pm++;
         }
-        rows.push({ user_id: u, day: d, shift, note: null });
+        rows.push({ user_id: u, day: d, shift: wantAm ? "morning" : "afternoon", note: null });
       }
     }
-    void n;
   }
 
-  let toSave = rows;
-  if (opts.onlyEmptyPeople) toSave = rows.filter((r) => !planned.has(r.user_id));
-  else if (!opts.replace) toSave = rows.filter((r) => !have.has(`${r.user_id}_${r.day}`));
+  const toSave = rows; // fixed boxes were never planned, so everything here is new
   if (toSave.length) await db.from("staff_roster").upsert(toSave.map((r) => ({ ...r, created_by: opts.by ?? null, updated_at: new Date().toISOString() })), { onConflict: "user_id,day" });
   return toSave.length;
 }

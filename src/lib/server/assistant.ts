@@ -48,7 +48,6 @@ const WORDS = {
   facts: ["fact", "facts", "did you know", "fun fact", "ចំណេះដឹង", "ការពិត"],
   rewards: ["points", "point", "reward", "rewards", "redeem", "invite", "referral", "refer a friend", "ពិន្ទុ", "រង្វាន់", "អញ្ជើញមិត្ត", "ណែនាំមិត្ត", "ប្តូរពិន្ទុ"],
   booth: ["postcard", "post card", "កាតប៉ុស្តាល់", "photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
-  games: ["coloring", "colouring", "color", "draw", "គូររូប", "លាបពណ៌", "quiz", "game", "games", "for kids", "children", "kids", "which animal am i", "ល្បែង", "ហ្គេម", "សម្រាប់កុមារ", "ក្មេង", "កូនតូច"],
   food: ["food", "eat", "restaurant", "cafe", "coffee", "hungry", "drink", "snack", "អាហារ", "ញ៉ាំ", "ឃ្លាន", "ហាងកាហ្វេ", "ភេសជ្ជៈ", "ភោជនីយដ្ឋាន"],
   toilet: ["toilet", "restroom", "bathroom", "wc", "washroom", "បង្គន់", "បន្ទប់ទឹក"],
   parking: ["parking", "park my", "car park", "motorbike", "ចំណត", "ចតរថយន្ត", "ចតម៉ូតូ"],
@@ -251,7 +250,7 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
     return { text: L("Our Easy Visit page has the key information in large text, a switch to make text bigger on every page, and it can read the page aloud.", "ទំព័រទស្សនាងាយស្រួល មានព័ត៌មានសំខាន់ៗជាអក្សរធំ ប៊ូតុងពង្រីកអក្សរលើគ្រប់ទំព័រ និងអាចអានឲ្យស្តាប់បាន។"), links: [{ label: L("Easy Visit", "ទស្សនាងាយស្រួល"), href: "/easy" }] };
   }
   if (has(q, WORDS.kidszone)) {
-    return { text: L("Kids love our Kids Zone: a coloring book, Memory Match, Animal Puzzle, Feed the Animals, and Zoo Bingo to play during your visit.", "ក្មេងៗចូលចិត្តតំបន់កុមារ៖ សៀវភៅគូររូប ល្បែងចងចាំ ផ្គុំរូបសត្វ ឲ្យចំណីសត្វ និងប៊ីងហ្គោសួនសត្វសម្រាប់លេងពេលមកទស្សនា។"), links: [{ label: L("Kids Zone", "តំបន់កុមារ"), href: "/games" }] };
+    return { text: L("Kids love our Kids Zone: a coloring book, Memory Match, Animal Puzzle, Feed the Animals, and Zoo Bingo to play during your visit.", "ក្មេងៗចូលចិត្តតំបន់កុមារ៖ សៀវភៅគូររូប ល្បែងចងចាំ ផ្គុំរូបសត្វ ឲ្យចំណីសត្វ និងប៊ីងហ្គោសួនសត្វសម្រាប់លេងពេលមកទស្សនា។"), links: [{ label: L("Kids Zone", "តំបន់កុមារ"), href: "/photo-booth" }] };
   }
   if (has(q, WORDS.message)) {
     return { text: L("You can send us a message on the Contact Us page (questions, lost items, ideas). Leave your phone or email and we will reply.", "អ្នកអាចផ្ញើសារមកយើងនៅទំព័រទាក់ទងយើង (សំណួរ បាត់របស់ ឬគំនិត)។ ទុកលេខទូរស័ព្ទ ឬអ៊ីមែល ហើយយើងនឹងឆ្លើយតប។"), links: [{ label: L("Contact us", "ទាក់ទងយើង"), href: "/contact" }] };
@@ -270,18 +269,6 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
   }
   if (has(q, WORDS.booth)) {
     return { text: L("Try our Photo Booth! Take a selfie, add real animal stickers and a jungle frame, then save or share it.", "សាកផ្ទាំងថតរូបរបស់យើង! ថតសែលហ្វី បន្ថែមស្ទីគ័រសត្វពិតៗ និងស៊ុមព្រៃ រួចរក្សាទុក ឬចែករំលែក។"), links: [{ label: L("Photo booth", "ថតរូបជាមួយសត្វ"), href: "/photo-booth" }, { label: L("Animal postcard", "កាតប៉ុស្តាល់សត្វ"), href: "/postcard" }] };
-  }
-  if (has(q, WORDS.games)) {
-    return {
-      text: L("Kids love these: the Animal Quest (scan QR signs and collect points), the Quiz, the Zoom Guess game, the Animal Coloring Book, and You vs Animals.", "ក្មេងៗចូលចិត្តណាស់៖ បេសកកម្មសត្វ (ស្កេនផ្លាក QR ប្រមូលពិន្ទុ) ល្បែងសំណួរ ល្បែងទាយសត្វពីរូបជិត សៀវភៅគូររូបសត្វ និងប្រៀបធៀបខ្លួនអ្នកនឹងសត្វ។"),
-      links: [
-        { label: L("Kids Zone", "តំបន់កុមារ"), href: "/games" },
-        { label: L("Animal Quest", "បេសកកម្ម"), href: "/quest" },
-        { label: L("Quiz", "ល្បែងសំណួរ"), href: "/quiz" },
-        { label: L("Zoom Guess", "ទាយសត្វពីរូបជិត"), href: "/guess" },
-        { label: L("Coloring book", "សៀវភៅគូររូប"), href: "/coloring" },
-      ],
-    };
   }
   if (has(q, WORDS.food) || has(q, WORDS.toilet) || has(q, WORDS.parking)) {
     const { facilities } = await getZonesAndFacilities().catch(() => ({ facilities: [] as any[] }));

@@ -330,3 +330,7 @@ html.intro-on .gwz-intro {
 @media (max-width: 767px) {
   input:not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: 16px !important; }
 }
+
+/* staff area: every button and link presses in a little when tapped */
+.staff-main button:not(:disabled), .staff-main a { transition: scale .12s ease, transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
+.staff-main button:not(:disabled):active, .staff-main a:active { scale: .96; }

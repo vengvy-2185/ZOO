@@ -136,7 +136,7 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
 
         </>
       )}
-      {bare ? <main className={`relative mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col ${hideBottomNav ? "" : "pb-[4.5rem] md:pb-0"}`}>{children}</main> : <main className="relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>}
+      {bare ? <main className={`staff-main relative mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col ${hideBottomNav ? "" : "pb-[4.5rem] md:pb-0"}`}>{children}</main> : <main className="staff-main relative mx-auto -mt-12 max-w-6xl space-y-5 px-4 md:px-8">{children}</main>}
       {!hideBottomNav && <StaffBottomNav items={items} groups={km ? { main: "សំខាន់", tools: "ការងារ", team: "ក្រុម", me: "ខ្ញុំ" } : { main: "Main", tools: "Work", team: "Team", me: "Me" }} moreLabel={km ? "ច្រើនទៀត" : "More"} closeLabel={km ? "បិទ" : "Close"} />}
     </Frame>
   );

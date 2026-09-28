@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Fragment } from "react";
 import { Settings2, Wand2, CalendarRange, ChevronLeft, ChevronRight, Copy, LifeBuoy, ArrowLeftRight, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -8,6 +7,9 @@ import { getAttendanceSettings, localDay } from "@/lib/server/attendance";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { SubmitButton } from "@/components/admin/ui-client";
+import { ActionButton } from "@/components/staff/ActionButton";
+import { RosterGrid } from "@/components/staff/RosterGrid";
+import { SHIFT_UI, SHIFTS } from "@/lib/roster-ui";
 import { ShiftRequestForm } from "@/components/staff/ShiftRequestForm";
 import { TASK_SECTIONS } from "@/lib/staff-extras";
 import { saveRosterWeek, copyLastWeek, autoFillWeek, saveRosterRules, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
@@ -183,7 +185,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
       )}
 
       {/* how it works */}
-      <details className="card group p-0" open={!access.admin && !(myUpcoming ?? []).length}>
+      <details className="card group p-0">
         <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8]"><CalendarRange size={20} /></span>
           <span className="flex-1 font-display text-lg font-extrabold text-forest">{km ? "កាលវិភាគនេះប្រើយ៉ាងម៉េច?" : "How does the schedule work?"}</span>
@@ -214,7 +216,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
       </details>
 
       {/* my shifts */}
-      {access.staff && view === "week" && (
+      {access.staff && !manager && view === "week" && (
         <section className="card p-4 md:p-5">
           {(() => {
             const nx = (myUpcoming ?? [])[0] as any;
@@ -255,101 +257,66 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
 
       {/* team grid */}
       <section className="card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/5 px-4 py-3">
-          <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-forest"><CalendarRange size={20} className="text-[#1D4ED8]" /> {L.team}</h2>
-          <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(SHIFT) as Shift[]).map((k) => (
-              <span key={k} className="inline-flex items-center gap-1 text-xs font-bold text-ink/60">
-                {badge(k)} {k !== "off" && <span className="hidden sm:inline">{shiftTimes[k]}</span>}
-              </span>
-            ))}
-          </div>
-        </div>
-        {team.length === 0 ? (
-          <p className="p-8 text-center text-ink/55">{L.noTeam}</p>
-        ) : (
-          <form action={saveRosterWeek}>
-            {manager && view === "week" && (
-              <p className="flex items-center gap-2 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
-                ✏️ {km ? "ចុចលើប្រអប់នីមួយៗ ដើម្បីជ្រើសវេនរបស់បុគ្គលិក រួចចុច «រក្សាទុកកាលវិភាគ» នៅខាងក្រោម។" : "Tap each box to choose a person's shift, then press “Save schedule” below."}
-              </p>
-            )}
-            <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-0 text-sm">
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 z-10 min-w-[9rem] bg-white px-3 py-2 text-left text-xs font-bold text-ink/45">{km ? "ឈ្មោះ" : "Name"}</th>
-                    {days.map((d) => (
-                      <th key={d} className={cn("px-1 py-2 text-center text-[11px] font-bold", d === today ? "text-[#1D4ED8]" : "text-ink/45", view === "month" ? "min-w-[2.6rem]" : "min-w-[6rem]")}>
-                        <span className="block">{dayName(d)}</span>
-                        <span className={cn("mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs", d === today && "bg-[#1D4ED8] text-white")}>{dayNum(d)}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {team.map((p: any, idx: number) => (
-                    <Fragment key={p.user_id}>
-                    {!section && (idx === 0 || primaryOf(team[idx - 1]) !== primaryOf(p)) && (() => {
-                      const T = TASK_SECTIONS[primaryOf(p) as keyof typeof TASK_SECTIONS];
-                      return (
-                        <tr>
-                          <td colSpan={days.length + 1} className="sticky left-0 border-t border-black/5 bg-[#EEF2FF] px-3 py-2">
-                            <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-[#1E3A8A]"><T.Icon size={15} /> {km ? T.km : T.en}</span>
-                          </td>
-                        </tr>
-                      );
-                    })()}
-                    <tr className={cn(p.user_id === userId && "bg-[#F8FAFF]")}>
-                      <td className="sticky left-0 z-10 border-t border-black/5 bg-inherit px-3 py-2" style={{ background: p.user_id === userId ? "#F8FAFF" : "#fff" }}>
-                        <p className="truncate font-bold text-forest">{p.full_name}</p>
-                        <p className="truncate text-[11px] text-ink/45">{(km && p.position?.name_km) || p.position?.name}</p>
-                      </td>
-                      {days.map((d) => {
-                        const r: any = cell.get(`${p.user_id}_${d}`);
-                        const sh = r?.shift as Shift | undefined;
-                        return (
-                          <td key={d} className={cn("border-t border-black/5 px-1 py-1.5 text-center", d === today && "bg-[#EEF2FF]/60")}>
-                            {manager && view === "week" ? (
-                              <select name={`s_${p.user_id}_${d}`} defaultValue={sh ?? ""} className={cn("w-full cursor-pointer rounded-lg border-0 px-1 py-1.5 text-center text-xs font-extrabold ring-1 focus:ring-2 focus:ring-[#2563EB]", sh ? SHIFT[sh].cls : "bg-white text-ink/30 ring-black/10")}>
-                                <option value="">—</option>
-                                {(Object.keys(SHIFT) as Shift[]).map((k) => <option key={k} value={k}>{km ? SHIFT[k].km : SHIFT[k].en}</option>)}
-                              </select>
-                            ) : (
-                              <>
-                                {badge(sh, view === "month")}
-                                {r?.note && view === "week" && <span className="mt-0.5 block text-[9px] font-bold uppercase text-ink/35">{r.note === "cover" ? L.cover : r.note === "swap" ? L.swap : ""}</span>}
-                              </>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
+        <div className="flex flex-wrap items-center gap-2 border-b border-black/5 px-4 py-3">
+          <h2 className="flex flex-1 items-center gap-2 font-display text-xl font-extrabold text-forest"><CalendarRange size={20} className="text-[#1D4ED8]" /> {L.team}</h2>
+          {manager && team.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <ActionButton
+                action={autoFillWeek.bind(null, view === "week" ? weekStart : monday(today), section, false)}
+                icon={<Wand2 size={15} />}
+                label={km ? "រៀបចំស្វ័យប្រវត្តិ" : "Auto-plan"}
+                doneLabel={km ? "រួចរាល់" : "Done"}
+                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-soft"
+              />
+              <ActionButton
+                action={autoFillWeek.bind(null, view === "week" ? weekStart : monday(today), section, true)}
+                icon={<Wand2 size={14} />}
+                label={km ? "រៀបចំឡើងវិញ" : "Re-plan"}
+                doneLabel={km ? "រួចរាល់" : "Done"}
+                confirm={km ? "រៀបចំឡើងវិញទាំងអស់សម្រាប់សប្តាហ៍នេះ? វេនដែលកែដោយដៃនឹងត្រូវជំនួស។" : "Re-plan the whole week? Boxes changed by hand will be replaced."}
+                className="text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50"
+              />
+              <ActionButton
+                action={copyLastWeek.bind(null, view === "week" ? weekStart : monday(today), ids)}
+                icon={<Copy size={14} />}
+                label={L.copy}
+                doneLabel={km ? "បានចម្លង" : "Copied"}
+                className="text-[#1D4ED8] ring-1 ring-[#BFDBFE] hover:bg-[#EEF2FF]"
+              />
             </div>
-            {manager && view === "week" && (
-              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-black/5 p-3">
-                <SubmitButton label={L.save} pendingLabel={L.saving} />
-              </div>
-            )}
-          </form>
-        )}
-        {manager && view === "week" && team.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-black/5 px-3 py-3">
-            <form action={autoFillWeek.bind(null, weekStart, section, false)}>
-              <button className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white shadow-soft active:scale-95"><Wand2 size={14} /> {km ? "រៀបចំស្វ័យប្រវត្តិ (បំពេញប្រអប់ទទេ)" : "Auto-plan (fill empty boxes)"}</button>
-            </form>
-            <form action={autoFillWeek.bind(null, weekStart, section, true)}>
-              <button className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50"><Wand2 size={13} /> {km ? "រៀបចំឡើងវិញទាំងអស់" : "Re-plan everything"}</button>
-            </form>
-            <form action={copyLastWeek.bind(null, weekStart, ids)}>
-              <button className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-[#1D4ED8] ring-1 ring-[#BFDBFE] hover:bg-[#EEF2FF]"><Copy size={13} /> {L.copy}</button>
-            </form>
-          </div>
-        )}
+          )}
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 border-b border-black/5 px-4 py-2">
+          {SHIFTS.map((k) => (
+            <span key={k} className="inline-flex items-center gap-1.5 text-xs font-bold text-ink/60">
+              <span className={cn("h-2.5 w-2.5 rounded-full", SHIFT_UI[k].dot)} /> {km ? SHIFT_UI[k].km : SHIFT_UI[k].en}
+              {k !== "off" && <span className="font-semibold text-ink/40">{shiftTimes[k]}</span>}
+            </span>
+          ))}
+        </div>
+        <RosterGrid
+          km={km}
+          editable={manager}
+          compact={view === "month"}
+          times={shiftTimes}
+          save={saveRosterWeek}
+          days={days.map((d) => ({ day: d, name: dayName(d), num: dayNum(d), today: d === today }))}
+          cells={Object.fromEntries((roster ?? []).map((r: any) => [`${r.user_id}_${r.day}`, { shift: r.shift, note: r.note }]))}
+          groups={(() => {
+            const out: { key: string; label: string; people: { id: string; name: string; role: string; me: boolean }[] }[] = [];
+            for (const p of team as any[]) {
+              const key = section ? "one" : primaryOf(p);
+              let g = out.find((x) => x.key === key);
+              if (!g) {
+                const T = TASK_SECTIONS[key as keyof typeof TASK_SECTIONS];
+                g = { key, label: section ? "" : T ? (km ? T.km : T.en) : "", people: [] };
+                out.push(g);
+              }
+              g.people.push({ id: p.user_id, name: p.full_name, role: (km && p.position?.name_km) || p.position?.name || "", me: p.user_id === userId });
+            }
+            return out;
+          })()}
+        />
       </section>
 
       <div className="grid items-start gap-5 lg:grid-cols-2">
@@ -376,8 +343,8 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                     </p>
                     <p className="mt-1 text-xs text-ink/50">“{r.reason}”</p>
                     <div className="mt-2 flex justify-end gap-2">
-                      <form action={decideShiftRequest.bind(null, r.id, false)}><button className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold text-red-600 ring-1 ring-red-200"><XCircle size={13} /> {L.no}</button></form>
-                      <form action={decideShiftRequest.bind(null, r.id, true)}><button className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white"><CheckCircle2 size={13} /> {L.yes}</button></form>
+                      <ActionButton action={decideShiftRequest.bind(null, r.id, false)} icon={<XCircle size={14} />} label={L.no} className="text-red-600 ring-1 ring-red-200 hover:bg-red-50" />
+                      <ActionButton action={decideShiftRequest.bind(null, r.id, true)} icon={<CheckCircle2 size={14} />} label={L.yes} className="bg-emerald-600 text-white hover:bg-emerald-700" />
                     </div>
                   </div>
                 ))}
@@ -398,9 +365,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                       <p className="font-bold text-forest">{nameOf.get(r.from_user)} · {dateLabel(r.roster.day)} · {km ? SHIFT[r.roster.shift as Shift].km : SHIFT[r.roster.shift as Shift].en}</p>
                       <p className="text-xs text-ink/55">“{r.reason}”{r.kind === "swap" && r.swap && <> · {km ? "ដូរនឹងវេនរបស់អ្នក" : "for your shift"} {dateLabel(r.swap.day)}</>}</p>
                     </div>
-                    <form action={acceptShiftRequest.bind(null, r.id)}>
-                      <button className="rounded-full bg-[#1D4ED8] px-4 py-2 text-xs font-bold text-white shadow-soft active:scale-95">{r.kind === "cover" ? L.take : L.agree}</button>
-                    </form>
+                    <ActionButton action={acceptShiftRequest.bind(null, r.id)} label={r.kind === "cover" ? L.take : L.agree} doneLabel={km ? "បានទទួល" : "Taken"} className="bg-[#1D4ED8] text-white shadow-soft" />
                   </div>
                 ))}
               </div>
@@ -418,9 +383,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                       <p className="font-bold text-forest">{r.kind === "cover" ? L.cover : L.swap} · {dateLabel(r.roster.day)}</p>
                       <p className={cn("text-xs font-bold", r.status === "accepted" ? "text-emerald-600" : "text-amber-600")}>{L.st[r.status as "open" | "accepted"]}{r.taken_by && ` (${nameOf.get(r.taken_by)})`}</p>
                     </div>
-                    <form action={cancelShiftRequest.bind(null, r.id)}>
-                      <button className="rounded-full px-3 py-1.5 text-xs font-bold text-ink/50 ring-1 ring-black/10 hover:text-red-600">{L.cancel}</button>
-                    </form>
+                    <ActionButton action={cancelShiftRequest.bind(null, r.id)} label={L.cancel} className="text-ink/55 ring-1 ring-black/10 hover:text-red-600" />
                   </div>
                 ))}
               </div>

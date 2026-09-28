@@ -7,9 +7,8 @@ const nextConfig = {
   // Browsers ask for /favicon.ico by default; serve the SVG app icon instead.
   async redirects() {
     return [
-      { source: "/match", destination: "/games", permanent: false },
-      { source: "/love", destination: "/games", permanent: false },
-      { source: "/kids", destination: "/games", permanent: false },
+      // the games were removed: old links go to the home page
+      ...["/games", "/quiz", "/guess", "/coloring", "/compare", "/older", "/kids", "/kids/:path*", "/match", "/love", "/zodiac"].map((source) => ({ source, destination: "/", permanent: false })),
     ];
   },
   async rewrites() {

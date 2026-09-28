@@ -32,21 +32,6 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    en: "Games", km: "ល្បែង", enSub: "For kids and grown-ups", kmSub: "សម្រាប់ក្មេង និងមនុស្សធំ", color: "#7C3AED", soft: "#F3E8FF",
-    items: [
-      { href: "/games", Icon: Gamepad2, en: "All games", km: "ល្បែងទាំងអស់" },
-      { href: "/quiz", Icon: Brain, en: "Animal quiz", km: "ល្បែងសំណួរ" },
-      { href: "/guess", Icon: ZoomIn, en: "Zoom guess", km: "ទាយពីរូបជិត" },
-      { href: "/older", Icon: Cake, en: "Who is older?", km: "អ្នកណាចាស់ជាង?" },
-      { href: "/coloring", Icon: Palette, en: "Coloring book", km: "សៀវភៅគូររូប" },
-      { href: "/kids/memory", Icon: Layers, en: "Memory match", km: "ល្បែងចងចាំ" },
-      { href: "/kids/puzzle", Icon: Puzzle, en: "Puzzle", km: "ផ្គុំរូប" },
-      { href: "/kids/feed", Icon: Utensils, en: "Feed the animals", km: "ឲ្យចំណីសត្វ" },
-      { href: "/kids/bingo", Icon: Grid3x3, en: "Zoo bingo", km: "ប៊ីងហ្គោ" },
-      { href: "/compare", Icon: Ruler, en: "You vs animals", km: "អ្នក និងសត្វ" },
-    ],
-  },
-  {
     en: "Make and share", km: "បង្កើត និងចែករំលែក", enSub: "Photos and cards", kmSub: "រូបថត និងកាត", color: "#0284C7", soft: "#E0F2FE",
     items: [
       { href: "/photo-booth", Icon: Camera, en: "Photo booth", km: "ថតរូបជាមួយសត្វ" },
