@@ -38,8 +38,13 @@ type Mark = { km: string; en: string; kind: string };
  * and full moon noted, and the month's events listed underneath.
  * `extra` adds the zoo's own days off.
  */
-export function KhmerCalendarView({ year, month, today, km, basePath, extra = [] }: { year: number; month: number; today: string; km: boolean; basePath: string; extra?: { date: string; name: string }[]; theme?: "green" | "blue" }) {
+export function KhmerCalendarView({ year, month, today, km, basePath, extra = [], theme = "green" }: { year: number; month: number; today: string; km: boolean; basePath: string; extra?: { date: string; name: string }[]; theme?: "green" | "blue" }) {
   const info = monthInfo(year, month);
+  // the website's colours: green for visitors, blue in the staff area
+  const C =
+    theme === "blue"
+      ? { main: "bg-[#1D4ED8]", border: "border-[#1D4ED8]", today: "bg-[#BFDBFE]", event: "text-[#1D4ED8]" }
+      : { main: "bg-primary", border: "border-primary", today: "bg-leaf/45", event: "text-primary" };
   const marks = new Map<string, Mark[]>();
   for (const h of info.holidays) marks.set(h.date, [...(marks.get(h.date) ?? []), h]);
   for (const e of extra)
@@ -75,14 +80,14 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
             {f.sak !== l.sak ? `${f.sak} → ${l.sak}` : l.sak} ព.ស. {khNum(l.beYear)}
           </p>
           {today.slice(0, 7) !== `${year}-${String(month).padStart(2, "0")}` && (
-            <Link href={basePath} className="mt-1 inline-block rounded-full bg-[#1FA20F] px-3 py-1 text-xs font-bold text-white">{km ? "ខែនេះ" : "This month"}</Link>
+            <Link href={basePath} className={`mt-1 inline-block rounded-full ${C.main} px-3 py-1 text-xs font-bold text-white`}>{km ? "ខែនេះ" : "This month"}</Link>
           )}
         </div>
       </div>
 
       {/* month grid */}
-      <div className="overflow-hidden rounded-2xl border border-[#1FA20F] bg-white shadow-soft">
-        <div className="grid grid-cols-7 bg-[#1FA20F]">
+      <div className={`overflow-hidden rounded-2xl border ${C.border} bg-white shadow-soft`}>
+        <div className={`grid grid-cols-7 ${C.main}`}>
           {(km ? KH_DAYS_SHORT : EN_DAYS).map((w) => (
             <p key={w} className="py-2 text-center text-sm font-bold text-white md:py-3 md:text-lg">{w}</p>
           ))}
@@ -104,8 +109,8 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
                   "relative flex aspect-[1/1.05] flex-col items-center justify-start border-b border-r border-black/10 px-0.5 pt-1.5 text-center md:aspect-[1.35/1] md:pt-3",
                   i % 7 === 6 && "border-r-0",
                   i >= info.grid.length - 7 && "border-b-0",
-                  sunday && "bg-[#1FA20F] text-white",
-                  isToday && "bg-[#8FE07F]",
+                  sunday && `${C.main} text-white`,
+                  isToday && C.today,
                   !inMonth && "opacity-35"
                 )}
               >
@@ -113,13 +118,13 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
                 <span
                   className={cn(
                     "text-xl font-bold leading-none md:text-3xl",
-                    sunday ? "text-white" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? "text-[#1D2FD8]" : "text-[#111]",
+                    sunday ? "text-white" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? C.event : "text-[#111]",
                     sunday && t === "holiday" && "text-[#FFE0E0]"
                   )}
                 >
                   {Number(d.date.slice(8))}
                 </span>
-                <span className={cn("mt-1 text-[10px] leading-tight md:text-sm", sunday ? "text-white/90" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? "text-[#1D2FD8]" : "text-ink/60")}>{lunarText}</span>
+                <span className={cn("mt-1 text-[10px] leading-tight md:text-sm", sunday ? "text-white/90" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? C.event : "text-ink/60")}>{lunarText}</span>
                 {extraNote && <span className={cn("text-[9px] leading-tight md:text-xs", sunday ? "text-white/85" : "text-ink/55")}>{extraNote}</span>}
               </div>
             );
@@ -143,7 +148,7 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
                   </span>
                   <span className="min-w-0 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-2.5 shadow-sm">
                     {list.map((h, j) => (
-                      <span key={j} className={cn("block text-[15px] leading-relaxed md:text-base", t === "holiday" && h.kind !== "observance" && h.kind !== "religious" ? "text-[#E11D1D]" : "text-[#1D2FD8]")}>
+                      <span key={j} className={cn("block text-[15px] leading-relaxed md:text-base", t === "holiday" && h.kind !== "observance" && h.kind !== "religious" ? "text-[#E11D1D]" : C.event)}>
                         {km ? h.km : h.en}
                         {h.kind === "zoo" && <span className="ml-1.5 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">{km ? "សួនសត្វឈប់" : "zoo closed"}</span>}
                       </span>
@@ -155,7 +160,7 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
         </ul>
       )}
       {month === 4 && (
-        <p className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-[15px] text-[#1D2FD8] shadow-sm">
+        <p className={`rounded-2xl border border-black/10 bg-white px-4 py-3 text-[15px] shadow-sm ${C.event}`}>
           {km
             ? `ចូលឆ្នាំខ្មែរ៖ ថ្ងៃទី ${info.newYear.day} ខែមេសា វេលាម៉ោង ${String(info.newYear.hour).padStart(2, "0")}:${String(info.newYear.minute).padStart(2, "0")}`
             : `Khmer New Year enters on ${info.newYear.day} April at ${String(info.newYear.hour).padStart(2, "0")}:${String(info.newYear.minute).padStart(2, "0")}`}
