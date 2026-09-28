@@ -5,6 +5,7 @@ import { startKhqr } from "@/lib/server/payments";
 import { ADOPTION_TIERS } from "@/lib/data/adoption";
 import { getSessionUser } from "@/lib/auth/session";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 const Schema = z.object({
   animalCode: z.string().min(3).max(40),
   tier: z.enum(["friend", "guardian", "hero"]),
@@ -16,6 +17,7 @@ const Schema = z.object({
 // Starts an adoption: price comes from the tier on the server (never from
 // the browser), then a KHQR is created; it's marked paid only once Bakong confirms.
 export async function POST(req: Request) {
+  if (!(await allow("adopt", 10, 60))) return tooMany();
   if (!(await getSessionUser())) return NextResponse.json({ error: "signin" }, { status: 401 });
   const parsed = Schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });

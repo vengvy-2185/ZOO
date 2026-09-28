@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkDiscount, subtotalFor } from "@/lib/server/discounts";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 const Body = z.object({
   code: z.string().trim().min(3).max(40),
   items: z.array(z.object({ ticket_type_id: z.string().uuid(), quantity: z.number().int().min(1).max(50) })).min(1).max(20),
@@ -9,6 +10,7 @@ const Body = z.object({
 
 // Checkout preview: how much a code takes off this basket (prices from the database).
 export async function POST(req: Request) {
+  if (!(await allow("discount", 30, 60))) return tooMany();
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, reason: "invalid" });
   const subtotal = await subtotalFor(parsed.data.items);

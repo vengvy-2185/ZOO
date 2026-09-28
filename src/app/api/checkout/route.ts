@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { REF_COOKIE, isReferralCode } from "@/lib/server/points";
 import { pointsFor } from "@/lib/server/quote";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 const CheckoutSchema = z.object({
   visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
   visitorName: z.string().min(1),
@@ -26,6 +27,7 @@ const CheckoutSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (!(await allow("checkout", 30, 60))) return tooMany();
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "signin" }, { status: 401 });
   const body = await req.json();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 const Body = z.object({
   items: z
     .array(z.object({ code: z.string().regex(/^[A-Z0-9-]{4,32}$/), k: z.string().regex(/^[a-f0-9]{16,64}$/i) }))
@@ -11,6 +12,7 @@ const Body = z.object({
 // Status of tickets remembered on this device (guests have no account).
 // Each ticket is returned only when its secret key matches.
 export async function POST(req: Request) {
+  if (!(await allow("mytickets", 120, 60))) return tooMany();
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ tickets: [] });
   const items = parsed.data.items;

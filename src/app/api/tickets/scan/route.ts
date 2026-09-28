@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { staffAccess } from "@/lib/server/staff";
 import { checkInTicket } from "@/lib/server/checkin";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 export type { ScanVerdict } from "@/lib/server/checkin";
 
 // Staff-only, one step: look the ticket up AND check it in, so the gate
@@ -10,6 +11,7 @@ export type { ScanVerdict } from "@/lib/server/checkin";
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!(await allow("scan", 150, 60, user.id))) return tooMany();
   // admins, or active staff whose position includes ticket work
   if (!(await staffAccess(user.id)).perms.has("tickets")) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 

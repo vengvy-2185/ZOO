@@ -6,6 +6,7 @@ import { staffAccess, payroll, thisMonth, openShift, staffTitle, leaveUsage } fr
 import { getI18n } from "@/lib/i18n/server";
 import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
+import { ensureHolidays } from "@/lib/server/holidays";
 import { ensureAutoRoster } from "@/lib/server/roster";
 import { MySection } from "@/components/staff/MySection";
 import { StaffShell } from "@/components/staff/StaffShell";
@@ -21,7 +22,10 @@ export const generateMetadata = () => staffTitle("Home", "ទំព័រដើ�
 
 export default async function StaffHome({ searchParams }: { searchParams: { denied?: string } }) {
   // the schedule plans itself for this week and next (rules set by managers)
-  await ensureAutoRoster(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date())).catch(() => {});
+  const todayPP = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  // public holidays become days off first, then the schedule is filled in
+  await ensureHolidays(todayPP).catch(() => {});
+  await ensureAutoRoster(todayPP).catch(() => {});
   const userId = getVerifiedUserId()!;
   const { locale } = getI18n();
   const km = locale === "km";

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth/session";
 import { quote } from "@/lib/server/quote";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 export const dynamic = "force-dynamic";
 
 const Body = z.object({
@@ -13,6 +14,7 @@ const Body = z.object({
 
 /** Checkout preview: subtotal, code discount, points discount and what is left to pay. */
 export async function POST(req: Request) {
+  if (!(await allow("quote", 200, 60))) return tooMany();
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid" }, { status: 400 });
   const user = await getSessionUser();

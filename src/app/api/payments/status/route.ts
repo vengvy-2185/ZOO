@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { pollKhqr } from "@/lib/server/payments";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 // Polled by the payment page every few seconds. Requires the secret access
 // key that only the payer received, so nobody can probe other payments.
 const Schema = z.object({
@@ -14,6 +15,7 @@ const Schema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (!(await allow("paystatus", 600, 60))) return tooMany();
   const parsed = Schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const { kind, code, key, regenerate, check } = parsed.data;

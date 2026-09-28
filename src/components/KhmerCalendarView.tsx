@@ -152,7 +152,7 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
                     {list.map((h, j) => (
                       <span key={j} className={cn("block text-[15px] leading-relaxed md:text-base", t === "holiday" && h.kind !== "observance" && h.kind !== "religious" ? "text-[#E11D1D]" : C.event)}>
                         {km ? h.km : h.en}
-                        {h.kind === "zoo" && <span className="ml-1.5 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">{km ? "សួនសត្វឈប់" : "zoo closed"}</span>}
+                        {h.kind === "zoo" && <span className="ml-1.5 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">{km ? "ថ្ងៃឈប់បុគ្គលិក" : "staff day off"}</span>}
                       </span>
                     ))}
                   </span>

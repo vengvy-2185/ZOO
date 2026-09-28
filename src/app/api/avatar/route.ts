@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 // Profile photos come from Google, Facebook or our own storage. Browsers won't
 // let a page save a picture drawn from another site, so ID cards fetch the
 // photo through here. Only these hosts are allowed (never an open proxy).
@@ -12,6 +13,7 @@ function sharper(url: URL) {
 }
 
 export async function GET(req: Request) {
+  if (!(await allow("avatar", 200, 60))) return tooMany();
   const raw = new URL(req.url).searchParams.get("u");
   let target: URL;
   try {

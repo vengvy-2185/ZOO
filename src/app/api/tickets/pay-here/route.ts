@@ -4,12 +4,14 @@ import { staffAccess } from "@/lib/server/staff";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { extractToken } from "@/lib/server/checkin";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 // Staff at the counter: an unpaid ticket was scanned, so hand the staff
 // device this booking's code + key; it then shows the KHQR (same payment
 // flow as the visitor's pay page, confirmed only by Bakong).
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!(await allow("payhere", 30, 60, user.id))) return tooMany();
   // admins, or active staff whose position includes ticket work
   if (!(await staffAccess(user.id)).perms.has("tickets")) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 

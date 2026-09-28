@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 export const dynamic = "force-dynamic";
 
 const Body = z.object({
@@ -17,6 +18,7 @@ const POINTS = 10;
  * token on the server, so points can't be earned without really scanning it.
  */
 export async function POST(req: Request) {
+  if (!(await allow("quest", 300, 60))) return tooMany();
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
   const { token } = parsed.data;

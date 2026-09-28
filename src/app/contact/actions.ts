@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { allow } from "@/lib/server/rate-limit";
 
 export type ContactState = { ok: boolean; error?: "invalid" | "busy" | "error" } | null;
 
@@ -24,6 +25,8 @@ export async function sendContactMessage(_prev: ContactState, form: FormData): P
   if (!parsed.success) return { ok: false, error: "invalid" };
   const { website: _trap, ...row } = parsed.data;
 
+  // one device can't flood the inbox by changing the phone/email each time
+  if (!(await allow("contact", 5, 600))) return { ok: false, error: "busy" };
   const db = createServiceRoleClient();
   // At most 3 messages from the same phone/email in 10 minutes.
   const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();

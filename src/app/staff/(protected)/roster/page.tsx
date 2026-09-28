@@ -14,6 +14,7 @@ import { ShiftRequestForm } from "@/components/staff/ShiftRequestForm";
 import { TASK_SECTIONS } from "@/lib/staff-extras";
 import { saveRosterWeek, copyLastWeek, autoFillWeek, saveRosterRules, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
 import { cn } from "@/lib/utils/cn";
+import { ensureHolidays } from "@/lib/server/holidays";
 import { ensureAutoRoster, getRosterRules, ROSTER_SECTIONS } from "@/lib/server/roster";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const section = (sections as string[]).includes(searchParams.s ?? "") ? (searchParams.s as keyof typeof TASK_SECTIONS) : manager ? null : mySections[0] ?? null;
 
   // automatic mode: this week and next are planned for anyone with nothing yet
+  await ensureHolidays(today).catch(() => {});
   await ensureAutoRoster(today).catch(() => {});
   const rules = await getRosterRules();
   const db = createServiceRoleClient();

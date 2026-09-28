@@ -2,6 +2,7 @@ import "server-only";
 import { revalidateTag } from "next/cache";
 import { serviceClient } from "./private-settings";
 import { awardForPaidBooking } from "./points";
+import { notify, tg } from "./telegram";
 import { checkMany, createKhqr, getPaymentConfig, khqrLogo, QR_MINUTES } from "./bakong";
 import type { PaymentSettings } from "./private-settings";
 
@@ -178,7 +179,14 @@ async function markPaid(kind: PayKind, targetId: string, paymentId: string | und
   const now = new Date().toISOString();
   if (kind === "booking") {
     if (paymentId) await db.from("payments").update({ status: "paid", paid_at: now, provider_reference: hash ?? null, payer_account: from ?? null }).eq("id", paymentId);
-    await db.from("bookings").update({ status: "confirmed" }).eq("id", targetId);
+    // only a booking that wasn't confirmed yet comes back, so the news is sent once
+    const { data: b } = await db.from("bookings").update({ status: "confirmed" }).eq("id", targetId).neq("status", "confirmed").select("booking_code, visit_date, total_usd, booking_items(quantity)").maybeSingle();
+    if (b) {
+      const people = ((b.booking_items ?? []) as { quantity: number }[]).reduce((n, i) => n + i.quantity, 0);
+      await notify("booking", `🎟 <b>ការកក់បានបង់ · Bakong</b>
+${tg(b.booking_code)} · ${people} នាក់ · $${Number(b.total_usd).toFixed(2)}
+📅 ថ្ងៃទស្សនា ${tg(b.visit_date)}`);
+    }
     // Points for the buyer, and for the friend who invited them (never blocks the payment).
     await awardForPaidBooking(targetId).catch(() => {});
   } else {

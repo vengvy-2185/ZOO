@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { SendHorizonal, Loader2, Mic, Trash2, Play, Pause } from "lucide-react";
 import { sendChat, type ChatState } from "@/app/staff/(protected)/actions";
+import { enqueue, pendingOps, onQueueChange } from "@/lib/offline/queue";
 import { cn } from "@/lib/utils/cn";
 
 function SendButton() {
@@ -95,6 +96,31 @@ export function ChatComposer({ channel, km }: { channel: string; km: boolean }) 
   const [mode, setMode] = useState<"text" | "recording" | "sending">("text");
   const [secs, setSecs] = useState(0);
   const [err, setErr] = useState("");
+  const [online, setOnline] = useState(true);
+  const [queued, setQueued] = useState<string[]>([]);
+
+  // without internet, text messages wait on the phone and go out by themselves later
+  useEffect(() => {
+    const load = () => pendingOps().then((ops) => setQueued(ops.filter((o) => o.kind === "chat" && o.payload.channel === channel).map((o) => String(o.payload.body))));
+    const net = () => setOnline(navigator.onLine);
+    load();
+    net();
+    const off = onQueueChange(load);
+    addEventListener("online", net);
+    addEventListener("offline", net);
+    return () => {
+      off();
+      removeEventListener("online", net);
+      removeEventListener("offline", net);
+    };
+  }, [channel]);
+  const sendLater = async (fd: FormData) => {
+    const body = String(fd.get("body") ?? "").trim().slice(0, 1000);
+    if (!body) return;
+    await enqueue("chat", { channel, body });
+    form.current?.reset();
+    if (box.current) grow(box.current);
+  };
 
   useEffect(() => {
     if (state.ok) {
@@ -184,11 +210,21 @@ export function ChatComposer({ channel, km }: { channel: string; km: boolean }) 
     );
 
   return (
-    <form ref={form} action={action} className="border-t border-black/5 bg-white p-3">
+    <form ref={form} action={online ? action : sendLater} className="border-t border-black/5 bg-white p-3">
       {err && <p className="mb-2 rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600">{err}</p>}
+      {(queued.length > 0 || !online) && (
+        <div className="mb-2 space-y-1">
+          {queued.map((q, i) => (
+            <p key={i} className="ml-auto w-fit max-w-[85%] truncate rounded-2xl rounded-br-md bg-[#1D4ED8]/60 px-3 py-1.5 text-sm text-white">⏳ {q}</p>
+          ))}
+          <p className="text-center text-[11px] font-bold text-amber-700">
+            {online ? (km ? "កំពុងផ្ញើសារដែលរង់ចាំ…" : "Sending waiting messages…") : km ? "គ្មាន internet · សារនឹងផ្ញើដោយខ្លួនឯងពេល internet មកវិញ (សំឡេងត្រូវការ internet)" : "Offline · messages go out by themselves when the internet is back (voice needs internet)"}
+          </p>
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <input type="hidden" name="channel" value={channel} />
-        <button type="button" onClick={start} aria-label={km ? "ថតសំឡេង" : "Record voice"} title={km ? "ថតសំឡេង" : "Voice message"} className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8] transition hover:bg-[#DBEAFE] active:scale-90">
+        <button type="button" onClick={start} disabled={!online} aria-label={km ? "ថតសំឡេង" : "Record voice"} title={km ? "ថតសំឡេង" : "Voice message"} className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#1D4ED8] transition hover:bg-[#DBEAFE] active:scale-90">
           <Mic size={20} />
         </button>
         <textarea

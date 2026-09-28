@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
-import { getPrivateSetting, serviceClient, type PaymentSettings, type TtsSettings } from "@/lib/server/private-settings";
+import { getPrivateSetting, serviceClient, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings } from "@/lib/server/private-settings";
+import { recentChats, sendTelegram } from "@/lib/server/telegram";
 import { checkAccount } from "@/lib/server/bakong";
 import { resolveImage } from "@/lib/admin/upload";
 
@@ -16,7 +17,7 @@ async function requireAdmin() {
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
-async function save(key: "payment" | "tts", value: object) {
+async function save(key: "payment" | "tts" | "telegram", value: object) {
   const { error } = await serviceClient().from("private_settings").upsert({ key, value, updated_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
 }
@@ -67,4 +68,38 @@ export async function saveTts(formData: FormData) {
   };
   await save("tts", next);
   redirect("/admin/integrations?msg=saved");
+}
+
+export async function saveTelegram(formData: FormData) {
+  await requireAdmin();
+  const current = await getPrivateSetting<TelegramSettings>("telegram");
+  const token = str(formData, "bot_token");
+  if (token && token !== "-" && !/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(token)) redirect("/admin/integrations?msg=bad-telegram-token#telegram");
+  const chat = str(formData, "chat_id").replace(/\s/g, "");
+  if (chat && !/^(-?\d{3,20}|@[A-Za-z0-9_]{4,40})$/.test(chat)) redirect("/admin/integrations?msg=bad-telegram-chat#telegram");
+  const next: TelegramSettings = {
+    bot_token: token === "-" ? undefined : token || current.bot_token,
+    chat_id: chat || undefined,
+    off: TELEGRAM_EVENTS.filter((e) => formData.get(`ev_${e}`) !== "on"),
+  };
+  await save("telegram", next);
+  redirect("/admin/integrations?msg=saved#telegram");
+}
+
+export async function testTelegram() {
+  await requireAdmin();
+  const s = await getPrivateSetting<TelegramSettings>("telegram");
+  const r = await sendTelegram(s, "✅ <b>Green Wild Zoo</b>\nការភ្ជាប់ Telegram ដំណើរការហើយ។ The Telegram connection works.");
+  redirect(`/admin/integrations?tg=${r.ok ? "ok" : "fail"}&detail=${encodeURIComponent(r.ok ? "Test message sent ✓" : r.error ?? "")}#telegram`);
+}
+
+/** Lists the chats that recently wrote to the bot, so the admin can pick the group. */
+export async function findTelegramChats() {
+  await requireAdmin();
+  const s = await getPrivateSetting<TelegramSettings>("telegram");
+  if (!s.bot_token) redirect("/admin/integrations?tg=fail&detail=" + encodeURIComponent("Save the bot token first.") + "#telegram");
+  const r = await recentChats(s.bot_token!);
+  if (!r.ok) redirect(`/admin/integrations?tg=fail&detail=${encodeURIComponent(r.error)}#telegram`);
+  const list = r.chats.map((c) => `${c.name || "?"} = ${c.id}`).join(" · ");
+  redirect(`/admin/integrations?tg=chats&detail=${encodeURIComponent(list || "No chats yet: add the bot to your group and send any message there, then try again.")}#telegram`);
 }

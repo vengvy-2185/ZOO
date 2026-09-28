@@ -29,6 +29,16 @@ export interface TtsSettings {
   voice_zh?: string; // e.g. "zh-CN-XiaoxiaoNeural"
 }
 
+/** Which news goes to Telegram (all on unless turned off). */
+export const TELEGRAM_EVENTS = ["sos", "leave", "issue", "supply", "cash", "booking", "sync"] as const;
+export type TelegramEvent = (typeof TELEGRAM_EVENTS)[number];
+
+export interface TelegramSettings {
+  bot_token?: string; // from @BotFather
+  chat_id?: string; // the group (or person) that receives the messages
+  off?: TelegramEvent[]; // events turned off
+}
+
 export function serviceClient() {
   return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -36,7 +46,7 @@ export function serviceClient() {
   });
 }
 
-export async function getPrivateSetting<T>(key: "payment" | "tts"): Promise<T> {
+export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram"): Promise<T> {
   const { data } = await serviceClient().from("private_settings").select("value").eq("key", key).maybeSingle();
   return ((data?.value as T) ?? ({} as T)) as T;
 }

@@ -123,12 +123,16 @@ export async function addHoliday(formData: FormData) {
   const day = str(formData, "day");
   const name = str(formData, "name").slice(0, 80);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !name) return;
-  await createServiceRoleClient().from("staff_holidays").upsert({ day, name });
+  const { setDayOff } = await import("@/lib/server/holidays");
+  await setDayOff(day, true, name, getVerifiedUserId() ?? "", localDay());
   refresh();
 }
 export async function removeHoliday(day: string) {
   await manager();
-  await createServiceRoleClient().from("staff_holidays").delete().eq("day", day);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+  // an official holiday removed here stays a working day (it is not added back)
+  const { setDayOff } = await import("@/lib/server/holidays");
+  await setDayOff(day, false, "", getVerifiedUserId() ?? "", localDay());
   refresh();
 }
 

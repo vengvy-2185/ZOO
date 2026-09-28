@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { claimScratch } from "@/lib/server/scratch";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 const Body = z.object({ code: z.string().regex(/^[A-Z0-9-]{4,32}$/), k: z.string().regex(/^[a-f0-9]{16,64}$/i) });
 
 export async function POST(req: Request) {
+  if (!(await allow("scratch", 60, 60))) return tooMany();
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "bad-request" }, { status: 400 });
   const prize = await claimScratch(parsed.data.code, parsed.data.k);

@@ -29,7 +29,7 @@ export function extractToken(raw: string) {
  * signed-in staff member or admin (the caller checks the role). Everything
  * is decided here from the database, never from the QR contents alone.
  */
-export async function checkInTicket(rawToken: string, staffUserId: string, force = false): Promise<ScanOutcome> {
+export async function checkInTicket(rawToken: string, staffUserId: string, force = false, scannedAt?: string): Promise<ScanOutcome> {
   const token = extractToken(rawToken);
   if (!/^[A-Za-z0-9_-]{6,128}$/.test(token)) return { verdict: "invalid" };
 
@@ -57,11 +57,13 @@ export async function checkInTicket(rawToken: string, staffUserId: string, force
   if (previous) return { verdict: "already", ticket, checkedInAt: previous };
   if (b.status === "cancelled") return { verdict: "cancelled", ticket };
   if (b.status !== "confirmed") return { verdict: "unpaid", ticket };
-  if (b.visit_date !== zooToday() && !force) return { verdict: "wrong_date", ticket, today: zooToday() };
+  // a ticket scanned without internet is judged on the day it was scanned
+  const day = scannedAt ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date(scannedAt)) : zooToday();
+  if (b.visit_date !== day && !force) return { verdict: "wrong_date", ticket, today: day };
 
   const { data: checkin, error } = await db
     .from("visitor_checkins")
-    .insert({ booking_id: b.id, checked_in_by: staffUserId, visitors_count: ticket.visitors })
+    .insert({ booking_id: b.id, checked_in_by: staffUserId, visitors_count: ticket.visitors, ...(scannedAt ? { checked_in_at: scannedAt } : {}) })
     .select("checked_in_at")
     .single();
   if (error) {

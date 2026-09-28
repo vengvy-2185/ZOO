@@ -255,6 +255,15 @@ export async function saveStaffSettings(formData: FormData) {
     handover_new_hours: num("handover_new_hours", 12, 1, 168),
     task_keep_days: num("task_keep_days", 3, 1, 60),
     lost_old_days: num("lost_old_days", 7, 1, 365),
+    gate_prices: Object.fromEntries((["adult", "child", "senior", "student", "foreigner"] as const).map((k) => {
+      const v = Number(str(formData, `price_${k}`));
+      return [k, Number.isFinite(v) && v >= 0 && v <= 1000 ? Math.round(v * 100) / 100 : 0];
+    })) as Record<"adult" | "child" | "senior" | "student" | "foreigner", number>,
+    usd_to_khr: num("usd_to_khr", 4100, 1000, 10000),
+    cash_tolerance: (() => {
+      const v = Number(str(formData, "cash_tolerance"));
+      return Number.isFinite(v) && v >= 0 && v <= 100 ? Math.round(v * 100) / 100 : 1;
+    })(),
     supplies: { tickets: text("sup_tickets"), animals: text("sup_animals"), cleaning: text("sup_cleaning"), guide: text("sup_guide"), general: text("sup_general") },
   };
   await createServiceRoleClient().from("staff_settings").upsert({ id: 1, data, updated_at: new Date().toISOString() });

@@ -11,6 +11,25 @@ const nextConfig = {
       ...["/games", "/quiz", "/guess", "/coloring", "/compare", "/older", "/kids", "/kids/:path*", "/match", "/love", "/zodiac"].map((source) => ({ source, destination: "/", permanent: false })),
     ];
   },
+  // Safety headers on every page: no framing by other sites (click-jacking),
+  // no guessing file types, only send the site name to other sites (ticket
+  // links carry a secret key), HTTPS only, and camera / microphone / location
+  // only for this site's own pages (scanner, voice chat, attendance).
+  async headers() {
+    const security = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+      { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), interest-cohort=()" },
+    ];
+    return [
+      { source: "/:path*", headers: security },
+      // the offline helper must always be fresh, and may look after the whole site
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Service-Worker-Allowed", value: "/" }] },
+    ];
+  },
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/icon.svg" }];
   },

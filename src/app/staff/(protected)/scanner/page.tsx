@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import jsQR from "jsqr";
-import { CheckCircle2, XCircle, AlertTriangle, Users, CalendarDays, UserRoundPlus, Loader2, ScanLine } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Users, CalendarDays, UserRoundPlus, Loader2, ScanLine, WifiOff, HelpCircle, ListChecks } from "lucide-react";
+import { refreshTicketList, savedList, checkOffline, allowUnknown, markScanned } from "@/lib/offline/tickets";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 import { KhqrCard, drawKhqr } from "@/components/KhqrCard";
 
-type Verdict = "ok" | "already" | "unpaid" | "cancelled" | "wrong_date" | "invalid";
+type Verdict = "ok" | "already" | "unpaid" | "cancelled" | "wrong_date" | "invalid" | "unknown";
 type ScanResult = {
   verdict: Verdict;
   token: string;
   checkedInAt?: string;
+  /** decided on this device without internet (sent to the server later) */
+  offline?: boolean;
   ticket?: { code: string; name: string | null; visitDate: string; visitors: number; total: number; items: { name: string; name_km: string | null; quantity: number }[] };
 };
 
@@ -35,6 +38,13 @@ const TEXT = {
     noCamera: "Camera not available. Type the code below.",
     gate: "Gate counter",
     today: "Checked in this session",
+    unknown: "Can't check this ticket offline",
+    unknownHint: "No internet, and this ticket isn't in today's saved list (it may have been bought just now).",
+    allowUnknown: "Let in · check when online",
+    offlineNote: "Checked without internet · sent automatically when it's back",
+    list: "tickets saved",
+    offline: "Offline",
+    payOffline: "Paying by KHQR needs internet.",
   },
   km: {
     title: "ស្កេនសំបុត្រ",
@@ -54,6 +64,13 @@ const TEXT = {
     noCamera: "មិនអាចប្រើកាមេរ៉ាបានទេ។ សូមវាយលេខកូដខាងក្រោម។",
     gate: "រាប់ភ្ញៀវ",
     today: "បានឆែកចូលក្នុងវេននេះ",
+    unknown: "មិនអាចពិនិត្យសំបុត្រនេះបានទេ",
+    unknownHint: "គ្មាន internet ហើយសំបុត្រនេះមិនមានក្នុងបញ្ជីដែលបានរក្សាទុកថ្ងៃនេះ (ប្រហែលទើបទិញ)។",
+    allowUnknown: "អនុញ្ញាតឲ្យចូល · ពិនិត្យពេលមាន internet",
+    offlineNote: "ពិនិត្យដោយគ្មាន internet · នឹងបញ្ជូនដោយស្វ័យប្រវត្តិពេល internet មកវិញ",
+    list: "សំបុត្ររក្សាទុក",
+    offline: "គ្មាន internet",
+    payOffline: "ការបង់តាម KHQR ត្រូវការ internet។",
   },
 };
 
@@ -64,6 +81,7 @@ const STYLE: Record<Verdict, { bg: string; Icon: typeof CheckCircle2 }> = {
   unpaid: { bg: "bg-red-600", Icon: XCircle },
   cancelled: { bg: "bg-red-600", Icon: XCircle },
   invalid: { bg: "bg-red-600", Icon: XCircle },
+  unknown: { bg: "bg-amber-600", Icon: HelpCircle },
 };
 
 /** Short beep: happy two-tone for OK, low buzz otherwise. */
@@ -103,6 +121,32 @@ export default function ScannerPage() {
   const [count, setCount] = useState(0);
   const [pay, setPay] = useState<PayHere | null>(null);
   const km = locale === "km";
+  const [online, setOnline] = useState(true);
+  const [list, setList] = useState<{ n: number; at: string } | null>(null);
+
+  // keep today's tickets on this device, fresh every 3 minutes while online
+  useEffect(() => {
+    let stop = false;
+    const load = async () => {
+      const s = navigator.onLine ? await refreshTicketList() : await savedList();
+      if (!stop && s) setList({ n: s.tickets.length, at: s.at });
+    };
+    const net = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine) load();
+    };
+    setOnline(navigator.onLine);
+    load();
+    const id = setInterval(() => navigator.onLine && load(), 180000);
+    addEventListener("online", net);
+    addEventListener("offline", net);
+    return () => {
+      stop = true;
+      clearInterval(id);
+      removeEventListener("online", net);
+      removeEventListener("offline", net);
+    };
+  }, []);
 
   // Unpaid ticket at the counter: show a KHQR for it on this device, poll Bakong, then check it in.
   async function startPayHere(token: string) {
@@ -131,16 +175,30 @@ export default function ScannerPage() {
   const scan = useCallback(async (token: string, force = false) => {
     busy.current = true;
     setLoading(true);
-    try {
-      const res = await fetch("/api/tickets/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, force }) });
-      const data = await res.json();
-      const r: ScanResult = { ...data, token, verdict: data.verdict ?? "invalid" };
+    const show = (r: ScanResult) => {
       setResult(r);
       beep(r.verdict === "ok");
       if (r.verdict === "ok") setCount((c) => c + (r.ticket?.visitors ?? 1));
+    };
+    try {
+      // online: the server decides (slow internet: give up after 6 seconds and check here instead)
+      if (navigator.onLine) {
+        try {
+          const res = await fetch("/api/tickets/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, force }), signal: AbortSignal.timeout(6000) });
+          if (res.status < 500) {
+            const data = await res.json();
+            const r: ScanResult = { ...data, token, verdict: data.verdict ?? "invalid" };
+            if (r.verdict === "ok" && r.checkedInAt) markScanned(token, r.checkedInAt);
+            return show(r);
+          }
+        } catch {
+          /* no answer: check on this device below */
+        }
+      }
+      const o = await checkOffline(token, force);
+      show({ verdict: o.verdict, token, offline: true, checkedInAt: o.checkedInAt, ticket: o.ticket ? { code: o.ticket.code, name: o.ticket.name, visitDate: o.ticket.visitDate, visitors: o.ticket.visitors, total: 0, items: o.ticket.items } : undefined });
     } catch {
-      setResult({ verdict: "invalid", token });
-      beep(false);
+      show({ verdict: "invalid", token });
     } finally {
       setLoading(false);
     }
@@ -227,7 +285,17 @@ export default function ScannerPage() {
         <Link href="/staff" className="flex items-center gap-2 font-display text-lg font-extrabold">
           <ScanLine size={20} className="text-[#93C5FD]" /> {L.title}
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {!online && (
+            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-500 px-2.5 py-1.5 text-xs font-extrabold text-white">
+              <WifiOff size={13} /> {L.offline}
+            </span>
+          )}
+          {list && (
+            <span className="hidden items-center gap-1 rounded-xl bg-white/10 px-2.5 py-1.5 text-xs font-bold sm:inline-flex">
+              <ListChecks size={13} className="text-[#93C5FD]" /> {list.n} {L.list} · {new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh" }).format(new Date(list.at))}
+            </span>
+          )}
           <span className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold">
             {L.today}: <span className="text-[#93C5FD]">{count}</span>
           </span>
@@ -268,6 +336,10 @@ export default function ScannerPage() {
             <div className={cn("absolute inset-0 flex flex-col items-center justify-center p-6 text-center", S.bg)} onClick={result.verdict === "ok" ? next : undefined}>
               <S.Icon size={96} strokeWidth={2.2} className="animate-[gwzPop_.3s_ease]" />
               <h2 className="mt-3 font-display text-3xl font-extrabold leading-tight">{L[result.verdict]}</h2>
+              {result.verdict === "unknown" && <p className="mt-2 max-w-xs text-sm font-semibold text-white/90">{L.unknownHint}</p>}
+              {result.offline && result.verdict !== "unknown" && (
+                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-black/20 px-3 py-1 text-xs font-bold"><WifiOff size={13} /> {L.offlineNote}</p>
+              )}
               {result.ticket && (
                 <div className="mt-4 w-full rounded-2xl bg-black/20 p-4 text-left text-sm">
                   <div className="flex items-center justify-between font-mono text-base font-bold">
@@ -295,9 +367,23 @@ export default function ScannerPage() {
                 </div>
               )}
               <div className="mt-5 flex w-full gap-2">
-                {result.verdict === "unpaid" && (
+                {result.verdict === "unpaid" && !result.offline && (
                   <button onClick={() => startPayHere(result.token)} className="flex-1 rounded-2xl bg-white py-3 font-extrabold text-red-700">
                     {km ? "បង់នៅទីនេះ (KHQR)" : "Pay here (KHQR)"}
+                  </button>
+                )}
+                {result.verdict === "unpaid" && result.offline && <p className="flex-1 self-center text-sm font-bold">{L.payOffline}</p>}
+                {result.verdict === "unknown" && (
+                  <button
+                    onClick={async () => {
+                      await allowUnknown(result.token);
+                      setCount((c) => c + 1);
+                      beep(true);
+                      next();
+                    }}
+                    className="flex-1 rounded-2xl bg-white/25 py-3 text-sm font-bold"
+                  >
+                    {L.allowUnknown}
                   </button>
                 )}
                 {result.verdict === "wrong_date" && (

@@ -8,6 +8,7 @@ import { IntroSplash, INTRO_SCRIPT } from "@/components/IntroSplash";
 import { TEXT_SIZE_SCRIPT } from "@/lib/text-size";
 import { ZooAssistant } from "@/components/ZooAssistant";
 import { LiveRefresh } from "@/components/LiveRefresh";
+import { OfflineKit } from "@/components/OfflineKit";
 import { GlobalAttendanceQR } from "@/components/staff/GlobalAttendanceQR";
 import { GlobalStaffSound } from "@/components/staff/GlobalStaffSound";
 import { getBranding } from "@/lib/branding";
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ZooAssistant />
           <GlobalAttendanceQR />
           <GlobalStaffSound />
+          <OfflineKit />
           <IntroSplash videoUrl={heroVideoUrl} />
         </LocaleProvider>
         <ScrollReveal />

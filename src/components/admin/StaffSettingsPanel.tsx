@@ -1,4 +1,5 @@
-import { Phone, Volume2, SlidersHorizontal, Package, Bell, RefreshCw } from "lucide-react";
+import { Phone, Volume2, SlidersHorizontal, Package, Bell, RefreshCw, Banknote } from "lucide-react";
+import { GATE_CATEGORIES } from "@/lib/data/gate";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { SoundTest } from "@/components/staff/SoundTest";
 import { saveStaffSettings, applyLeaveQuotaToAll } from "@/app/admin/(dashboard)/staff/actions";
@@ -88,6 +89,30 @@ export function StaffSettingsPanel({ s, km, usingDefault }: { s: StaffSettings; 
             {n("handover_new_hours", L.handover, 1, 168)}
             {n("task_keep_days", L.tasks, 1, 60)}
             {n("lost_old_days", L.lost, 1, 365)}
+          </div>
+        </Card>
+
+        <Card Icon={Banknote} title={km ? "តម្លៃនៅច្រកចូល និងការបិទបញ្ជីប្រាក់" : "Gate prices and cash close"}>
+          <p className="-mt-2 mb-3 text-xs text-ink/50">
+            {km ? "តម្លៃសំបុត្រ ($) ក្នុងមួយនាក់ ដែលបុគ្គលិកលក់នៅច្រកចូល។ ប្រព័ន្ធប្រើតម្លៃនេះ ដើម្បីគណនាចំនួនលុយដែលត្រូវមាន ពេលបិទបញ្ជីប្រាក់។" : "Price ($) per visitor sold at the gate. The cash close uses these to work out how much cash there should be."}
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {GATE_CATEGORIES.map((c) => (
+              <label key={c.key} className="block">
+                <span className={lbl}>{km ? c.km : c.en} ($)</span>
+                <input name={`price_${c.key}`} type="number" min={0} max={1000} step="0.01" defaultValue={String(s.gate_prices[c.key])} className={`${input} font-mono font-bold`} />
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className={lbl}>{km ? "1 ដុល្លារ = … រៀល" : "1 USD = … KHR"}</span>
+              <input name="usd_to_khr" type="number" min={1000} max={10000} defaultValue={String(s.usd_to_khr)} className={`${input} font-mono font-bold`} />
+            </label>
+            <label className="block">
+              <span className={lbl}>{km ? "ខុសគ្នាអនុញ្ញាត ($)" : "Allowed difference ($)"}</span>
+              <input name="cash_tolerance" type="number" min={0} max={100} step="0.01" defaultValue={String(s.cash_tolerance)} className={`${input} font-mono font-bold`} />
+            </label>
           </div>
         </Card>
 

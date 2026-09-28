@@ -1,19 +1,29 @@
-import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound } from "lucide-react";
+import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send } from "lucide-react";
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
 import { SubmitButton, ImageUploadField } from "@/components/admin/ui-client";
 import { PaymentTest } from "@/components/admin/PaymentTest";
 import { bakongUsage } from "@/lib/server/payments";
-import { getPrivateSetting, mask, type PaymentSettings, type TtsSettings } from "@/lib/server/private-settings";
-import { savePayment, saveTts, testPayment } from "./actions";
+import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings } from "@/lib/server/private-settings";
+import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats } from "./actions";
+
+const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], string> = {
+  sos: "SOS / emergency (always recommended)",
+  leave: "New leave requests",
+  issue: "Problems reported by staff",
+  supply: "Urgent supply requests",
+  cash: "Daily cash close (and any difference)",
+  booking: "Paid online bookings",
+  sync: "Work sent in late after the internet came back",
+};
 
 export const dynamic = "force-dynamic";
 
-export default async function IntegrationsPage({ searchParams }: { searchParams: { msg?: string; test?: string; detail?: string } }) {
-  const [pay, tts, usage] = await Promise.all([getPrivateSetting<PaymentSettings>("payment"), getPrivateSetting<TtsSettings>("tts"), bakongUsage()]);
+export default async function IntegrationsPage({ searchParams }: { searchParams: { msg?: string; test?: string; tg?: string; detail?: string } }) {
+  const [pay, tts, tele, usage] = await Promise.all([getPrivateSetting<PaymentSettings>("payment"), getPrivateSetting<TtsSettings>("tts"), getPrivateSetting<TelegramSettings>("telegram"), bakongUsage()]);
 
   return (
     <div className="mx-auto max-w-4xl p-8">
-      <AdminPageHeader icon={PlugZap} title="Payments & Voice" subtitle="Bakong KHQR for tickets and adoptions · natural text-to-speech voices (Khmer, English, Chinese)." />
+      <AdminPageHeader icon={PlugZap} title="Payments, Voice & Telegram" subtitle="Bakong KHQR for tickets and adoptions · natural text-to-speech voices · news to your Telegram group." />
 
       {searchParams.msg === "saved" && (
         <p className="mb-5 flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white">
@@ -31,6 +41,8 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
       {searchParams.msg === "bad-bank-account" && (
         <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Not saved: the bank account number should be digits only (6–24 digits).</p>
       )}
+      {searchParams.msg === "bad-telegram-token" && <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Not saved: a bot token looks like 123456789:AAH… (numbers, a colon, then letters). Copy it again from @BotFather.</p>}
+      {searchParams.msg === "bad-telegram-chat" && <p className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Not saved: a chat id is a number like -1001234567890 (groups start with a minus) or @channelname.</p>}
       {searchParams.test && (
         <p className={`mb-5 flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold ${searchParams.test === "ok" ? "bg-light-green text-primary" : "bg-amber-50 text-amber-800"}`}>
           {searchParams.test === "ok" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />} {searchParams.detail}
@@ -200,6 +212,55 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             </div>
           </FormSection>
         </form>
+
+        {/* ── Telegram ─────────────────────────────── */}
+        <form action={saveTelegram} autoComplete="off" id="telegram" className="scroll-mt-6">
+          <FormSection icon={Send} title="Telegram notifications" hint="Important news goes straight to your staff Telegram group: SOS, leave requests, problems, the daily cash close, paid bookings. The bot token stays on the server.">
+            {searchParams.tg && (
+              <p className={`flex items-start gap-2 rounded-2xl px-4 py-3 text-sm font-bold ${searchParams.tg === "fail" ? "bg-amber-50 text-amber-800" : "bg-light-green text-primary"}`}>
+                {searchParams.tg === "fail" ? <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" /> : <CheckCircle2 size={18} className="mt-0.5 flex-shrink-0" />}
+                <span className="break-all">{searchParams.tg === "chats" ? `Chats that wrote to the bot: ${searchParams.detail}` : searchParams.detail}</span>
+              </p>
+            )}
+            <ol className="list-decimal space-y-1 rounded-2xl bg-cream p-4 pl-8 text-sm text-ink/75">
+              <li>In Telegram, open <b>@BotFather</b> → <b>/newbot</b> → copy the token it gives you.</li>
+              <li>Add the new bot to your staff group and send any message in the group.</li>
+              <li>Paste the token below and save, then press <b>Find my group</b> to see the group&apos;s chat id.</li>
+              <li>Paste the chat id, save, and press <b>Send a test message</b>.</li>
+            </ol>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field
+                label={`Bot token ${tele.bot_token ? `(saved ${mask(tele.bot_token)})` : ""}`}
+                name="bot_token"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
+                style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+                placeholder={tele.bot_token ? "Leave blank to keep · type - to remove" : "123456789:AAH…"}
+              />
+              <Field label="Group chat id" name="chat_id" defaultValue={tele.chat_id} placeholder="-1001234567890" autoComplete="off" />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-bold text-forest">Send these to the group</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {TELEGRAM_EVENTS.map((e) => (
+                  <label key={e} className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-cream/60 px-3 py-2.5 text-sm font-semibold text-ink/75">
+                    <input type="checkbox" name={`ev_${e}`} defaultChecked={!(tele.off ?? []).includes(e)} className="h-4 w-4 accent-[#176B3A]" /> {TG_EVENTS[e]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <SubmitButton label="Save Telegram settings" pendingLabel="Saving…" />
+            </div>
+          </FormSection>
+        </form>
+        <div className="-mt-3 flex flex-wrap justify-end gap-2">
+          <form action={findTelegramChats}><button className="btn-outline bg-white px-4 py-2 text-xs">Find my group</button></form>
+          <form action={testTelegram}><button className="btn-outline bg-white px-4 py-2 text-xs" disabled={!tele.bot_token || !tele.chat_id}>Send a test message</button></form>
+        </div>
       </div>
     </div>
   );

@@ -33,7 +33,7 @@ import {
   Star,
   Newspaper,
   TicketPercent,
-  type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays } from "lucide-react";
+  type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
@@ -87,6 +87,7 @@ const GROUPS: { title: GroupKey; items: { key: ItemKey; href: string; icon: Luci
       { key: "staff", href: "/admin/staff", icon: BadgeCheck },
       { key: "roster", href: "/staff/roster", icon: CalendarRange },
       { key: "calendar", href: "/staff/calendar", icon: CalendarDays },
+      { key: "cash", href: "/staff/cash", icon: Banknote },
       { key: "chat", href: "/staff/chat", icon: MessagesSquare },
       { key: "discounts", href: "/admin/discounts", icon: TicketPercent },
       { key: "adoptions", href: "/admin/adoptions", icon: HeartHandshake },

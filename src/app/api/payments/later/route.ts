@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { choosePayLater } from "@/lib/server/payments";
 
+import { allow, tooMany } from "@/lib/server/rate-limit";
 // The visitor picks "pay at the counter when I arrive" (or changes their mind).
 // Needs the booking's secret key, like the pay page itself.
 export async function POST(req: Request) {
+  if (!(await allow("paylater", 20, 60))) return tooMany();
   const body = await req.json().catch(() => ({}));
   const code = String(body.code ?? "");
   const key = String(body.key ?? "");

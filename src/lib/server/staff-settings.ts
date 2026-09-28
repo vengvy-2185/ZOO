@@ -24,6 +24,12 @@ export type StaffSettings = {
   task_keep_days: number;
   /** a lost item waiting longer than this is flagged */
   lost_old_days: number;
+  /** walk-in price (USD) per visitor type counted at the gate, for the cash close */
+  gate_prices: Record<"adult" | "child" | "senior" | "student" | "foreigner", number>;
+  /** riel per dollar when cash is counted in riel */
+  usd_to_khr: number;
+  /** a cash close within this many dollars counts as correct */
+  cash_tolerance: number;
   /** supply quick picks, one per line, "English | ខ្មែរ" */
   supplies: Record<"tickets" | "animals" | "cleaning" | "guide" | "general", string>;
 };
@@ -46,6 +52,9 @@ export const DEFAULT_STAFF_SETTINGS: StaffSettings = {
   handover_new_hours: 12,
   task_keep_days: 3,
   lost_old_days: 7,
+  gate_prices: { adult: 10, child: 1, senior: 5, student: 5, foreigner: 10 },
+  usd_to_khr: 4100,
+  cash_tolerance: 1,
   supplies: {
     tickets: "Receipt paper rolls | ក្រដាសបោះពុម្ព\nWristbands | ខ្សែដៃភ្ញៀវ\nPens | ប៊ិច\nChange money | ប្រាក់អាប់\nScanner batteries | ថ្មម៉ាស៊ីនស្កេន",
     animals: "Animal food | ចំណីសត្វ\nMedicine | ថ្នាំពេទ្យ\nBedding / straw | ចំបើង / កម្រាល\nGloves | ស្រោមដៃ\nVitamins | វីតាមីន",
@@ -59,7 +68,7 @@ export const DEFAULT_STAFF_SETTINGS: StaffSettings = {
 export const getStaffSettings = cache(async (): Promise<StaffSettings> => {
   const { data } = await createServiceRoleClient().from("staff_settings").select("data").eq("id", 1).maybeSingle();
   const d = (data?.data ?? {}) as Partial<StaffSettings>;
-  return { ...DEFAULT_STAFF_SETTINGS, ...d, supplies: { ...DEFAULT_STAFF_SETTINGS.supplies, ...(d.supplies ?? {}) }, phones: Array.isArray(d.phones) && d.phones.length ? d.phones : DEFAULT_STAFF_SETTINGS.phones };
+  return { ...DEFAULT_STAFF_SETTINGS, ...d, supplies: { ...DEFAULT_STAFF_SETTINGS.supplies, ...(d.supplies ?? {}) }, gate_prices: { ...DEFAULT_STAFF_SETTINGS.gate_prices, ...(d.gate_prices ?? {}) }, phones: Array.isArray(d.phones) && d.phones.length ? d.phones : DEFAULT_STAFF_SETTINGS.phones };
 });
 
 /** "English | ខ្មែរ" lines → pairs for the quick-pick buttons. */

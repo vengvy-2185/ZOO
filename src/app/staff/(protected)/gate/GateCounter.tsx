@@ -1,20 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, ScanLine, BarChart3, WifiOff, Undo2 } from "lucide-react";
+import { Minus, Plus, ScanLine, BarChart3, WifiOff, Undo2, CloudUpload } from "lucide-react";
 import { GATE_CATEGORIES, zooToday } from "@/lib/data/gate";
 import { formatFullDate } from "@/lib/utils/age";
-import { addGateEntry } from "./actions";
+import { enqueue, pendingOps, onQueueChange } from "@/lib/offline/queue";
 import { cn } from "@/lib/utils/cn";
 
-/** Big-button tally for the entrance gate. Counts update instantly; the server write follows. */
+/**
+ * Big-button tally for the entrance gate. Counts update instantly; each tap is
+ * kept on the device and sent to the server (at once, or when the internet
+ * is back), so counting never stops when the connection drops.
+ */
 export function GateCounter({ initial, locale, embedded = false, tone }: { initial: Record<string, number>; locale: string; /** Inside the admin shell (sidebar menu) instead of full screen. */ embedded?: boolean; /** "blue": the staff area look (white cards, blue buttons) */ tone?: "blue" }) {
   const blue = embedded && tone === "blue";
   const km = locale === "km";
   const [totals, setTotals] = useState(initial);
   const [bump, setBump] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [waiting, setWaiting] = useState(0);
+  const [offline, setOffline] = useState(false);
+
+  // taps not sent yet are not in the server's numbers: add them on top
+  useEffect(() => {
+    const today = zooToday();
+    pendingOps().then((ops) => {
+      const extra = ops.filter((o) => o.kind === "gate" && new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date(o.at)) === today);
+      if (extra.length) setTotals((t) => {
+        const n = { ...t };
+        for (const o of extra) n[String(o.payload.category)] = (n[String(o.payload.category)] ?? 0) + Number(o.payload.delta);
+        return n;
+      });
+    });
+    const count = () => pendingOps().then((ops) => setWaiting(ops.filter((o) => o.kind === "gate").length));
+    count();
+    const off = onQueueChange(count);
+    const net = () => setOffline(!navigator.onLine);
+    net();
+    addEventListener("online", net);
+    addEventListener("offline", net);
+    return () => {
+      off();
+      removeEventListener("online", net);
+      removeEventListener("offline", net);
+    };
+  }, []);
   const [history, setHistory] = useState<{ key: string; delta: number }[]>([]);
   const total = Object.values(totals).reduce((a, b) => a + b, 0);
 
@@ -25,8 +56,13 @@ export function GateCounter({ initial, locale, embedded = false, tone }: { initi
     setBump(key + delta);
     setTimeout(() => setBump(null), 250);
     if (navigator.vibrate) navigator.vibrate(15);
-    addGateEntry(key, delta)
-      .then(() => setFailed(false))
+    enqueue("gate", { category: key, delta })
+      .then((op) => {
+        if (op) return setFailed(false);
+        // not signed in on this device any more
+        setTotals((t) => ({ ...t, [key]: t[key] - delta }));
+        setFailed(true);
+      })
       .catch(() => {
         setTotals((t) => ({ ...t, [key]: t[key] - delta }));
         setFailed(true);
@@ -88,9 +124,21 @@ export function GateCounter({ initial, locale, embedded = false, tone }: { initi
           </button>
         </div>
 
+        {(offline || waiting > 0) && !failed && (
+          <p className={cn("mt-3 flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold", blue ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200" : "bg-amber-400/20")}>
+            {offline ? <WifiOff size={16} /> : <CloudUpload size={16} className="animate-pulse" />}
+            {offline
+              ? km
+                ? `គ្មាន internet · រាប់បន្តបានធម្មតា${waiting ? ` (${waiting} រង់ចាំបញ្ជូន)` : ""}`
+                : `Offline · keep counting${waiting ? ` (${waiting} waiting to send)` : ""}`
+              : km
+                ? `កំពុងបញ្ជូន ${waiting}…`
+                : `Sending ${waiting}…`}
+          </p>
+        )}
         {failed && (
           <p className="mt-3 flex items-center gap-2 rounded-2xl bg-red-500/20 px-4 py-2.5 text-sm font-semibold">
-            <WifiOff size={16} /> {km ? "មិនអាចរក្សាទុកបានទេ។ សូមពិនិត្យអ៊ីនធឺណិត ហើយចុចម្តងទៀត។" : "Couldn't save. Check the connection and tap again."}
+            <WifiOff size={16} /> {km ? "មិនអាចរក្សាទុកបានទេ។ សូមចូលគណនីម្តងទៀត ហើយចុចម្តងទៀត។" : "Couldn't save. Sign in again and tap again."}
           </p>
         )}
 

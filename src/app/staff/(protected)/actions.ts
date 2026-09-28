@@ -7,6 +7,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, openShift, leaveUsage } from "@/lib/server/staff";
 import { getStaffSettings } from "@/lib/server/staff-settings";
 import { planWeek, mondayOf, ROSTER_SECTIONS, type RosterSection } from "@/lib/server/roster";
+import { notify, tg } from "@/lib/server/telegram";
 
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
@@ -18,6 +19,9 @@ async function me() {
   if (!access.ok) throw new Error("Not allowed.");
   return { id, access };
 }
+
+/** The name shown in Telegram messages. */
+const who = (access: Awaited<ReturnType<typeof staffAccess>>) => (access.staff ? `${access.staff.full_name_km || access.staff.full_name} (${access.staff.staff_no})` : "Admin");
 
 export async function clockIn() {
   const { id, access } = await me();
@@ -62,6 +66,11 @@ export async function requestLeave(_prev: LeaveState, formData: FormData): Promi
   if ((await leaveUsage(id, access.staff.leave_quota)).remaining <= 0) return { error: "quota" };
   const { error } = await createServiceRoleClient().from("staff_leave_requests").insert({ user_id: id, kind, start_date: start, end_date: end, reason });
   if (error) return { error: error.message };
+  const KIND_KM: Record<string, string> = { annual: "ច្បាប់ប្រចាំឆ្នាំ", sick: "ឈឺ", personal: "ផ្ទាល់ខ្លួន", other: "ផ្សេងៗ" };
+  await notify("leave", `📝 <b>សំណើច្បាប់ឈប់ថ្មី</b>
+👤 ${tg(who(access))}
+📅 ${start}${end !== start ? ` → ${end}` : ""} · ${KIND_KM[kind]}
+💬 ${tg(reason)}`);
   revalidatePath("/staff/leave");
   revalidatePath("/staff");
   return { ok: true };
@@ -179,6 +188,11 @@ export async function reportIssue(_prev: IssueState, formData: FormData): Promis
   }
   const { error } = await db.from("staff_issues").insert({ user_id: id, category, place, note, urgent: formData.get("urgent") === "on", photo_url: photo });
   if (error) return { error: error.message };
+  await notify("issue", `${formData.get("urgent") === "on" ? "🚨 <b>បញ្ហាបន្ទាន់</b>" : "🔧 <b>បញ្ហាថ្មី</b>"}
+📍 ${tg(place)}
+💬 ${tg(note)}${photo ? `
+🖼 <a href="${tg(photo)}">រូបថត</a>` : ""}
+👤 ${tg(who((await staffAccess(id))))}`);
   revalidatePath("/staff/issues");
   return { ok: true };
 }
@@ -208,6 +222,10 @@ export async function requestSupply(_prev: SupplyState, formData: FormData): Pro
   if (section !== "general" && !access.perms.has(section)) return { error: "invalid" };
   const { error } = await createServiceRoleClient().from("staff_supply_requests").insert({ user_id: id, section, item, quantity, urgent: formData.get("urgent") === "on", note: note || null });
   if (error) return { error: error.message };
+  if (formData.get("urgent") === "on") await notify("supply", `📦 <b>សុំសម្ភារៈបន្ទាន់</b>
+${tg(item)} × ${quantity}${note ? `
+💬 ${tg(note)}` : ""}
+👤 ${tg(who(access))}`);
   revalidatePath("/staff/supplies");
   return { ok: true };
 }
@@ -338,6 +356,13 @@ export async function sendSos(_prev: SosState, formData: FormData): Promise<SosS
   if (open) return { ok: true };
   const { error } = await db.from("staff_alerts").insert({ user_id: id, kind, place: place || null, note: note || null, lat: Number.isFinite(lat) && formData.get("lat") ? lat : null, lng: Number.isFinite(lng) && formData.get("lng") ? lng : null });
   if (error) return { error: error.message };
+  const SOS_KM: Record<string, string> = { medical: "សង្គ្រោះបន្ទាន់ / របួស", animal: "សត្វរត់ចេញ / គ្រោះថ្នាក់សត្វ", security: "សន្តិសុខ", fire: "អគ្គិភ័យ", child: "កុមារបាត់", other: "ផ្សេងៗ" };
+  const hasGps = Number.isFinite(lat) && Number.isFinite(lng) && formData.get("lat");
+  await notify("sos", `🆘 <b>SOS · ${SOS_KM[kind]}</b>
+👤 ${tg(who((await staffAccess(id))))}${place ? `
+📍 ${tg(place)}` : ""}${note ? `
+💬 ${tg(note)}` : ""}${hasGps ? `
+🗺 <a href="https://maps.google.com/?q=${lat},${lng}">ទីតាំងលើផែនទី</a>` : ""}`);
   revalidatePath("/staff", "layout");
   return { ok: true };
 }
@@ -572,27 +597,21 @@ export async function saveRosterRules(formData: FormData) {
  * date that isn't a holiday are left alone unless they carry a holiday name
  * the calendar places on another date (e.g. Pchum Ben typed on the wrong day).
  */
-export async function syncHolidays(year: number) {
-  const { access } = await me();
-  if (!isManager(access) || !Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Only managers.");
-  const { holidaysOf } = await import("@/lib/khmer-calendar");
-  const official = holidaysOf(year).filter((h) => h.kind === "public");
-  const db = createServiceRoleClient();
-  const { data: current } = await db.from("staff_holidays").select("day, name").gte("day", `${year}-01-01`).lte("day", `${year}-12-31`);
-  const officialDays = new Set(official.map((h) => h.date));
-  // a holiday typed on the wrong date (same kind of name, not on an official day) goes away
-  const KEYS = ["ភ្ជុំ", "បិណ្ឌ", "អុំទូក", "ចូលឆ្នាំ", "វិសាខ", "ច្រត់", "Pchum", "Water", "New Year", "Visak", "Ploughing"];
-  const wrong = (current ?? []).filter((c: any) => !officialDays.has(c.day) && KEYS.some((k) => String(c.name).includes(k)));
-  for (const w of wrong) await db.from("staff_holidays").delete().eq("day", w.day);
-  const byDay = new Map<string, string>();
-  for (const h of official) byDay.set(h.date, byDay.has(h.date) ? `${byDay.get(h.date)} · ${h.km}` : h.km);
-  await db.from("staff_holidays").upsert([...byDay].map(([day, name]) => ({ day, name: name.slice(0, 80) })));
-  // the schedule from today follows the holidays
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
-  const monday = mondayOf(today);
-  await planWeek(monday, { replace: true, by: null, from: today });
-  const nx = new Date(`${monday}T12:00:00Z`);
-  nx.setUTCDate(nx.getUTCDate() + 7);
-  await planWeek(nx.toISOString().slice(0, 10), { replace: true, by: null, from: today });
+/** Manager: turn a day into a day off (holiday) or back into a working day. */
+export async function toggleDayOff(day: string, off: boolean) {
+  const { id, access } = await me();
+  if (!isManager(access) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Only managers.");
+  const { setDayOff } = await import("@/lib/server/holidays");
+  await setDayOff(day, off, "", id, new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date()));
+  revalidatePath("/staff", "layout");
+}
+/** Manager: add the zoo's own day off (staff party, repairs…). */
+export async function addDayOff(formData: FormData) {
+  const { id, access } = await me();
+  const day = String(formData.get("day") ?? "");
+  const name = String(formData.get("name") ?? "").trim().slice(0, 80);
+  if (!isManager(access) || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !name) throw new Error("invalid");
+  const { setDayOff } = await import("@/lib/server/holidays");
+  await setDayOff(day, true, name, id, new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date()));
   revalidatePath("/staff", "layout");
 }
