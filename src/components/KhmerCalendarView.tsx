@@ -106,7 +106,8 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
                 key={d.date}
                 title={list.map((h) => (km ? h.km : h.en)).join(" · ") || undefined}
                 className={cn(
-                  "relative flex aspect-[1/1.05] flex-col items-center justify-start border-b border-r border-black/10 px-0.5 pt-1.5 text-center md:aspect-[1.35/1] md:pt-3",
+                  // every box the same height, whatever is written in it
+                  "relative flex h-[4.5rem] flex-col items-center justify-start overflow-hidden border-b border-r border-black/10 px-0.5 pt-2 text-center md:h-28 md:pt-3",
                   i % 7 === 6 && "border-r-0",
                   i >= info.grid.length - 7 && "border-b-0",
                   sunday && `${C.main} text-white`,
@@ -114,18 +115,19 @@ export function KhmerCalendarView({ year, month, today, km, basePath, extra = []
                   !inMonth && "opacity-35"
                 )}
               >
-                {d.sil && inMonth && <Monk className="absolute left-0 top-0.5 h-6 w-6 md:left-2 md:top-2 md:h-9 md:w-9" />}
+                {d.sil && inMonth && <Monk className="absolute left-0.5 top-0.5 h-[18px] w-[18px] md:left-2 md:top-2 md:h-9 md:w-9" />}
                 <span
                   className={cn(
                     "text-xl font-bold leading-none md:text-3xl",
+                    d.sil && inMonth && "pl-3.5 md:pl-0",
                     sunday ? "text-white" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? C.event : "text-[#111]",
                     sunday && t === "holiday" && "text-[#FFE0E0]"
                   )}
                 >
                   {Number(d.date.slice(8))}
                 </span>
-                <span className={cn("mt-1 text-[10px] leading-tight md:text-sm", sunday ? "text-white/90" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? C.event : "text-ink/60")}>{lunarText}</span>
-                {extraNote && <span className={cn("text-[9px] leading-tight md:text-xs", sunday ? "text-white/85" : "text-ink/55")}>{extraNote}</span>}
+                <span className={cn("mt-1 whitespace-nowrap text-[10px] leading-tight md:text-sm", sunday ? "text-white/90" : t === "holiday" ? "text-[#E11D1D]" : t === "event" ? C.event : "text-ink/60")}>{lunarText}</span>
+                {extraNote && <span className={cn("whitespace-nowrap text-[8.5px] leading-tight md:text-xs", sunday ? "text-white/85" : "text-ink/55")}>{extraNote}</span>}
               </div>
             );
           })}
