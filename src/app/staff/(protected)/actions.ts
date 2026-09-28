@@ -417,20 +417,42 @@ export async function saveRosterWeek(formData: FormData) {
   revalidatePath("/staff/roster");
 }
 /** Manager: copy the week before into this week (for the people listed). */
+/**
+ * Manager: repeat last week's pattern this week (same weekday → same shift).
+ * Only the real pattern is copied: days off that came from approved leave,
+ * a public holiday or a cover/swap last week are not. This week's own
+ * holidays and leave win, and any box left empty is then planned by the rules.
+ */
 export async function copyLastWeek(weekStart: string, userIds: string[]) {
   const { id, access } = await me();
   if (!isManager(access) || !isDay(weekStart)) throw new Error("Only managers.");
   const db = createServiceRoleClient();
-  const from = new Date(`${weekStart}T12:00:00Z`);
-  from.setUTCDate(from.getUTCDate() - 7);
-  const f = from.toISOString().slice(0, 10);
-  const { data } = await db.from("staff_roster").select("user_id, day, shift").in("user_id", userIds).gte("day", f).lt("day", weekStart);
-  const rows = (data ?? []).map((r: any) => {
-    const d = new Date(`${r.day}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + 7);
-    return { user_id: r.user_id, day: d.toISOString().slice(0, 10), shift: r.shift, created_by: id, updated_at: new Date().toISOString() };
-  });
+  const shift = (d: string, n: number) => {
+    const t = new Date(`${d}T12:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + n);
+    return t.toISOString().slice(0, 10);
+  };
+  const f = shift(weekStart, -7);
+  const end = shift(weekStart, 6);
+  const [{ data }, { data: hol }, { data: leaves }] = await Promise.all([
+    db.from("staff_roster").select("user_id, day, shift, note").in("user_id", userIds).gte("day", f).lt("day", weekStart),
+    db.from("staff_holidays").select("day").gte("day", f).lte("day", end),
+    db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", end).gte("end_date", f),
+  ]);
+  const holidays = new Set((hol ?? []).map((h: any) => h.day));
+  const onLeave = (u: string, d: string) => (leaves ?? []).some((l: any) => l.user_id === u && l.start_date <= d && l.end_date >= d);
+  const rows = (data ?? [])
+    // skip last week's leave, holiday and cover/swap days
+    .filter((r: any) => !r.note && !holidays.has(r.day) && !onLeave(r.user_id, r.day))
+    .map((r: any) => ({ user_id: r.user_id, day: shift(r.day, 7), shift: r.shift }))
+    // this week's holidays and leave win
+    .filter((r) => !holidays.has(r.day) && !onLeave(r.user_id, r.day))
+    .map((r) => ({ ...r, note: null, created_by: id, updated_at: new Date().toISOString() }));
+  // this week becomes last week's pattern (cover/swap/leave boxes stay)
+  await db.from("staff_roster").delete().in("user_id", userIds).gte("day", weekStart).lte("day", end).is("note", null);
   if (rows.length) await db.from("staff_roster").upsert(rows, { onConflict: "user_id,day" });
+  // the boxes that were left out (holidays, leave, new people) are planned by the rules
+  await planWeek(weekStart, { by: id });
   revalidatePath("/staff/roster");
 }
 
