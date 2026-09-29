@@ -1,6 +1,7 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getStaffSettings } from "./staff-settings";
+import { coverFit } from "@/lib/roster-ui";
 
 // An approved cover changes three things:
 // 1. the schedule: the person who asked keeps their box as "off · covered by X"
@@ -28,9 +29,17 @@ export async function applyCover(requestId: string, rosterId: string, fromUser: 
   if (!a || a.user_id !== fromUser || a.shift === "off") return false;
   const shift = a.shift as "morning" | "afternoon" | "full";
   const now = new Date().toISOString();
-  // the helper's own box that day ("off" or empty) becomes the shift
-  await db.from("staff_roster").delete().eq("user_id", helper).eq("day", a.day);
-  await db.from("staff_roster").insert({ user_id: helper, day: a.day, shift, note: "cover", cover_user: fromUser, updated_at: now, created_by: by });
+  // the helper's own box that day: empty / "off" → the shift; the other half → a full day;
+  // the same hours → not possible (the schedule changed since they said yes)
+  const { data: mine } = await db.from("staff_roster").select("id, shift").eq("user_id", helper).eq("day", a.day).maybeSingle();
+  const fit = coverFit(mine?.shift, shift);
+  if (fit === "clash") return false;
+  if (fit === "merge") {
+    await db.from("staff_roster").update({ shift: "full", note: "cover", cover_user: fromUser, cover_shift: shift, updated_at: now }).eq("id", mine!.id);
+  } else {
+    await db.from("staff_roster").delete().eq("user_id", helper).eq("day", a.day);
+    await db.from("staff_roster").insert({ user_id: helper, day: a.day, shift, note: "cover", cover_user: fromUser, cover_shift: shift, updated_at: now, created_by: by });
+  }
   await db.from("staff_roster").update({ shift: "off", note: "covered", cover_user: helper, cover_shift: shift, updated_at: now }).eq("id", a.id);
 
   // pay (once per request)

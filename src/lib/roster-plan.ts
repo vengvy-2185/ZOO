@@ -21,13 +21,15 @@ export type TeamInput = {
   fixed: (u: string, d: string) => Shift | undefined; // boxes that stay as they are
   isFixed: (u: string, d: string) => boolean; // fixed, past, or not to be planned
   need: { am: number; pm: number };
+  /** shifts of this team done that day by someone outside it (a cover by another team or an admin) */
+  outside?: (d: string) => { am: number; pm: number };
   daysOff: number;
   allowFull: boolean;
   seed: number;
 };
 
 export function planTeam(x: TeamInput): PlanRow[] {
-  const { team, days, closed, onLeave, fixed: fx, isFixed, need, daysOff, allowFull, seed } = x;
+  const { team, days, closed, onLeave, fixed: fx, isFixed, need, daysOff, allowFull, seed, outside } = x;
   const n = team.length;
   if (!n) return [];
   const rot = (u: string) => (team.indexOf(u) + seed) % n;
@@ -37,8 +39,8 @@ export function planTeam(x: TeamInput): PlanRow[] {
   // per open day: what fixed boxes already give, who can still be planned
   const day = new Map(
     open.map((d) => {
-      let fAm = 0;
-      let fPm = 0;
+      let fAm = outside?.(d).am ?? 0;
+      let fPm = outside?.(d).pm ?? 0;
       for (const u of team) {
         const f = fx(u, d);
         if (f === "morning" || f === "full") fAm++;
@@ -159,8 +161,8 @@ export function planTeam(x: TeamInput): PlanRow[] {
         }
       // a day with one person more than needed: that person may change halves,
       // as long as both halves stay covered
-      const fixedAm = team.filter((u) => fx(u, d) === "morning" || fx(u, d) === "full").length;
-      const fixedPm = team.filter((u) => fx(u, d) === "afternoon" || fx(u, d) === "full").length;
+      const fixedAm = team.filter((u) => fx(u, d) === "morning" || fx(u, d) === "full").length + (outside?.(d).am ?? 0);
+      const fixedPm = team.filter((u) => fx(u, d) === "afternoon" || fx(u, d) === "full").length + (outside?.(d).pm ?? 0);
       for (const r of planned.filter((p) => p.day === d && (p.shift === "morning" || p.shift === "afternoon"))) {
         const today = planned.filter((p) => p.day === d);
         const amNow = fixedAm + today.filter((p) => p.shift === "morning" || p.shift === "full").length;

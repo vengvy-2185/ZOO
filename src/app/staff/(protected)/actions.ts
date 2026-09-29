@@ -514,11 +514,18 @@ export async function acceptShiftRequest(requestId: string) {
   if (!r || r.from_user === id) return;
   if (r.kind === "swap" && (r as any).swap?.user_id !== id) return;
   if (r.kind === "cover") {
-    // can't cover while already working that day
+    // not for someone who already works those hours that day (the other half is fine: it becomes a full day)
     const { data: busy } = await db.from("staff_roster").select("shift").eq("user_id", id).eq("day", (r as any).roster.day).maybeSingle();
-    if (busy && busy.shift !== "off") return;
+    const { coverFit } = await import("@/lib/roster-ui");
+    if (coverFit(busy?.shift, (r as any).roster.shift) === "clash") throw new Error("Same hours as your own shift.");
   }
   await db.from("staff_shift_requests").update({ status: "accepted", taken_by: id }).eq("id", requestId).eq("status", "open");
+  revalidatePath("/staff/roster");
+}
+/** The helper changes their mind before a manager decides: the request is open again. */
+export async function withdrawCover(requestId: string) {
+  const { id } = await me();
+  await createServiceRoleClient().from("staff_shift_requests").update({ status: "open", taken_by: null }).eq("id", requestId).eq("taken_by", id).eq("status", "accepted");
   revalidatePath("/staff/roster");
 }
 export async function cancelShiftRequest(requestId: string) {

@@ -60,7 +60,7 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
     db.from("staff_attendance_settings").select("rest_days").eq("id", 1).maybeSingle(),
     db.from("staff_leave_requests").select("user_id, start_date, end_date").eq("status", "approved").lte("start_date", days[6]).gte("end_date", days[0]),
     db.from("staff_holidays").select("day").gte("day", days[0]).lte("day", days[6]),
-    db.from("staff_roster").select("user_id, day, shift, note").gte("day", days[0]).lte("day", days[6]),
+    db.from("staff_roster").select("user_id, day, shift, note, cover_user, cover_shift").gte("day", days[0]).lte("day", days[6]),
   ]);
   const rest = new Set<number>((settings?.rest_days ?? []) as number[]);
   const hol = new Set((holidays ?? []).map((h: any) => h.day));
@@ -88,6 +88,16 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
         fixed: (u, d) => fixedShift.get(`${u}_${d}`) as Shift | undefined,
         isFixed,
         need: rules.need[sec],
+        // a teammate's shift covered by someone outside the team is already done
+        outside: (d) => {
+          const out = { am: 0, pm: 0 };
+          for (const e of existing ?? [])
+            if (e.day === d && e.note === "covered" && team.includes(e.user_id) && e.cover_user && !team.includes(e.cover_user)) {
+              if (e.cover_shift === "morning" || e.cover_shift === "full") out.am++;
+              if (e.cover_shift === "afternoon" || e.cover_shift === "full") out.pm++;
+            }
+          return out;
+        },
         daysOff: rules.days_off,
         allowFull: rules.allow_full,
         seed,

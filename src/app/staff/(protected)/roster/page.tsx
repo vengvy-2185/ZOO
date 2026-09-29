@@ -12,8 +12,9 @@ import { RosterGrid } from "@/components/staff/RosterGrid";
 import { SHIFT_UI, SHIFTS } from "@/lib/roster-ui";
 import { ShiftRequestForm } from "@/components/staff/ShiftRequestForm";
 import { TASK_SECTIONS } from "@/lib/staff-extras";
-import { saveRosterWeek, copyLastWeek, autoFillWeek, saveRosterRules, acceptShiftRequest, cancelShiftRequest, decideShiftRequest } from "../actions";
+import { saveRosterWeek, copyLastWeek, autoFillWeek, saveRosterRules, acceptShiftRequest, withdrawCover, cancelShiftRequest, decideShiftRequest } from "../actions";
 import { cn } from "@/lib/utils/cn";
+import { coverFit } from "@/lib/roster-ui";
 import { ensureHolidays } from "@/lib/server/holidays";
 import { ensureAutoRoster, getRosterRules, ROSTER_SECTIONS } from "@/lib/server/roster";
 
@@ -104,9 +105,13 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const reqs = (requests ?? []) as any[];
   const colleaguesOfMe = new Set((staffRows ?? []).filter((p: any) => (p.position?.permissions ?? []).some((x: string) => mySections.includes(x as any))).map((p: any) => p.user_id));
   // only people on the staff list can take a cover (an admin account has no shifts or pay)
-  const forMe = reqs.filter((r) => Boolean(access.staff) && r.status === "open" && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || (r.kind === "swap" && r.swap?.user_id === userId)));
+  const forMe = reqs.filter((r) => Boolean(access.staff) && (r.status === "open" || r.taken_by === userId) && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || (r.kind === "swap" && r.swap?.user_id === userId)));
   const mine = reqs.filter((r) => r.from_user === userId);
   const toApprove = manager ? reqs.filter((r) => r.status === "accepted") : [];
+  // what each person already works on the days in the requests (to know if a cover fits)
+  const reqDays = [...new Set(reqs.map((r) => r.roster?.day).filter(Boolean))] as string[];
+  const { data: onReqDays } = reqDays.length ? await db.from("staff_roster").select("user_id, day, shift").in("day", reqDays) : { data: [] as any[] };
+  const shiftOf = (u: string, d: string) => (onReqDays ?? []).find((x: any) => x.user_id === u && x.day === d)?.shift as string | undefined;
   const others = (roster ?? [])
     .filter((r: any) => r.user_id !== userId && r.shift !== "off" && r.day >= today)
     .map((r: any) => ({ id: r.id, label: `${nameOf.get(r.user_id) ?? "—"} · ${dateLabel(r.day)} · ${km ? SHIFT[r.shift as Shift].km : SHIFT[r.shift as Shift].en}` }));
@@ -361,6 +366,15 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                       {r.kind === "swap" && r.swap && <> ⇄ {dateLabel(r.swap.day)} ({km ? SHIFT[r.swap.shift as Shift].km : SHIFT[r.swap.shift as Shift].en})</>}
                     </p>
                     <p className="mt-1 text-xs text-ink/50">“{r.reason}”</p>
+                    {r.kind === "cover" && (() => {
+                      const fit = coverFit(shiftOf(r.taken_by, r.roster.day), r.roster.shift);
+                      const had = shiftOf(r.taken_by, r.roster.day);
+                      return fit === "merge" ? (
+                        <p className="mt-1 text-xs font-bold text-emerald-700">{km ? `${nameOf.get(r.taken_by)} មានវេន${SHIFT[had as Shift].km}រួចហើយ → នឹងក្លាយជាពេញថ្ងៃ` : `${nameOf.get(r.taken_by)} already works the ${SHIFT[had as Shift].en.toLowerCase()} → becomes a full day`}</p>
+                      ) : fit === "clash" ? (
+                        <p className="mt-1 text-xs font-bold text-red-600">{km ? "ម៉ោងដូចគ្នាជាមួយវេនរបស់អ្នកជំនួស · មិនអាចអនុម័តបាន" : "Same hours as the helper's own shift · can't be approved"}</p>
+                      ) : null;
+                    })()}
                     <div className="mt-2 flex justify-end gap-2">
                       <ActionButton action={decideShiftRequest.bind(null, r.id, false)} icon={<XCircle size={14} />} label={L.no} className="text-red-600 ring-1 ring-red-200 hover:bg-red-50" />
                       <ActionButton action={decideShiftRequest.bind(null, r.id, true)} icon={<CheckCircle2 size={14} />} label={L.yes} className="bg-emerald-600 text-white hover:bg-emerald-700" />
@@ -384,7 +398,22 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                       <p className="font-bold text-forest">{nameOf.get(r.from_user)} · {dateLabel(r.roster.day)} · {km ? SHIFT[r.roster.shift as Shift].km : SHIFT[r.roster.shift as Shift].en}</p>
                       <p className="text-xs text-ink/55">“{r.reason}”{r.kind === "swap" && r.swap && <> · {km ? "ដូរនឹងវេនរបស់អ្នក" : "for your shift"} {dateLabel(r.swap.day)}</>}</p>
                     </div>
-                    <ActionButton action={acceptShiftRequest.bind(null, r.id)} label={r.kind === "cover" ? L.take : L.agree} doneLabel={km ? "បានទទួល" : "Taken"} className="bg-[#1D4ED8] text-white shadow-soft" />
+                    {r.taken_by === userId ? (
+                      // I said yes: now it waits for a manager
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-700 ring-1 ring-emerald-200">
+                          <CheckCircle2 size={14} /> {km ? "បានទទួលជំនួស · រង់ចាំការយល់ព្រមពីអ្នកគ្រប់គ្រង" : "You're covering · waiting for a manager"}
+                        </span>
+                        <ActionButton action={withdrawCover.bind(null, r.id)} label={km ? "ដកវិញ" : "Withdraw"} className="bg-white text-ink/60 ring-1 ring-black/10 hover:bg-slate-50" />
+                      </div>
+                    ) : r.kind === "cover" && coverFit(shiftOf(userId, r.roster.day), r.roster.shift) === "clash" ? (
+                      <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-ink/45">{km ? "ម៉ោងដូចវេនរបស់អ្នក · មិនអាចជំនួសបាន" : "Same hours as your shift · can't cover"}</span>
+                    ) : (
+                      <div className="flex flex-col items-end gap-1">
+                        <ActionButton action={acceptShiftRequest.bind(null, r.id)} label={r.kind === "cover" ? L.take : L.agree} doneLabel={km ? "បានទទួល" : "Taken"} className="bg-[#1D4ED8] text-white shadow-soft" />
+                        {r.kind === "cover" && coverFit(shiftOf(userId, r.roster.day), r.roster.shift) === "merge" && <span className="text-[11px] font-bold text-emerald-700">{km ? "វេនរបស់អ្នកនឹងក្លាយជាពេញថ្ងៃ" : "Your day becomes a full day"}</span>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
