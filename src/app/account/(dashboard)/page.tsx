@@ -16,6 +16,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { getVerifiedUserId, getSessionUser } from "@/lib/auth/session";
 import { claimSignupReferral } from "@/lib/server/points";
 
+import { AppSetup } from "@/components/staff/AppSetup";
 async function getAccountData() {
   const supabase = createClient();
   // Identity was verified by middleware; display details come from the session cookie.
@@ -156,6 +157,9 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-10">
       <ClaimQuestSession />
+      <div className="mb-6">
+        <AppSetup km={km} variant="visitor" compact />
+      </div>
 
       {/* Profile header */}
       <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary to-forest p-6 text-white shadow-lift md:p-8">

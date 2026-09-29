@@ -86,6 +86,8 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
         closed,
         onLeave,
         fixed: (u, d) => fixedShift.get(`${u}_${d}`) as Shift | undefined,
+        // a weekly day off already kept: an "off" box without a note (not leave, not covered)
+        realOff: (u, d) => fixedShift.get(`${u}_${d}`) === "off" && !(existing ?? []).some((e: any) => e.user_id === u && e.day === d && e.note),
         isFixed,
         need: rules.need[sec],
         // a teammate's shift covered by someone outside the team is already done

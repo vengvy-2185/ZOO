@@ -2,8 +2,9 @@
 // database), so they can be checked on their own.
 //
 // Fairness rules:
-// - leave days count as that person's days off for the week (no extra day off
-//   on top, which would leave the others doing all the full days);
+// - everyone gets the weekly days off the rules give. Only a real day off
+//   counts: leave, a shift covered by someone else, or a holiday is a
+//   separate case and never uses up a weekly day off;
 // - a day where someone is on leave is always covered: the others work the
 //   full day if needed, so no shift is left empty;
 // - full days go to whoever has worked the least so far;
@@ -20,6 +21,8 @@ export type TeamInput = {
   onLeave: (u: string, d: string) => boolean;
   fixed: (u: string, d: string) => Shift | undefined; // boxes that stay as they are
   isFixed: (u: string, d: string) => boolean; // fixed, past, or not to be planned
+  /** a real weekly day off already on the schedule (not leave, not covered by someone) */
+  realOff?: (u: string, d: string) => boolean;
   need: { am: number; pm: number };
   /** shifts of this team done that day by someone outside it (a cover by another team or an admin) */
   outside?: (d: string) => { am: number; pm: number };
@@ -30,6 +33,7 @@ export type TeamInput = {
 
 export function planTeam(x: TeamInput): PlanRow[] {
   const { team, days, closed, onLeave, fixed: fx, isFixed, need, daysOff, allowFull, seed, outside } = x;
+  const realOff = x.realOff ?? ((u: string, d: string) => fx(u, d) === "off" && !onLeave(u, d));
   const n = team.length;
   if (!n) return [];
   const rot = (u: string) => (team.indexOf(u) + seed) % n;
@@ -52,7 +56,7 @@ export function planTeam(x: TeamInput): PlanRow[] {
   );
 
   // days off, where the team can spare someone most, spread over the week;
-  // leave days and fixed "off" boxes already count
+  // only real days off already on the schedule count (never leave or a covered shift)
   const off = new Map<string, Set<string>>(team.map((u) => [u, new Set<string>()]));
   const slack = new Map(
     open.map((d) => {
@@ -62,13 +66,13 @@ export function planTeam(x: TeamInput): PlanRow[] {
     })
   );
   // people with the fewest days away choose first
-  const away = (u: string) => open.filter((d) => fx(u, d) === "off" || onLeave(u, d)).length;
+  const away = (u: string) => open.filter((d) => realOff(u, d)).length;
   [...team]
     .sort((a, b) => away(a) - away(b) || rot(a) - rot(b))
     .forEach((u) => {
       const i = team.indexOf(u);
       for (let k = away(u); k < daysOff; k++) {
-        const mine = [...off.get(u)!, ...open.filter((d) => fx(u, d) === "off" || onLeave(u, d))].map((d) => open.indexOf(d));
+        const mine = [...off.get(u)!, ...open.filter((d) => realOff(u, d))].map((d) => open.indexOf(d));
         const gap = (j: number) => (mine.length ? Math.min(...mine.map((m) => Math.abs(m - j))) : 0);
         const order = open
           .map((d, j) => ({ d, j }))

@@ -6,6 +6,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { num, formatFullDate } from "@/lib/utils/age";
 import { PawPrint, Dna, Users, Ticket, Wallet, Map as MapIcon, Plus, TrendingUp, PieChart, Cake, CheckCircle2 } from "lucide-react";
 
+import { AppSetup } from "@/components/staff/AppSetup";
 async function getStats() {
   const supabase = createClient();
   const today = new Date().toISOString().slice(0, 10);
@@ -120,6 +121,11 @@ export default async function AdminDashboardPage() {
 
       {/* today at the zoo: staff, covers, cash, visitors */}
       <TodayBoard />
+
+      {/* install the admin app + notifications (hides itself once set up) */}
+      <div className="mt-6">
+        <AppSetup km={locale === "km"} variant="admin" compact />
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
         {cards.map(([label, value, Icon, color, href]) => (

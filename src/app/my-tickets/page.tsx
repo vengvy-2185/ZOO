@@ -8,6 +8,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
 
+import { AppSetup } from "@/components/staff/AppSetup";
 export const dynamic = "force-dynamic";
 
 export default async function MyTicketsPage() {
@@ -37,6 +38,9 @@ export default async function MyTicketsPage() {
       <Navbar />
       <PageHeader icon={Ticket} eyebrow={t.nav.tickets} title={t.nav.myTickets} subtitle={t.account.myTicketsHint} />
       <main className="mx-auto max-w-5xl px-4 pb-12 md:px-6">
+        <div className="mb-6">
+          <AppSetup km={getI18n().locale === "km"} variant="visitor" signedIn={Boolean(me)} compact />
+        </div>
         <MyTicketsList fromAccount={fromAccount} />
       </main>
       <SiteFooter />

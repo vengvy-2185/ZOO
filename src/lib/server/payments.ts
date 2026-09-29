@@ -180,9 +180,14 @@ async function markPaid(kind: PayKind, targetId: string, paymentId: string | und
   if (kind === "booking") {
     if (paymentId) await db.from("payments").update({ status: "paid", paid_at: now, provider_reference: hash ?? null, payer_account: from ?? null }).eq("id", paymentId);
     // only a booking that wasn't confirmed yet comes back, so the news is sent once
-    const { data: b } = await db.from("bookings").update({ status: "confirmed" }).eq("id", targetId).neq("status", "confirmed").select("booking_code, visit_date, total_usd, booking_items(quantity)").maybeSingle();
+    const { data: b } = await db.from("bookings").update({ status: "confirmed" }).eq("id", targetId).neq("status", "confirmed").select("booking_code, qr_token, visitor_id, visit_date, total_usd, booking_items(quantity)").maybeSingle();
     if (b) {
       const people = ((b.booking_items ?? []) as { quantity: number }[]).reduce((n, i) => n + i.quantity, 0);
+      // the visitor's own phone (when they have an account and turned notifications on)
+      if (b.visitor_id) {
+        const { sendPush } = await import("./push");
+        await sendPush([b.visitor_id], { title: "🎟 សំបុត្ររបស់អ្នករួចរាល់ហើយ", body: `បានបង់ប្រាក់ $${Number(b.total_usd).toFixed(2)} · ${people} នាក់ · ថ្ងៃ ${b.visit_date}`, url: `/ticket/${b.booking_code}?k=${b.qr_token}`, tag: `ticket-${b.booking_code}` });
+      }
       await notify("booking", `🎟 <b>ការកក់បានបង់ · Bakong</b>
 ${tg(b.booking_code)} · ${people} នាក់ · $${Number(b.total_usd).toFixed(2)}
 📅 ថ្ងៃទស្សនា ${tg(b.visit_date)}`);
