@@ -9,6 +9,14 @@ const nextConfig = {
     return [
       // the games were removed: old links go to the home page
       ...["/games", "/quiz", "/guess", "/coloring", "/compare", "/older", "/kids", "/kids/:path*", "/match", "/love", "/zodiac"].map((source) => ({ source, destination: "/", permanent: false })),
+      // the audio guides and picture-book stories were removed
+      { source: "/animals/:code/audio", destination: "/animals/:code", permanent: false },
+      { source: "/animals/:code/story", destination: "/animals/:code", permanent: false },
+      { source: "/admin/audio", destination: "/admin", permanent: false },
+      { source: "/admin/stories", destination: "/admin", permanent: false },
+      { source: "/admin/manage/stories", destination: "/admin", permanent: false },
+      { source: "/admin/manage/story_pages", destination: "/admin", permanent: false },
+      { source: "/admin/manage/audio_guides", destination: "/admin", permanent: false },
       // assigned tasks were removed from the staff area
       { source: "/staff/tasks", destination: "/staff", permanent: false },
     ];

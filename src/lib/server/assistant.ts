@@ -178,7 +178,6 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
       links: [
         { label: L(`Meet ${name}`, `ស្គាល់ ${name}`), href: `/animals/${animal.animal_code}` },
         { label: L("Show on the map", "មើលលើផែនទី"), href: `/animals/${animal.animal_code}/map` },
-        { label: L("Listen", "ស្តាប់"), href: `/animals/${animal.animal_code}/audio` },
       ],
     };
   }

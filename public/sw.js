@@ -7,7 +7,7 @@
    Pages from the signed-in areas (/staff, /admin, /account…) are kept apart
    and removed on sign-out or when someone else signs in on the device. */
 
-const VERSION = "v3"; // a new version removes the pages saved by the old one
+const VERSION = "v4"; // a new version removes the pages saved by the old one
 const STATIC = `gwz-static-${VERSION}`;
 const PAGES = `gwz-pages-${VERSION}`;
 const PRIVATE = `gwz-private-${VERSION}`;
@@ -119,6 +119,9 @@ async function fromDeviceFirst(event, req) {
 }
 
 async function page(event, req, url) {
+  // the app was just opened from its home-screen icon: show the animated
+  // opening screen at once (no waiting for the internet), then the real page
+  if (url.searchParams.get("source") === "app") return splash(url);
   const cache = await caches.open(isPrivate(url.pathname) ? PRIVATE : PAGES);
   // a ticket page is only ever shown for its own key (?k=…)
   const exact = url.pathname.startsWith("/ticket/");
@@ -216,3 +219,56 @@ self.addEventListener("notificationclick", (event) => {
     })()
   );
 });
+
+
+/* ── Opening screen when the app starts (instead of a blank white page) ── */
+function splash(url) {
+  const target = new URL(url.href);
+  target.searchParams.delete("source");
+  const staff = url.pathname.startsWith("/staff");
+  const admin = url.pathname.startsWith("/admin");
+  const c = staff ? { a: "#1E3A8A", b: "#2563EB", c: "#7C3AED" } : { a: "#0E3F24", b: "#176B3A", c: "#2E8B57" };
+  const name = staff ? "GWZ បុគ្គលិក" : admin ? "GWZ Admin" : "Green Wild Zoo";
+  const html = `<!doctype html><html lang="km"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="${c.a}"><title>${name}</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden}
+body{display:grid;place-items:center;background:linear-gradient(160deg,${c.a},${c.b} 55%,${c.c});font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff}
+.w{display:flex;flex-direction:column;align-items:center;gap:18px;animation:in .5s ease-out both}
+.logo{position:relative;width:128px;height:128px}
+.ring{position:absolute;inset:-14px;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#9BD13B;animation:spin 1.1s linear infinite}
+.pulse{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.18);animation:pulse 1.6s ease-out infinite}
+svg{position:relative;width:128px;height:128px;filter:drop-shadow(0 10px 20px rgba(0,0,0,.35));animation:bob 1.6s ease-in-out infinite}
+.toe{animation:toe 1.6s ease-in-out infinite;transform-origin:center}
+.t2{animation-delay:.12s}.t3{animation-delay:.24s}.t4{animation-delay:.36s}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:.02em}
+p{margin:0;font-size:14px;opacity:.8}
+.bar{width:160px;height:5px;border-radius:9px;background:rgba(255,255,255,.2);overflow:hidden}
+.bar i{display:block;height:100%;width:40%;border-radius:9px;background:#9BD13B;animation:run 1.2s ease-in-out infinite}
+.leaf{position:fixed;top:-30px;width:14px;height:22px;border-radius:0 100% 0 100%;background:#9BD13B;opacity:.6;animation:fall linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%{transform:scale(.9);opacity:.7}100%{transform:scale(1.6);opacity:0}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes toe{0%,100%{transform:translateY(0)}40%{transform:translateY(-3px)}}
+@keyframes run{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@keyframes in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body>
+<span class="leaf" style="left:12%;animation-duration:5s"></span><span class="leaf" style="left:38%;animation-duration:6.5s;animation-delay:1s"></span><span class="leaf" style="left:66%;animation-duration:5.5s;animation-delay:.5s"></span><span class="leaf" style="left:88%;animation-duration:7s;animation-delay:1.6s"></span>
+<div class="w">
+  <div class="logo"><span class="pulse"></span><span class="ring"></span>
+    <svg viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E8B57"/><stop offset="1" stop-color="#0E3F24"/></linearGradient></defs>
+      <circle cx="24" cy="24" r="22" fill="url(#g)"/><path d="M33 6c7 1 10 6 9 13-6 0-10-4-9-13z" fill="#9BD13B"/>
+      <ellipse cx="24" cy="30" rx="7.2" ry="6" fill="#fff"/>
+      <ellipse class="toe" cx="15.2" cy="22" rx="2.7" ry="3.4" fill="#fff"/><ellipse class="toe t2" cx="20.6" cy="16.8" rx="2.7" ry="3.5" fill="#fff"/>
+      <ellipse class="toe t3" cx="27.6" cy="16.8" rx="2.7" ry="3.5" fill="#fff"/><ellipse class="toe t4" cx="32.8" cy="22" rx="2.7" ry="3.4" fill="#fff"/>
+    </svg>
+  </div>
+  <h1>${name}</h1>
+  <p>កំពុងបើក… · Opening…</p>
+  <div class="bar"><i></i></div>
+</div>
+<script>setTimeout(function(){location.replace(${JSON.stringify(target.pathname + target.search)})},60)</script>
+</body></html>`;
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+}

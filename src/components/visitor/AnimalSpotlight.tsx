@@ -35,9 +35,6 @@ export function AnimalSpotlight({ animals, labels }: { animals: SpotlightAnimal[
             <Link href={`/animals/${a.code}`} className="btn-primary">
               {labels.meet} {a.name} <ArrowRight size={16} />
             </Link>
-            <Link href={`/animals/${a.code}/audio`} className="btn-outline bg-white">
-              <Volume2 size={16} /> {labels.listen}
-            </Link>
             {animals.length > 1 && (
               <button onClick={() => setI((i + 1) % animals.length)} className="btn-outline bg-white">
                 <Shuffle size={16} /> {labels.another}

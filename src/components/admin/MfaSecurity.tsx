@@ -142,9 +142,36 @@ export function MfaSetup() {
           </div>
         </div>
       ) : (
-        <button type="button" onClick={start} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 font-extrabold text-white">
-          {busy ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />} បើកការចូលពីរជំហាន
-        </button>
+        <div className="space-y-4">
+          {/* how it works, before starting */}
+          <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+            <p className="font-extrabold">តើវាជាអ្វី?</p>
+            <p className="mt-1">សព្វថ្ងៃ មានតែ <b>ពាក្យសម្ងាត់</b> ទេ ដែលការពារផ្ទាំងគ្រប់គ្រង។ ពេលបើកការចូលពីរជំហាន ក្រៅពីពាក្យសម្ងាត់ ត្រូវមាន <b>លេខ ៦ ខ្ទង់</b> ដែលប្តូររៀងរាល់ ៣០ វិនាទី ក្នុងកម្មវិធីនៅលើទូរស័ព្ទរបស់អ្នក។ ដូច្នេះ បើមានគេលួចដឹងពាក្យសម្ងាត់ ក៏គេមិនអាចចូលបានដែរ។</p>
+          </div>
+          <ol className="grid gap-3 md:grid-cols-3">
+            {[
+              { n: "១", t: "ដំឡើងកម្មវិធីលេខកូដ", d: "លើទូរស័ព្ទរបស់អ្នក ដំឡើង Google Authenticator (ឥតគិតថ្លៃ)។", links: true },
+              { n: "២", t: "ចុចប៊ូតុងខាងក្រោម", d: "QR មួយនឹងលេចឡើង។ ក្នុងកម្មវិធី ចុច «+» → «Scan a QR code» ហើយស្កេនវា។", links: false },
+              { n: "៣", t: "វាយលេខ ៦ ខ្ទង់", d: "វាយលេខដែលកម្មវិធីបង្ហាញ ហើយចុច «បញ្ជាក់»។ រួចរាល់!", links: false },
+            ].map((s) => (
+              <li key={s.n} className="rounded-2xl bg-cream/70 p-4 ring-1 ring-black/5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-extrabold text-white">{s.n}</span>
+                <p className="mt-2 font-bold text-forest">{s.t}</p>
+                <p className="mt-1 text-sm text-ink/65">{s.d}</p>
+                {s.links && (
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noreferrer" className="rounded-full bg-white px-3 py-1.5 text-primary ring-1 ring-primary/30">Android</a>
+                    <a href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank" rel="noreferrer" className="rounded-full bg-white px-3 py-1.5 text-primary ring-1 ring-primary/30">iPhone</a>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+          <button type="button" onClick={start} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 font-extrabold text-white">
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />} ចាប់ផ្តើម៖ បើកការចូលពីរជំហាន
+          </button>
+          <p className="text-xs text-ink/50">⚠️ ពេលបើករួច ចូលម្តងៗត្រូវការទូរស័ព្ទនោះ។ បើបាត់ទូរស័ព្ទ សូមទាក់ទងអ្នករៀបចំ website ដើម្បីបិទវាពីមូលដ្ឋានទិន្នន័យ។</p>
+        </div>
       )}
       {msg && <p className={`rounded-2xl px-4 py-2.5 text-sm font-bold ${msg.ok ? "bg-light-green text-primary" : "bg-red-50 text-red-700"}`}>{msg.text}</p>}
     </section>

@@ -9,6 +9,7 @@ import { TEXT_SIZE_SCRIPT } from "@/lib/text-size";
 import { ZooAssistant } from "@/components/ZooAssistant";
 import { LiveRefresh } from "@/components/LiveRefresh";
 import { OfflineKit } from "@/components/OfflineKit";
+import { AppBackButton } from "@/components/AppBackButton";
 import { GlobalAttendanceQR } from "@/components/staff/GlobalAttendanceQR";
 import { GlobalStaffSound } from "@/components/staff/GlobalStaffSound";
 import { getBranding } from "@/lib/branding";
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
   // pages give their own name; search results then read "Our Animals · Green Wild Zoo"
   title: { default: "Green Wild Zoo: Discover, Learn, Explore and Protect", template: "%s · Green Wild Zoo" },
   description:
-    "Explore Green Wild Zoo: individual animal profiles, digital storybooks, multi-language audio guides, an interactive zoo map, and digital tickets.",
+    "Explore Green Wild Zoo: every animal's profile, an interactive zoo map, events and digital tickets with Bakong KHQR.",
   applicationName: "Green Wild Zoo",
   // the site's own name and picture when shared or shown by search engines (not "Vercel")
   openGraph: { type: "website", siteName: "Green Wild Zoo", title: "Green Wild Zoo", description: "Animals, tickets, zoo map and more at Green Wild Zoo.", images: [{ url: "/og.png", width: 1200, height: 630, alt: "Green Wild Zoo" }], locale: "km_KH", alternateLocale: ["en_US"] },
@@ -75,6 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <GlobalAttendanceQR />
           <GlobalStaffSound />
           <OfflineKit />
+          <AppBackButton />
           <IntroSplash videoUrl={heroVideoUrl} />
         </LocaleProvider>
         <ScrollReveal />

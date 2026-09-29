@@ -171,10 +171,8 @@ export default async function AnimalProfilePage({
         )}
 
         {/* ───────────── ACTIONS ───────────── */}
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3" data-reveal-stagger="zoom">
-          <ActionButton href={hasStory ? `/animals/${animal.animal_code}/story` : undefined} icon={BookOpen} label={t.detail.readStory} soon={t.common.comingSoon} primary />
-          <ActionButton href={`/animals/${animal.animal_code}/audio`} icon={Volume2} label={t.detail.listen} />
-          <ActionButton href={`/animals/${animal.animal_code}/map`} icon={Navigation} label={t.detail.find(displayName)} />
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3" data-reveal-stagger="zoom">
+          <ActionButton href={`/animals/${animal.animal_code}/map`} icon={Navigation} label={t.detail.find(displayName)} primary />
           <ActionButton href="/quest?scan=1" icon={QrCode} label={t.detail.scanQr} />
           <ShareButton title={`${displayName}, Green Wild Zoo`} className="col-span-2 sm:col-span-1" />
         </div>
