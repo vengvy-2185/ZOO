@@ -255,6 +255,8 @@ export async function saveStaffSettings(formData: FormData) {
     handover_new_hours: num("handover_new_hours", 12, 1, 168),
     task_keep_days: num("task_keep_days", 3, 1, 60),
     lost_old_days: num("lost_old_days", 7, 1, 365),
+    cover_pay: formData.get("cover_pay") === "on",
+    work_days_month: num("work_days_month", 26, 1, 31),
     gate_prices: Object.fromEntries((["adult", "child", "senior", "student", "foreigner"] as const).map((k) => {
       const v = Number(str(formData, `price_${k}`));
       return [k, Number.isFinite(v) && v >= 0 && v <= 1000 ? Math.round(v * 100) / 100 : 0];

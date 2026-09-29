@@ -72,7 +72,7 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
   const fixedShift = new Map<string, string>();
   // re-planning keeps only agreed changes (cover / swap); otherwise every existing box stays
   // days before `from` (already past) never change
-  for (const e of existing ?? []) if (!opts.replace || e.note === "cover" || e.note === "swap" || (opts.from && e.day < opts.from)) fixedShift.set(`${e.user_id}_${e.day}`, e.shift);
+  for (const e of existing ?? []) if (!opts.replace || e.note === "cover" || e.note === "covered" || e.note === "swap" || (opts.from && e.day < opts.from)) fixedShift.set(`${e.user_id}_${e.day}`, e.shift);
   const isFixed = (u: string, d: string) => fixedShift.has(`${u}_${d}`) || (!!opts.onlyEmptyPeople && planned.has(u)) || (!!opts.from && d < opts.from);
   const seed = Math.floor(Date.parse(`${weekStart}T12:00:00Z`) / (7 * 864e5));
   const rows: Row[] = [];

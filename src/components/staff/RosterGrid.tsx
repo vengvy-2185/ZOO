@@ -7,6 +7,8 @@ import { SHIFT_UI, SHIFTS, type Shift } from "@/lib/roster-ui";
 import { cn } from "@/lib/utils/cn";
 
 export type GridDay = { day: string; name: string; num: number; today: boolean };
+/** `with`: the other person in a cover · `outside`: a shift covered by someone not in this grid */
+export type Cell = { shift: Shift; note: string | null; with?: string; outside?: Shift };
 export type GridPerson = { id: string; name: string; role: string; me: boolean };
 export type GridGroup = { key: string; label: string; people: GridPerson[] };
 
@@ -28,7 +30,7 @@ export function RosterGrid({
 }: {
   days: GridDay[];
   groups: GridGroup[];
-  cells: Record<string, { shift: Shift; note: string | null }>;
+  cells: Record<string, Cell>;
   editable: boolean;
   compact: boolean;
   km: boolean;
@@ -88,9 +90,14 @@ export function RosterGrid({
       out[d.day] = { am: 0, pm: 0 };
       for (const g of groups)
         for (const p of g.people) {
-          const v = value(`${p.id}_${d.day}`);
+          const k = `${p.id}_${d.day}`;
+          const v = value(k);
           if (v === "morning" || v === "full") out[d.day].am++;
           if (v === "afternoon" || v === "full") out[d.day].pm++;
+          // covered by someone not shown here (another team, an admin): the shift is still done
+          const o = k in changes ? undefined : cells[k]?.outside;
+          if (o === "morning" || o === "full") out[d.day].am++;
+          if (o === "afternoon" || o === "full") out[d.day].pm++;
         }
     }
     return out;
@@ -189,7 +196,7 @@ export function RosterGrid({
   );
 }
 
-function GroupRows({ g, days, compact, editable, km, value, changes, cells, openMenu }: { g: GridGroup; days: GridDay[]; compact: boolean; editable: boolean; km: boolean; value: (k: string) => Shift | undefined; changes: Record<string, Shift | "">; cells: Record<string, { shift: Shift; note: string | null }>; openMenu: (key: string, el: HTMLElement) => void }) {
+function GroupRows({ g, days, compact, editable, km, value, changes, cells, openMenu }: { g: GridGroup; days: GridDay[]; compact: boolean; editable: boolean; km: boolean; value: (k: string) => Shift | undefined; changes: Record<string, Shift | "">; cells: Record<string, Cell>; openMenu: (key: string, el: HTMLElement) => void }) {
   return (
     <>
       {g.label && (
@@ -226,7 +233,13 @@ function GroupRows({ g, days, compact, editable, km, value, changes, cells, open
                 ) : (
                   badge
                 )}
-                {note && !compact && !changed && <span className="mt-0.5 block text-[9px] font-bold uppercase text-ink/35">{note === "cover" ? (km ? "ជំនួស" : "cover") : note === "swap" ? (km ? "ដូរ" : "swap") : note === "leave" ? (km ? "ច្បាប់" : "leave") : ""}</span>}
+                {note && !changed && (note === "cover" || note === "covered") && cells[k]?.with ? (
+                  <span className={cn("mt-0.5 block truncate font-bold", compact ? "text-[8px]" : "text-[10px]", note === "cover" ? "text-emerald-700" : "text-violet-700")} title={cells[k]?.with}>
+                    {note === "cover" ? (km ? `ជំនួស ${cells[k]!.with}` : `for ${cells[k]!.with}`) : km ? `ជំនួសដោយ ${cells[k]!.with}` : `by ${cells[k]!.with}`}
+                  </span>
+                ) : (
+                  note && !compact && !changed && <span className="mt-0.5 block text-[9px] font-bold uppercase text-ink/35">{note === "cover" ? (km ? "ជំនួស" : "cover") : note === "swap" ? (km ? "ដូរ" : "swap") : note === "leave" ? (km ? "ច្បាប់" : "leave") : ""}</span>
+                )}
               </td>
             );
           })}

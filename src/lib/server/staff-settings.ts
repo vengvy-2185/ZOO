@@ -30,6 +30,10 @@ export type StaffSettings = {
   usd_to_khr: number;
   /** a cash close within this many dollars counts as correct */
   cash_tolerance: number;
+  /** an approved cover moves the shift's pay (monthly pay) from the person who asked to the helper */
+  cover_pay: boolean;
+  /** working days in a month, to work out what one day of a monthly salary is worth */
+  work_days_month: number;
   /** supply quick picks, one per line, "English | ខ្មែរ" */
   supplies: Record<"tickets" | "animals" | "cleaning" | "guide" | "general", string>;
 };
@@ -55,6 +59,8 @@ export const DEFAULT_STAFF_SETTINGS: StaffSettings = {
   gate_prices: { adult: 10, child: 1, senior: 5, student: 5, foreigner: 10 },
   usd_to_khr: 4100,
   cash_tolerance: 1,
+  cover_pay: true,
+  work_days_month: 26,
   supplies: {
     tickets: "Receipt paper rolls | ក្រដាសបោះពុម្ព\nWristbands | ខ្សែដៃភ្ញៀវ\nPens | ប៊ិច\nChange money | ប្រាក់អាប់\nScanner batteries | ថ្មម៉ាស៊ីនស្កេន",
     animals: "Animal food | ចំណីសត្វ\nMedicine | ថ្នាំពេទ្យ\nBedding / straw | ចំបើង / កម្រាល\nGloves | ស្រោមដៃ\nVitamins | វីតាមីន",

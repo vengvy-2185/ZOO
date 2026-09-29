@@ -506,7 +506,9 @@ export async function requestShiftChange(_prev: ShiftReqState, formData: FormDat
 }
 /** A colleague takes an open cover request, or the asked colleague agrees to a swap. */
 export async function acceptShiftRequest(requestId: string) {
-  const { id } = await me();
+  const { id, access } = await me();
+  // only people on the staff list can cover (an admin account has no shifts or pay)
+  if (!access.staff) throw new Error("Only staff members can cover a shift.");
   const db = createServiceRoleClient();
   const { data: r } = await db.from("staff_shift_requests").select("*, roster:roster_id(day, shift), swap:swap_roster_id(user_id)").eq("id", requestId).eq("status", "open").maybeSingle();
   if (!r || r.from_user === id) return;
@@ -536,9 +538,9 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
     const { data: a } = await db.from("staff_roster").select("*").eq("id", r.roster_id).maybeSingle();
     if (!a) return;
     if (r.kind === "cover") {
-      // the helper's "off" (if any) that day goes, the shift becomes theirs
-      await db.from("staff_roster").delete().eq("user_id", r.taken_by).eq("day", a.day);
-      await db.from("staff_roster").update({ user_id: r.taken_by, note: "cover", updated_at: new Date().toISOString() }).eq("id", a.id);
+      // schedule, attendance and pay follow (see lib/server/cover.ts)
+      const { applyCover } = await import("@/lib/server/cover");
+      if (!(await applyCover(r.id, r.roster_id, r.from_user, r.taken_by, id))) return;
     } else {
       const { data: b } = await db.from("staff_roster").select("*").eq("id", r.swap_roster_id).maybeSingle();
       if (!b) return;

@@ -116,6 +116,18 @@ export function StaffSettingsPanel({ s, km, usingDefault }: { s: StaffSettings; 
           </div>
         </Card>
 
+        <Card Icon={RefreshCw} title={km ? "អ្នកជំនួសវេន" : "Shift cover"}>
+          <div className="space-y-3">
+            {check("cover_pay", km ? "ពេលអនុម័តអ្នកជំនួស៖ បូកប្រាក់ឲ្យអ្នកជំនួស ហើយកាត់ពីអ្នកដែលស្នើ (ប្រាក់ខែប្រចាំខែ)" : "When a cover is approved: add the shift's pay to the helper and take it from the person who asked (monthly pay)")}
+            {n("work_days_month", km ? "ថ្ងៃធ្វើការក្នុងមួយខែ (គណនាតម្លៃមួយថ្ងៃ)" : "Working days per month (to price one day)", 1, 31)}
+            <p className="text-xs text-ink/50">
+              {km
+                ? "ឧ. ប្រាក់ខែ $350 ÷ 26 ថ្ងៃ = $13.46 ក្នុងមួយថ្ងៃ · ព្រឹក ឬរសៀល = ពាក់កណ្តាល។ បុគ្គលិកដែលបើកប្រាក់តាមថ្ងៃ ឬតាមម៉ោង ទទួលតាមវត្តមានដោយស្វ័យប្រវត្តិ។"
+                : "e.g. $350 ÷ 26 days = $13.46 a day · morning or afternoon = half. Staff paid by the day or hour are paid from attendance automatically."}
+            </p>
+          </div>
+        </Card>
+
         <Card Icon={Package} title={L.supplies}>
           <p className="-mt-2 mb-3 text-xs text-ink/50">{L.supHint}</p>
           <div className="grid gap-3 sm:grid-cols-2">

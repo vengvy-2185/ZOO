@@ -78,11 +78,15 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   if (!manager && access.staff && !team.some((p: any) => p.user_id === userId)) team.unshift(access.staff as any);
   const ids = team.map((p: any) => p.user_id);
   const [{ data: roster }, { data: requests }, { data: myUpcoming }] = await Promise.all([
-    ids.length ? db.from("staff_roster").select("id, user_id, day, shift, note").in("user_id", ids).gte("day", days[0]).lte("day", days[days.length - 1]) : Promise.resolve({ data: [] as any[] }),
+    ids.length ? db.from("staff_roster").select("id, user_id, day, shift, note, cover_user, cover_shift").in("user_id", ids).gte("day", days[0]).lte("day", days[days.length - 1]) : Promise.resolve({ data: [] as any[] }),
     db.from("staff_shift_requests").select("*, roster:roster_id(day, shift, user_id), swap:swap_roster_id(day, shift, user_id)").in("status", ["open", "accepted"]).order("created_at", { ascending: false }).limit(60),
     db.from("staff_roster").select("id, day, shift").eq("user_id", userId).gte("day", today).lte("day", addDays(today, 30)).neq("shift", "off").order("day"),
   ]);
   const cell = new Map((roster ?? []).map((r: any) => [`${r.user_id}_${r.day}`, r]));
+  // names of the people in covers (a helper may be an admin or in another team)
+  const coverIds = [...new Set((roster ?? []).map((r: any) => r.cover_user).filter(Boolean))] as string[];
+  const { data: coverProfiles } = coverIds.length ? await db.from("profiles").select("id, full_name").in("id", coverIds) : { data: [] as any[] };
+  const coverName = (id: string) => (staffRows ?? []).find((p: any) => p.user_id === id)?.full_name ?? (coverProfiles ?? []).find((p: any) => p.id === id)?.full_name ?? "Admin";
   const nameOf = new Map((staffRows ?? []).map((p: any) => [p.user_id, p.full_name as string]));
   const shiftTimes: Record<Shift, string> = { morning: `${s.morning_start}–${s.morning_end}`, afternoon: `${s.afternoon_start}–${s.afternoon_end}`, full: `${s.morning_start}–${s.afternoon_end}`, off: "" };
   const dayName = (d: string, style: "short" | "long" = "short") => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: style, timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
@@ -99,7 +103,8 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   // requests: what I can do about them
   const reqs = (requests ?? []) as any[];
   const colleaguesOfMe = new Set((staffRows ?? []).filter((p: any) => (p.position?.permissions ?? []).some((x: string) => mySections.includes(x as any))).map((p: any) => p.user_id));
-  const forMe = reqs.filter((r) => r.status === "open" && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || (r.kind === "swap" && r.swap?.user_id === userId)));
+  // only people on the staff list can take a cover (an admin account has no shifts or pay)
+  const forMe = reqs.filter((r) => Boolean(access.staff) && r.status === "open" && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || (r.kind === "swap" && r.swap?.user_id === userId)));
   const mine = reqs.filter((r) => r.from_user === userId);
   const toApprove = manager ? reqs.filter((r) => r.status === "accepted") : [];
   const others = (roster ?? [])
@@ -304,7 +309,18 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
           save={saveRosterWeek}
           need={(section ? [section] : ROSTER_SECTIONS.filter((k) => (team as any[]).some((p) => primaryOf(p) === k))).reduce((n, k) => (k in rules.need ? { am: n.am + rules.need[k as keyof typeof rules.need].am, pm: n.pm + rules.need[k as keyof typeof rules.need].pm } : n), { am: 0, pm: 0 })}
           days={days.map((d) => ({ day: d, name: dayName(d), num: dayNum(d), today: d === today }))}
-          cells={Object.fromEntries((roster ?? []).map((r: any) => [`${r.user_id}_${r.day}`, { shift: r.shift, note: r.note }]))}
+          cells={Object.fromEntries(
+            (roster ?? []).map((r: any) => [
+              `${r.user_id}_${r.day}`,
+              {
+                shift: r.shift,
+                note: r.note,
+                with: r.cover_user ? coverName(r.cover_user) : undefined,
+                // the shift is done by someone not shown here: still count it in the totals
+                outside: r.note === "covered" && r.cover_shift && !ids.includes(r.cover_user) ? r.cover_shift : undefined,
+              },
+            ])
+          )}
           groups={(() => {
             const out: { key: string; label: string; people: { id: string; name: string; role: string; me: boolean }[] }[] = [];
             for (const p of team as any[]) {
