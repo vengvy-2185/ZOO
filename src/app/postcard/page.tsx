@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Mail } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -8,6 +9,8 @@ import { PostcardMaker } from "@/components/visitor/PostcardMaker";
 import { getActiveAnimals } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "Postcards", description: "Send a Green Wild Zoo postcard." };
 export default async function PostcardPage() {
   const { t } = getI18n();
   const animals = (await getActiveAnimals()) as any[];

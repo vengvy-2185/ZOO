@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Ticket } from "lucide-react";
 import { getTicketTypes } from "@/lib/data/zoo";
 import { Navbar } from "@/components/visitor/Navbar";
@@ -9,6 +10,8 @@ import type { TicketType } from "@/types/domain";
 import { getI18n } from "@/lib/i18n/server";
 import { InviteBanner } from "@/components/visitor/InviteBanner";
 
+
+export const metadata: Metadata = { title: "Buy Tickets", description: "Buy Green Wild Zoo tickets online and pay with Bakong KHQR." };
 export const revalidate = 60;
 
 export default async function TicketsPage({ searchParams }: { searchParams: { date?: string } }) {

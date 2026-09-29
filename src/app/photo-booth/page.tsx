@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Camera } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -7,6 +8,8 @@ import { PhotoBooth, type BoothSticker } from "@/components/visitor/PhotoBooth";
 import { getBoothStickers } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "Photo Booth", description: "Take a fun zoo photo with stickers." };
 export default async function PhotoBoothPage() {
   const { locale, t } = getI18n();
   const animals: BoothSticker[] = (await getBoothStickers()).map((s) => ({ id: s.id, name: (locale === "km" && s.khmer_name) || s.name, image: s.image_url }));

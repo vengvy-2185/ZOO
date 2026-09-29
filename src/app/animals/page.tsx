@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCategories, getActiveAnimals } from "@/lib/data/zoo";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -14,6 +15,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { pickName } from "@/lib/i18n/shared";
 import { ShowMore } from "@/components/visitor/ShowMore";
 
+
+export const metadata: Metadata = { title: "Our Animals", description: "Meet every animal at Green Wild Zoo: photos, stories, facts and where to find them." };
 export const revalidate = 30;
 
 async function getData(category?: string, q?: string) {

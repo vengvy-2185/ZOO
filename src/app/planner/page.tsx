@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Route } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -8,6 +9,8 @@ import { getActiveAnimals, getZonesAndFacilities } from "@/lib/data/zoo";
 import { ZOO_EVENTS } from "@/lib/data/events";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "Visit Planner", description: "Plan your day at Green Wild Zoo." };
 export default async function PlannerPage() {
   const { locale, t } = getI18n();
   const km = locale === "km";

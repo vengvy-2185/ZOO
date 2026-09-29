@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Gift, Trophy, Ticket, Users, Star, History, LogIn, Check, ScanLine } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
@@ -13,6 +14,8 @@ import { RedeemCard, ShareInvite, CopyButton } from "@/components/visitor/Reward
 import { formatFullDate } from "@/lib/utils/age";
 import { cn } from "@/lib/utils/cn";
 
+
+export const metadata: Metadata = { title: "Points & Rewards", description: "Collect points at Green Wild Zoo and swap them for discounts." };
 export const dynamic = "force-dynamic";
 
 const TEXT = {

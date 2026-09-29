@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { MessageCircle, CircleHelp, Clock, MapPin, ArrowRight } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
@@ -8,6 +9,8 @@ import { ContactForm } from "@/components/visitor/ContactForm";
 import { getI18n } from "@/lib/i18n/server";
 import { OPENING } from "@/lib/data/events";
 
+
+export const metadata: Metadata = { title: "Contact Us", description: "Get in touch with Green Wild Zoo." };
 export default function ContactPage() {
   const { locale, t } = getI18n();
   const km = locale === "km";

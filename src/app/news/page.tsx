@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Newspaper, ArrowRight, CalendarDays } from "lucide-react";
@@ -9,6 +10,8 @@ import { getNews } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 import { formatFullDate } from "@/lib/utils/age";
 
+
+export const metadata: Metadata = { title: "News & Stories", description: "The latest news, new arrivals and stories from Green Wild Zoo." };
 export default async function NewsPage() {
   const { locale, t } = getI18n();
   const km = locale === "km";

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarClock } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -6,6 +7,8 @@ import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { EventsSchedule } from "@/components/visitor/EventsSchedule";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "Events & Feeding Times", description: "Today's animal talks, feeding times and special events at Green Wild Zoo." };
 export default function EventsPage() {
   const { t } = getI18n();
   return (

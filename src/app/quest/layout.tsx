@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Trophy } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -5,6 +6,8 @@ import { PageHeader } from "@/components/visitor/PageHeader";
 import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { QuestTabs } from "@/components/visitor/QuestTabs";
 import { getI18n } from "@/lib/i18n/server";
+
+export const metadata: Metadata = { title: "Animal Quest", description: "Scan QR codes around the zoo to discover animals and earn points." };
 
 // The quest page itself is a client component (it reads the visitor's quest
 // session from localStorage), so the server-rendered site chrome lives here.

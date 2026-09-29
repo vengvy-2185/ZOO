@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Ticket } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -9,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
 
 import { AppSetup } from "@/components/staff/AppSetup";
+
+export const metadata: Metadata = { title: "My Tickets", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function MyTicketsPage() {

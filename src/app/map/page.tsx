@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Map as MapIcon } from "lucide-react";
 import { getZonesAndFacilities, getActiveAnimals } from "@/lib/data/zoo";
 import { getBranding } from "@/lib/branding";
@@ -11,6 +12,8 @@ import type { AnimalMarker } from "@/components/visitor/ZooMap";
 import type { MapCalibration } from "@/lib/utils/geoCalibration";
 import type { ZooZone, Facility } from "@/types/domain";
 
+
+export const metadata: Metadata = { title: "Zoo Map", description: "Find your way around Green Wild Zoo: zones, animals, food and facilities." };
 export const revalidate = 30;
 
 async function getMapData() {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { HeartHandshake } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -8,6 +9,8 @@ import { getActiveAnimals } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/auth/session";
 
+
+export const metadata: Metadata = { title: "Adopt an Animal", description: "Support an animal at Green Wild Zoo and get a certificate." };
 export default async function AdoptPage({ searchParams }: { searchParams: { animal?: string } }) {
   const { t, locale } = getI18n();
   const me = await getSessionUser();

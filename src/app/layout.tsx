@@ -27,12 +27,26 @@ import "@fontsource/baloo-2/latin-800.css";
 // Khmer: Battambang — declared in globals.css so it applies to Khmer letters only.
 import "./globals.css";
 
+import { CANONICAL_URL } from "@/lib/site";
+const SITE = CANONICAL_URL;
+
 export const metadata: Metadata = {
-  title: "Green Wild Zoo: Discover, Learn, Explore and Protect",
+  metadataBase: new URL(SITE),
+  // pages give their own name; search results then read "Our Animals · Green Wild Zoo"
+  title: { default: "Green Wild Zoo: Discover, Learn, Explore and Protect", template: "%s · Green Wild Zoo" },
   description:
     "Explore Green Wild Zoo: individual animal profiles, digital storybooks, multi-language audio guides, an interactive zoo map, and digital tickets.",
-  // Browsers still request /favicon.ico directly — point it at the SVG icon.
-  icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  applicationName: "Green Wild Zoo",
+  // the site's own name and picture when shared or shown by search engines (not "Vercel")
+  openGraph: { type: "website", siteName: "Green Wild Zoo", title: "Green Wild Zoo", description: "Animals, tickets, zoo map and more at Green Wild Zoo.", images: [{ url: "/og.png", width: 1200, height: 630, alt: "Green Wild Zoo" }], locale: "km_KH", alternateLocale: ["en_US"] },
+  twitter: { card: "summary_large_image", title: "Green Wild Zoo", images: ["/og.png"] },
+  // Browsers still request /favicon.ico directly — point it at the SVG icon;
+  // search engines prefer a square PNG in sizes of 48px steps
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }],
+    shortcut: "/icon.svg",
+    apple: "/icons/apple-touch-icon.png",
+  },
   // can be installed on a phone's home screen like an app
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Green Wild Zoo", statusBarStyle: "default" },

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CircleHelp, Phone } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -7,6 +8,8 @@ import { FaqList } from "@/components/visitor/FaqList";
 import { getSettings } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "Questions & Answers", description: "Answers to common questions about visiting Green Wild Zoo." };
 export default async function FaqPage() {
   const { t } = getI18n();
   const { zooProfile } = await getSettings().catch(() => ({ zooProfile: {} as Record<string, any> }));

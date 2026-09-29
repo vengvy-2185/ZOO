@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Heart } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -7,6 +8,8 @@ import { FavoritesGrid, type FavCardAnimal } from "@/components/visitor/Favorite
 import { getActiveAnimals } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "My Favourite Animals", description: "Your favourite animals at Green Wild Zoo.", robots: { index: false } };
 export default async function FavoritesPage() {
   const { t } = getI18n();
   const animals: FavCardAnimal[] = ((await getActiveAnimals()) as any[]).map((a) => ({

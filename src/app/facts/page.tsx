@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Lightbulb } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
 import { BottomNav } from "@/components/visitor/BottomNav";
@@ -7,6 +8,8 @@ import { FactCards, type Fact } from "@/components/visitor/FactCards";
 import { getActiveAnimals } from "@/lib/data/zoo";
 import { getI18n } from "@/lib/i18n/server";
 
+
+export const metadata: Metadata = { title: "Animal Facts", description: "Amazing facts about the animals of Green Wild Zoo." };
 /** Splits a fact sheet into single sentences (English "." or Khmer "។"). */
 function sentences(text: string | null | undefined) {
   return (text ?? "")

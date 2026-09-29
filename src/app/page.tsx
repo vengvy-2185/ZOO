@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { CANONICAL_URL } from "@/lib/site";
 import { getCategories, getActiveAnimals, getSpeciesCount, getZonesAndFacilities, getTicketTypes, getReviews, getNews } from "@/lib/data/zoo";
 import { formatFullDate } from "@/lib/utils/age";
 import { Stars } from "@/components/visitor/Reviews";
@@ -99,6 +101,26 @@ const experiences = (t: Dictionary) => [
   { icon: Camera, label: t.nav.booth, desc: t.booth.eyebrow, href: "/photo-booth" },
 ];
 
+const SITE_URL = CANONICAL_URL;
+
+// the home page is the main address of the site
+export const metadata: Metadata = { alternates: { canonical: "/" } };
+
+// site name + logo for search engines (schema.org)
+const SITE_JSONLD = [
+  { "@context": "https://schema.org", "@type": "WebSite", name: "Green Wild Zoo", alternateName: ["GWZ", "សួនសត្វ Green Wild Zoo"], url: `${SITE_URL}/` },
+  {
+    "@context": "https://schema.org",
+    "@type": "Zoo",
+    name: "Green Wild Zoo",
+    url: `${SITE_URL}/`,
+    logo: `${SITE_URL}/icons/icon-512.png`,
+    image: `${SITE_URL}/og.png`,
+    description: "Green Wild Zoo: animals, tickets, zoo map, events and more.",
+    address: { "@type": "PostalAddress", addressCountry: "KH" },
+  },
+];
+
 export default async function HomePage() {
   const [
     { categories, animals, allAnimals, animalCount, speciesCount, zoneCount, ticketsFrom, countByCategory, spotlight },
@@ -132,6 +154,8 @@ export default async function HomePage() {
 
   return (
     <div className="pb-20 md:pb-0">
+      {/* tells search engines the site's name and logo (shown above results instead of the host) */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSONLD) }} />
       <Navbar />
 
       {/* ───────────── HERO ───────────── */}

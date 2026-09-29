@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, Clock, Ticket, MapPin, Phone, ArrowRight, User, Map as MapIcon } from "lucide-react";
 import { getSettings, getZonesAndFacilities, getTicketTypes } from "@/lib/data/zoo";
@@ -11,6 +12,8 @@ import { TodayConditions } from "@/components/visitor/TodayConditions";
 import { getI18n } from "@/lib/i18n/server";
 import { num } from "@/lib/utils/age";
 
+
+export const metadata: Metadata = { title: "Plan Your Visit", description: "Opening hours, ticket prices and how to get to Green Wild Zoo." };
 export default async function VisitPage() {
   const [{ zooProfile: profile }, { facilities }, ticketTypes] = await Promise.all([getSettings(), getZonesAndFacilities(), getTicketTypes()]);
   const prices = ticketTypes.map((t: any) => Number(t.price_usd)).filter((p: number) => p > 0);

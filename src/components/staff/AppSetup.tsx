@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Download, Share, SquarePlus, CheckCircle2, Loader2, X, Send, Smartphone, AlarmClock, Siren, LifeBuoy, CalendarRange, Ticket, BarChart3, ShieldAlert, Map as MapIcon, PartyPopper } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { InstallGuide, guideKind, type GuideKind } from "./InstallGuide";
 
 type Push = "unsupported" | "needs-install" | "denied" | "off" | "on";
 type Variant = "staff" | "admin" | "visitor";
@@ -65,6 +66,7 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [hidden, setHidden] = useState(false);
+  const [guide, setGuide] = useState<GuideKind | null>(null);
 
   useEffect(() => {
     const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
@@ -126,6 +128,8 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
         if (didInstall) setInstalled(true);
       }
       const on = await notificationsOn().catch(() => false);
+      // this browser can't install from a button (every iPhone, some Android browsers): show how
+      if (!installed && !offer) setGuide(guideKind());
       setMsg(
         didInstall && on
           ? km ? "រួចរាល់! កម្មវិធីនៅលើអេក្រង់ដើម ហើយការជូនដំណឹងបានបើក។" : "Done! The app is on your home screen and notifications are on."
@@ -235,27 +239,11 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
               : !signedIn
                 ? km ? "ចូលគណនីជាមុនសិន ដើម្បីទទួលការជូនដំណឹងអំពីសំបុត្ររបស់អ្នក។" : "Sign in first to get notifications about your tickets."
                 : ios && !installed
-                  ? km ? "នៅលើ iPhone ដំឡើងតាមជំហានខាងក្រោម រួចបើកកម្មវិធី ហើយចុចប៊ូតុងម្តងទៀតសម្រាប់ការជូនដំណឹង។" : "On iPhone, install with the steps below, open the app, then tap the button again for notifications."
+                  ? km ? "ចុចប៊ូតុង យើងនឹងបង្ហាញកន្លែងត្រូវចុចនៅលើ iPhone របស់អ្នក។" : "Tap the button and we show you exactly where to tap on your iPhone."
                   : !installed && !canPrompt
                     ? km ? "បើមិនឃើញផ្ទាំងដំឡើង៖ ក្នុង Chrome ចុច ⋮ → «Install app»។" : "If no install window appears: in Chrome tap ⋮ → “Install app”."
                     : km ? "ទូរស័ព្ទនឹងសួរ៖ «Install» និង «Allow notifications» — សូមចុចយល់ព្រមទាំងពីរ។" : "Your phone asks: “Install” and “Allow notifications” — accept both."}
           </p>
-        )}
-
-        {/* iPhone: installing is done from Safari's Share menu */}
-        {ios && !installed && (
-          <ol className="grid gap-2">
-            {[
-              { Icon: Share, km: "ចុចប៊ូតុង «ចែករំលែក» ខាងក្រោមក្នុង Safari", en: "Tap “Share” at the bottom of Safari" },
-              { Icon: SquarePlus, km: "ជ្រើស «Add to Home Screen» ហើយចុច «Add»", en: "Choose “Add to Home Screen”, then “Add”" },
-              { Icon: Bell, km: "បើកកម្មវិធីពី icon ថ្មី ហើយចុចប៊ូតុងខាងលើ", en: "Open the new icon and tap the button above" },
-            ].map((x, i) => (
-              <li key={i} className="flex items-center gap-3 rounded-xl bg-[#F5F7FF] px-3 py-2.5 text-sm font-semibold text-ink/75 ring-1 ring-[#DBE4FF]">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#1D4ED8] ring-1 ring-black/5"><x.Icon size={17} /></span>
-                {km ? x.km : x.en}
-              </li>
-            ))}
-          </ol>
         )}
 
         {push === "on" && !compact && (
@@ -270,6 +258,7 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
         )}
         {msg && <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm font-bold text-emerald-700"><CheckCircle2 size={16} /> {msg}</p>}
       </div>
+      {guide && <InstallGuide kind={guide} km={km} name={look.name} icon={look.icon} onClose={() => setGuide(null)} />}
     </section>
   );
 }

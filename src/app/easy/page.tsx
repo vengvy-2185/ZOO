@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Accessibility, Clock, Ticket, MapPin, Route, Sun, Droplets, Armchair, HandHelping, ArrowRight } from "lucide-react";
 import { Navbar } from "@/components/visitor/Navbar";
@@ -9,6 +10,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { getTicketTypes, getZonesAndFacilities } from "@/lib/data/zoo";
 import { OPENING } from "@/lib/data/events";
 
+
+export const metadata: Metadata = { title: "Easy Visit", description: "Large text and simple steps for an easy visit to Green Wild Zoo." };
 export default async function EasyVisitPage() {
   const { locale, t } = getI18n();
   const km = locale === "km";
