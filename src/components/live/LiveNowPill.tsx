@@ -12,7 +12,8 @@ export function LiveNowPill() {
   const { locale } = useI18n();
   const [live, setLive] = useState<{ id: string; title: string; viewers: number } | null>(null);
   const [closed, setClosed] = useState<string | null>(null);
-  const hidden = /^\/(live|staff|admin|pay|checkout|ticket|scan)/.test(pathname);
+  // not on the home page (the live video is shown there in big)
+  const hidden = pathname === "/" || /^\/(live|staff|admin|pay|checkout|ticket|scan)/.test(pathname);
   useEffect(() => {
     if (hidden) return;
     let alive = true;

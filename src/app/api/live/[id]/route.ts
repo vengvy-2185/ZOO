@@ -17,10 +17,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!s) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   if (body.action === "like") {
-    if (s.status !== "live") return NextResponse.json({ ok: true });
-    if (!(await allow("live-like", 40, 60))) return tooMany();
-    await db.rpc("live_bump", { p_stream: s.id, p_likes: Math.max(1, Math.min(50, Number(body.n) || 1)), p_comments: 0 });
-    return NextResponse.json({ ok: true });
+    // one heart per viewer: their account, or (for guests) the device they watch on
+    if (s.status !== "live") return NextResponse.json({ ok: true, counted: false });
+    if (!(await allow("live-like", 20, 60))) return tooMany();
+    const user = await getSessionUser();
+    const device = String(body.device ?? "");
+    if (!user && !/^[0-9a-f-]{36}$/i.test(device)) return NextResponse.json({ error: "invalid" }, { status: 400 });
+    const { data: counted } = await db.rpc("live_like", { p_stream: s.id, p_liker: user ? `u:${user.id}` : `d:${device.toLowerCase()}` });
+    return NextResponse.json({ ok: true, counted: Boolean(counted) });
   }
 
   const me = await getSessionUser();

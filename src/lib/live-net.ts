@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { freshRealtime } from "@/lib/supabase/realtime";
 
 // Live video without a video server: the host's phone sends to a few viewers,
 // and viewers on a good connection pass it on to a couple more (a tree), so
@@ -60,7 +60,7 @@ function limit(pc: RTCPeerConnection) {
 }
 
 function channel(streamId: string, me: string, role: "host" | "viewer") {
-  const sb = createClient();
+  const sb = freshRealtime();
   const ch = sb.channel(`gwz-live-${streamId}`, { config: { presence: { key: me }, broadcast: { self: false } } });
   return { sb, ch, role };
 }
@@ -209,7 +209,8 @@ export function startHost(streamId: string, stream: MediaStream, ice: RTCIceServ
       if (ended) await send("bye", {});
       feed.closeAll();
       await ch.untrack().catch(() => {});
-      sb.removeChannel(ch);
+      await sb.removeChannel(ch);
+      sb.realtime.disconnect();
     },
   };
 }
@@ -349,7 +350,8 @@ export function startViewer(streamId: string, ice: RTCIceServer[], ev: Events) {
       inPc?.close();
       feed.closeAll();
       await ch.untrack().catch(() => {});
-      sb.removeChannel(ch);
+      await sb.removeChannel(ch);
+      sb.realtime.disconnect();
     },
   };
 }

@@ -47,6 +47,7 @@ export default async function WatchLive({ params }: { params: { id: string } }) 
           ice={ice}
           km={locale === "km"}
           signedIn={Boolean(user)}
+          liked={user ? Boolean((await createServiceRoleClient().from("live_likes").select("liker").eq("stream_id", s.id).eq("liker", `u:${user.id}`).maybeSingle()).data) : false}
         />
       </main>
       <SiteFooter />

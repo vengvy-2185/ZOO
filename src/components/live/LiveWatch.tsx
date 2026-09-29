@@ -18,7 +18,23 @@ type Props = {
   ice: RTCIceServer[];
   km: boolean;
   signedIn: boolean;
+  /** this account already gave its heart */
+  liked?: boolean;
 };
+
+/** A guest's device id (one heart per device). */
+function deviceId() {
+  try {
+    let id = localStorage.getItem("gwz-device");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("gwz-device", id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
 
 /** Watching a live video: picture, viewers, hearts, comments and share. */
 export function LiveWatch(p: Props) {
@@ -36,7 +52,12 @@ export function LiveWatch(p: Props) {
   const [copied, setCopied] = useState(false);
   const { list, hide } = useLiveComments(p.id, p.comments);
   const { pop, layer } = useHearts();
-  const pendingLikes = useRef(0);
+  const [liked, setLiked] = useState(Boolean(p.liked));
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(`gwz-live-liked-${p.id}`)) setLiked(true);
+    } catch {}
+  }, [p.id]);
   const feedEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,26 +82,25 @@ export function LiveWatch(p: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id, p.onAir]);
-  // hearts are counted on the server in small batches
-  useEffect(() => {
-    const id = setInterval(() => {
-      const n = pendingLikes.current;
-      if (!n) return;
-      pendingLikes.current = 0;
-      fetch(`/api/live/${p.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "like", n }) }).catch(() => {});
-    }, 2500);
-    return () => clearInterval(id);
-  }, [p.id]);
   useEffect(() => {
     feedEnd.current?.scrollIntoView({ block: "end" }); // (newer browsers return a Promise here: never hand it to React)
   }, [list.length]);
 
+  // one heart per person: the first tap counts (and flies on everyone's screen); later taps only sparkle here
   const heart = () => {
-    pendingLikes.current++;
-    setLikes((x) => x + 1);
     pop(1);
-    net.current?.heart(1);
     navigator.vibrate?.(10);
+    if (liked) return;
+    setLiked(true);
+    setLikes((x) => x + 1);
+    net.current?.heart(1);
+    try {
+      localStorage.setItem(`gwz-live-liked-${p.id}`, "1");
+    } catch {}
+    fetch(`/api/live/${p.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "like", device: deviceId() }) })
+      .then((r) => r.json())
+      .then((r) => r && r.counted === false && setLikes((x) => Math.max(0, x - 1))) // was already counted before
+      .catch(() => {});
   };
   const unmute = () => {
     if (!video.current) return;
@@ -147,8 +167,8 @@ export function LiveWatch(p: Props) {
             <button type="button" onClick={share} aria-label={km ? "ចែករំលែក" : "Share"} className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur active:scale-90">
               <Share2 size={20} />
             </button>
-            <button type="button" onClick={heart} disabled={state === "ended"} aria-label={km ? "ចូលចិត្ត" : "Like"} className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lift active:scale-90 disabled:opacity-50">
-              <Heart size={26} className="fill-white" />
+            <button type="button" onClick={heart} disabled={state === "ended"} aria-label={km ? "ចូលចិត្ត" : "Like"} aria-pressed={liked} title={liked ? (km ? "អ្នកបានឲ្យបេះដូងហើយ" : "You liked this") : km ? "ឲ្យបេះដូង" : "Give a heart"} className={cn("flex h-14 w-14 items-center justify-center rounded-full shadow-lift transition active:scale-90 disabled:opacity-50", liked ? "bg-white text-rose-500 ring-4 ring-rose-500" : "bg-gradient-to-br from-rose-500 to-pink-600 text-white")}>
+              <Heart size={26} className={liked ? "fill-rose-500" : "fill-white"} />
             </button>
           </div>
         </div>

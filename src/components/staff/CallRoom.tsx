@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, SwitchCamera, Volume2, Loader2, ChevronLeft, Users } from "lucide-react";
 import type { Person } from "@/lib/server/avatars";
-import { createClient } from "@/lib/supabase/client";
+import { freshRealtime } from "@/lib/supabase/realtime";
 import { playSound, unlockSound } from "@/lib/client-sound";
 import { cn } from "@/lib/utils/cn";
 
@@ -149,7 +149,7 @@ export function CallRoom(p: Props) {
   const hereRef = useRef<Here[]>([]);
   useEffect(() => {
     if (p.ended) return;
-    const sb = createClient();
+    const sb = freshRealtime();
     const ch = sb.channel(`gwz-call-${p.callId}`, { config: { presence: { key: session.current }, broadcast: { self: false } } });
     ch.on("presence", { event: "sync" }, () => {
       const state = ch.presenceState() as Record<string, any[]>;
@@ -175,7 +175,7 @@ export function CallRoom(p: Props) {
     });
     chan.current = ch;
     return () => {
-      sb.removeChannel(ch);
+      sb.removeChannel(ch).finally(() => sb.realtime.disconnect());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.callId, p.ended]);
