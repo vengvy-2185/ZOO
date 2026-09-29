@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { MessagesSquare, ChevronLeft, Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Trash2, type LucideIcon } from "lucide-react";
+import { ChevronLeft, Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, type LucideIcon } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
 import { peopleFor, type Person } from "@/lib/server/avatars";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
-import { ChatComposer, ChatScroll, VoiceBubble } from "@/components/staff/ChatBox";
-import { deleteChat } from "../actions";
+import { ChatRoom, type Msg } from "@/components/staff/ChatRoom";
+import { msgText } from "@/lib/chat-text";
+import { CallButtons } from "@/components/staff/CallButtons";
+import { staffIds, managerIds } from "@/lib/server/push";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -56,20 +58,51 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     db.from("staff_chat_reads").select("channel, last_read_at").eq("user_id", userId),
   ]);
   // newest message per channel, for the list previews
-  const { data: lastRows } = await db.from("staff_messages").select("channel, body, audio_url, user_id, created_at").in("channel", mine.map((c) => c.key)).order("created_at", { ascending: false }).limit(300);
+  const { data: lastRows } = await db.from("staff_messages").select("channel, body, audio_url, files, kind, meta, user_id, created_at").in("channel", mine.map((c) => c.key)).order("created_at", { ascending: false }).limit(300);
   const lastOf = new Map<string, any>();
   for (const r of lastRows ?? []) if (!lastOf.has(r.channel)) lastOf.set(r.channel, r);
-  // opening a channel marks it read up to its newest message (the database
-  // clock can be a little ahead of this server's, so use whichever is later)
+  // opening a room marks it read up to its newest message. Only when that is
+  // news: others see "seen" change, and saving the same thing again would
+  // make every open page refresh for nothing.
   const newest = rows?.[0]?.created_at as string | undefined;
-  const readTo = newest && Date.parse(newest) > Date.parse(now) ? newest : now;
-  await db.from("staff_chat_reads").upsert({ user_id: userId, channel: ch.key, last_read_at: readTo });
   const readAt = new Map((reads ?? []).map((r: any) => [r.channel, r.last_read_at as string]));
-  readAt.set(ch.key, readTo);
-  const msgs = (rows ?? []).reverse() as any[];
+  const before = readAt.get(ch.key);
+  if (newest && (!before || Date.parse(before) < Date.parse(newest))) {
+    await db.from("staff_chat_reads").upsert({ user_id: userId, channel: ch.key, last_read_at: newest });
+    readAt.set(ch.key, newest);
+  } else if (!newest) readAt.set(ch.key, now);
+  const msgs = (rows ?? []).reverse() as Msg[];
+  const ids = msgs.map((m) => m.id);
+  const replyIds = [...new Set(msgs.map((m) => m.reply_to).filter(Boolean))] as string[];
+  const callIds = msgs.filter((m) => m.kind === "call" && m.meta?.call_id).map((m) => m.meta.call_id as string);
+  const aliveSince = new Date(Date.now() - 60e3).toISOString();
+  const [{ data: reactRows }, { data: roomReads }, { data: callRows }, { data: replyRows }, { data: openCall }, members] = await Promise.all([
+    ids.length ? db.from("staff_message_reactions").select("message_id, user_id, emoji").in("message_id", ids).order("created_at") : Promise.resolve({ data: [] as any[] }),
+    db.from("staff_chat_reads").select("user_id, last_read_at").eq("channel", ch.key),
+    callIds.length ? db.from("staff_calls").select("id, video, created_at, alive_at, ended_at").in("id", callIds) : Promise.resolve({ data: [] as any[] }),
+    replyIds.length ? db.from("staff_messages").select("id, user_id, body, kind, files, audio_url, meta").in("id", replyIds) : Promise.resolve({ data: [] as any[] }),
+    db.from("staff_calls").select("id, video, started_by").eq("channel", ch.key).is("ended_at", null).gte("alive_at", aliveSince).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    ch.key === "all" ? Promise.all([staffIds(), managerIds()]).then((x) => x.flat()) : ch.key === "managers" ? managerIds() : Promise.all([staffIds(ch.key), managerIds()]).then((x) => x.flat()),
+  ]);
+  const reactions: Record<string, { user_id: string; emoji: string }[]> = {};
+  for (const r of reactRows ?? []) (reactions[r.message_id] ??= []).push({ user_id: r.user_id, emoji: r.emoji });
+  const calls: Record<string, { live: boolean; secs: number; video: boolean }> = {};
+  for (const c of callRows ?? []) {
+    const live = !c.ended_at && c.alive_at >= aliveSince;
+    const end = c.ended_at ?? c.alive_at;
+    calls[c.id] = { live, video: c.video, secs: Math.max(0, (Date.parse(end) - Date.parse(c.created_at)) / 1000) };
+  }
+  const replies: Record<string, { user_id: string | null; text: string }> = {};
+  for (const r of replyRows ?? []) replies[r.id] = { user_id: r.user_id, text: msgText(r as any, km) };
+  const roomReadMap: Record<string, string> = {};
+  for (const r of roomReads ?? []) roomReadMap[r.user_id] = r.last_read_at;
+  const memberIds = [...new Set(members as string[])];
   const onlineIds = new Set((presence ?? []).map((p: any) => p.user_id as string));
   onlineIds.add(userId);
-  const people = await peopleFor([...msgs.map((m) => m.user_id), ...onlineIds, ...[...lastOf.values()].map((r) => r.user_id)], km);
+  const people = await peopleFor(
+    [...msgs.map((m) => m.user_id ?? ""), ...onlineIds, ...[...lastOf.values()].map((r) => r.user_id), ...memberIds, ...Object.keys(roomReadMap), ...(reactRows ?? []).map((r: any) => r.user_id), ...Object.values(replies).map((r) => r.user_id ?? ""), openCall?.started_by ?? ""],
+    km
+  );
   const inConversation = Boolean(searchParams.c);
 
   // unread = messages from others after I last read that channel
@@ -82,8 +115,6 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     .map((id) => ({ id, p: people.get(id) }))
     .filter((x) => x.p)
     .sort((a, b) => (a.id === userId ? -1 : b.id === userId ? 1 : a.p!.name.localeCompare(b.p!.name)));
-  const time = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
-  const dayOf = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(new Date(iso));
 
   const shortTime = (iso: string) => {
     const d = new Date(iso);
@@ -93,7 +124,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
   const preview = (r: any) => {
     if (!r) return km ? "មិនទាន់មានសារ" : "No messages yet";
     const who = r.user_id === userId ? (km ? "អ្នក" : "You") : people.get(r.user_id)?.name ?? "";
-    return `${who}: ${r.audio_url && !r.body ? (km ? "🎤 សារសំឡេង" : "🎤 Voice message") : r.body}`;
+    return `${who}: ${msgText(r, km)}`;
   };
 
   return (
@@ -152,67 +183,26 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
               <p className="truncate font-display text-base font-extrabold text-forest">{km ? ch.km : ch.en}</p>
               <p className="flex items-center gap-1.5 text-xs text-ink/50"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {online.length} online</p>
             </div>
-            <div className="hidden -space-x-2 sm:flex">
+            <div className="hidden -space-x-2 lg:flex">
               {online.slice(0, 5).map(({ id, p }) => <Avatar key={id} p={p} size={28} />)}
             </div>
+            <CallButtons channel={ch.key} km={km} />
           </div>
-          <ChatScroll count={msgs.length}>
-            {msgs.length === 0 && (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-ink/45">
-                <MessagesSquare size={40} className="text-[#BFDBFE]" /> {km ? "មិនទាន់មានសារទេ។ ចាប់ផ្តើមនិយាយ!" : "No messages yet. Say hello!"}
-              </div>
-            )}
-            {msgs.map((m, i) => {
-              const own = m.user_id === userId;
-              const p = people.get(m.user_id);
-              const prev = msgs[i - 1];
-              const newDay = !prev || dayOf(prev.created_at) !== dayOf(m.created_at);
-              const sameGroup = (x: any, y: any) => x && y && x.user_id === y.user_id && dayOf(x.created_at) === dayOf(y.created_at) && Math.abs(Date.parse(y.created_at) - Date.parse(x.created_at)) < 5 * 60e3;
-              const grouped = !newDay && sameGroup(prev, m);
-              const lastInGroup = !sameGroup(m, msgs[i + 1]);
-              return (
-                <div key={m.id}>
-                  {newDay && (
-                    <p className="my-3 text-center">
-                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-ink/45 shadow-sm">{dayOf(m.created_at)}</span>
-                    </p>
-                  )}
-                  <div className={cn("group flex items-end gap-2", own && "flex-row-reverse", grouped && "-mt-1.5")}>
-                    {/* like Messenger: others' photo at the bottom of their group, none for me */}
-                    {!own && (
-                      <span className={cn(!lastInGroup && "invisible")}>
-                        <Avatar p={p} online={onlineIds.has(m.user_id)} />
-                      </span>
-                    )}
-                    <div className={cn("flex max-w-[80%] animate-[gwzPop_.25s_ease-out_both] flex-col", own ? "items-end" : "items-start")}>
-                      {!grouped && !own && (
-                        <p className="mb-0.5 px-1 text-[11px] font-bold text-ink/55">
-                          {p?.name ?? "—"} {p?.role && <span className={cn("ml-1 rounded-full px-1.5 py-px", p.admin ? "bg-forest text-white" : "bg-slate-100 text-ink/50")}>{p.role}</span>}
-                        </p>
-                      )}
-                      {m.audio_url && <VoiceBubble src={m.audio_url} secs={m.audio_secs ?? 1} own={own} />}
-                      {m.body && (
-                        <div className={cn("whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-left text-sm shadow-sm", m.audio_url && "mt-1", own ? "rounded-br-md bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white" : "rounded-bl-md bg-white text-ink/85 ring-1 ring-black/5")}>
-                          {m.body}
-                        </div>
-                      )}
-                      <p className={cn("flex items-center gap-2 px-1 text-[10px] text-ink/35", lastInGroup ? "mt-0.5" : "h-0 overflow-hidden group-hover:h-auto")}>
-                        {time(m.created_at)}
-                        {(own || manager) && (
-                          <form action={deleteChat.bind(null, m.id)} className="opacity-0 transition group-hover:opacity-100">
-                            <button aria-label="delete" className="text-ink/35 hover:text-red-500">
-                              <Trash2 size={11} />
-                            </button>
-                          </form>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </ChatScroll>
-          <ChatComposer channel={ch.key} km={km} />
+          <ChatRoom
+            me={userId}
+            channel={ch.key}
+            km={km}
+            manager={manager}
+            msgs={msgs}
+            replies={replies}
+            reactions={reactions}
+            calls={calls}
+            reads={roomReadMap}
+            members={memberIds}
+            people={Object.fromEntries(people)}
+            online={[...onlineIds]}
+            activeCall={openCall ? { id: openCall.id, video: openCall.video, by: openCall.started_by } : null}
+          />
         </section>
       </div>
     </StaffShell>

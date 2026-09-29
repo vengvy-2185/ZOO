@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { BellRing, VolumeX, Siren } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { BellRing, VolumeX, Siren, X, Phone, PhoneOff, Video, MessageCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { playSound, unlockSound, soundUnlocked } from "@/lib/client-sound";
 
 type Alert = { id: string; kind: string; place: string | null; name: string; own: boolean; created_at: string };
-type Data = { allowed: boolean; alerts?: Alert[]; chime?: string[]; sound?: { enabled: boolean; volume: number; every: number } };
+type News = { key: string; kind: "chat" | "notice"; channel: string | null; title: string; body: string; avatar: string | null; url: string };
+type Ring = { id: string; video: boolean; room: string; name: string; avatar: string | null };
+type Data = { allowed: boolean; alerts?: Alert[]; chime?: string[]; sound?: { enabled: boolean; volume: number; every: number }; news?: News[]; calls?: Ring[]; unread?: number };
 
 const MUTED = "gwz_sos_muted";
 const SEEN = "gwz_chime_seen";
@@ -37,6 +39,9 @@ const KIND_EN: Record<string, string> = { medical: "Someone hurt", animal: "Anim
  */
 export function GlobalStaffSound() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [toasts, setToasts] = useState<(News & { at: number })[]>([]);
+  const [declined, setDeclined] = useState<string[]>([]);
   const { locale } = useI18n();
   const km = locale === "km";
   const [d, setD] = useState<Data | null>(null);
@@ -81,7 +86,7 @@ export function GlobalStaffSound() {
         })
         .catch(() => {});
     load();
-    const id = setInterval(() => allowed.current && document.visibilityState === "visible" && load(), 6000);
+    const id = setInterval(() => allowed.current && document.visibilityState === "visible" && load(), 5000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -116,8 +121,43 @@ export function GlobalStaffSound() {
     if (fresh.length) put(SEEN, [...seen, ...fresh]);
     else if (first) put(SEEN, []);
     if (!first && fresh.length && enabled && ready && !ringing) playSound("chime", vol);
+    // pop-ups on screen (also on a computer, where Windows may hide notifications)
+    if (!first && fresh.length) {
+      const looking = (ch: string | null) => location.pathname === "/staff/chat" && new URLSearchParams(location.search).get("c") === ch && document.visibilityState === "visible";
+      const pop = (d.news ?? []).filter((n) => fresh.includes(n.key) && !(n.kind === "chat" && looking(n.channel)));
+      if (pop.length) setToasts((t) => [...pop.map((n) => ({ ...n, at: Date.now() })), ...t.filter((x) => !pop.some((n) => n.key === x.key))].slice(0, 3));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chimeKey, ready]);
+
+  // pop-ups go away by themselves after 8 seconds
+  useEffect(() => {
+    if (!toasts.length) return;
+    const id = setTimeout(() => setToasts((t) => t.filter((x) => Date.now() - x.at < 8000)), 1000);
+    return () => clearTimeout(id);
+  }, [toasts]);
+  // unread messages on the app icon (computer / Android) and in the tab title
+  useEffect(() => {
+    const n = d?.unread ?? 0;
+    const nav: any = navigator;
+    if (n > 0) nav.setAppBadge?.(n).catch?.(() => {});
+    else nav.clearAppBadge?.().catch?.(() => {});
+    const base = document.title.replace(/^\(\d+\+?\) /, "");
+    document.title = n > 0 ? `(${n > 99 ? "99+" : n}) ${base}` : base;
+  }, [d?.unread, pathname]);
+  // someone is calling: ring until joined, declined or the call stops ringing
+  const rings = (d?.calls ?? []).filter((c) => !declined.includes(c.id) && !pathname.startsWith("/staff/call"));
+  const ringOn = rings.length > 0 && enabled;
+  useEffect(() => {
+    if (!ringOn || !ready) return;
+    playSound("ring", vol);
+    navigator.vibrate?.([400, 200, 400]);
+    const id = setInterval(() => {
+      playSound("ring", vol);
+      navigator.vibrate?.([400, 200, 400]);
+    }, 2600);
+    return () => clearInterval(id);
+  }, [ringOn, ready, vol]);
 
   const silence = useCallback(() => {
     const next = [...muted, ...loud.map((a) => a.id)];
@@ -132,6 +172,48 @@ export function GlobalStaffSound() {
 
   return (
     <>
+      {/* incoming call */}
+      {rings[0] && (
+        <div className="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[88] mx-auto max-w-sm animate-[gwzPop_.3s_ease-out_both] rounded-3xl bg-slate-900 p-4 text-white shadow-lift ring-1 ring-white/10 md:left-auto md:right-4 md:mx-0">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-12 w-12 flex-shrink-0">
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/40" />
+              <span className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[#1D4ED8] text-lg font-extrabold">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {rings[0].avatar ? <img src={rings[0].avatar} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : [...rings[0].name][0]}
+              </span>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-extrabold">{rings[0].name}</span>
+              <span className="block truncate text-sm text-white/65">{rings[0].video ? (km ? "📹 ហៅជាវីដេអូ" : "📹 Video call") : km ? "📞 ហៅជាសំឡេង" : "📞 Voice call"} · {rings[0].room}</span>
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setDeclined((x) => [...x, rings[0].id])} className="flex items-center justify-center gap-2 rounded-2xl bg-red-600 py-2.5 font-extrabold active:scale-95"><PhoneOff size={18} /> {km ? "បដិសេធ" : "Decline"}</button>
+            <button type="button" onClick={() => { setDeclined((x) => [...x, rings[0].id]); router.push(`/staff/call/${rings[0].id}`); }} className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-2.5 font-extrabold active:scale-95">{rings[0].video ? <Video size={18} /> : <Phone size={18} />} {km ? "ឆ្លើយ" : "Answer"}</button>
+          </div>
+        </div>
+      )}
+      {/* new messages / notices */}
+      {toasts.length > 0 && !rings[0] && (
+        <div className="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[87] mx-auto flex max-w-sm flex-col gap-2 md:left-auto md:right-4 md:mx-0">
+          {toasts.map((n) => (
+            <div key={n.key} className="flex animate-[gwzPop_.3s_ease-out_both] items-start gap-3 rounded-2xl bg-white p-3 shadow-lift ring-1 ring-black/5">
+              <button type="button" onClick={() => { setToasts((t) => t.filter((x) => x.key !== n.key)); router.push(n.url); }} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#DBEAFE] text-[#1D4ED8]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {n.avatar ? <img src={n.avatar} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : <MessageCircle size={19} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-extrabold text-forest">{n.title}</span>
+                  <span className="line-clamp-2 text-sm text-ink/70">{n.body}</span>
+                </span>
+              </button>
+              <button type="button" aria-label="close" onClick={() => setToasts((t) => t.filter((x) => x.key !== n.key))} className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-ink/40 hover:bg-slate-100"><X size={15} /></button>
+            </div>
+          ))}
+        </div>
+      )}
       {/* outside the staff area (admin, public pages) there is no red bar, so show one here */}
       {!onStaff && inAlert.length > 0 && (
         <Link href="/staff" className="fixed bottom-24 left-4 z-[70] flex max-w-[20rem] items-center gap-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 py-2 pl-2 pr-4 text-white shadow-lift ring-4 ring-white/80 md:bottom-6 md:left-6">

@@ -1,5 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
+const metaCache = new Map<string, { at: number; meta: Record<string, unknown> }>();
+
 export type Person = { name: string; avatar: string | null; admin: boolean; role: string };
 
 /**
@@ -28,11 +30,17 @@ export async function peopleFor(ids: string[], km: boolean): Promise<Map<string,
     });
     if (!p.avatar_url) missing.push(p.id);
   }
-  // pictures that only live on the sign-in account (Google / Facebook)
+  // pictures that only live on the sign-in account (Google / Facebook);
+  // remembered for a while, so busy pages (the chat) don't ask every time
   await Promise.all(
     missing.slice(0, 30).map(async (id) => {
-      const { data } = await db.auth.admin.getUserById(id);
-      const m: any = data.user?.user_metadata ?? {};
+      let hit = metaCache.get(id);
+      if (!hit || hit.at < Date.now() - 10 * 60e3) {
+        const { data } = await db.auth.admin.getUserById(id);
+        hit = { at: Date.now(), meta: data.user?.user_metadata ?? {} };
+        metaCache.set(id, hit);
+      }
+      const m: any = hit.meta;
       const pic = m.custom_avatar_url || m.avatar_url || m.picture || null;
       const cur = out.get(id);
       if (cur && pic) cur.avatar = pic;

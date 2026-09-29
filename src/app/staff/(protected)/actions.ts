@@ -395,7 +395,7 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
   const body = String(formData.get("body") ?? "").trim().slice(0, 1000);
   const audio = formData.get("audio");
   const hasAudio = audio instanceof File && audio.size > 0;
-  if ((!body && !hasAudio) || !canUseChannel(access, channel)) return { error: "invalid" };
+  if (!canUseChannel(access, channel)) return { error: "invalid" };
   const db = createServiceRoleClient();
   let audio_url: string | null = null;
   let audio_secs: number | null = null;
@@ -411,12 +411,115 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
     audio_url = db.storage.from("staff-voice").getPublicUrl(path).data.publicUrl;
     audio_secs = Math.max(1, Math.min(300, Math.round(Number(formData.get("secs")) || 1)));
   }
-  const { data: sent, error } = await db.from("staff_messages").insert({ channel, body: body || null, user_id: id, audio_url, audio_secs }).select("created_at").single();
+  // photos / files were uploaded straight to storage; only paths in my own folder are accepted
+  let files: ChatFile[] | null = null;
+  try {
+    const raw = JSON.parse(String(formData.get("files") ?? "null"));
+    if (Array.isArray(raw) && raw.length) {
+      files = raw.slice(0, 10).map((f: any) => {
+        const path = String(f.path ?? "");
+        if (!path.startsWith(`${channel}/${id}/`) || path.includes("..")) throw new Error("path");
+        return {
+          url: db.storage.from("staff-files").getPublicUrl(path).data.publicUrl,
+          name: String(f.name ?? "file").slice(0, 120),
+          type: String(f.type ?? "application/octet-stream").slice(0, 100),
+          size: Math.max(0, Number(f.size) || 0),
+          w: Number(f.w) || undefined,
+          h: Number(f.h) || undefined,
+        };
+      });
+    }
+  } catch {
+    return { error: "invalid" };
+  }
+  // a shared location
+  const lat = Number(formData.get("lat"));
+  const lng = Number(formData.get("lng"));
+  const isLocation = formData.get("lat") !== null && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  // an answer to another message in the same room
+  let reply_to: string | null = String(formData.get("reply_to") ?? "") || null;
+  if (reply_to) {
+    const { data: r } = await db.from("staff_messages").select("channel").eq("id", reply_to).maybeSingle();
+    if (r?.channel !== channel) reply_to = null;
+  }
+  if (!body && !hasAudio && !files && !isLocation) return { error: "invalid" };
+  const { data: sent, error } = await db
+    .from("staff_messages")
+    .insert({ channel, body: body || null, user_id: id, audio_url, audio_secs, files, reply_to, kind: isLocation ? "location" : "text", meta: isLocation ? { lat, lng, acc: Math.round(Number(formData.get("acc")) || 0) } : null })
+    .select("created_at")
+    .single();
   if (error) return { error: error.message };
   await db.from("staff_chat_reads").upsert({ user_id: id, channel, last_read_at: sent.created_at });
-  await pushChat(channel, id, access, body ? body : "🎤 សារសំឡេង");
+  const images = (files ?? []).filter((f) => f.type.startsWith("image/")).length;
+  const what = body || (isLocation ? "📍 ចែករំលែកទីតាំង" : hasAudio ? "🎤 សារសំឡេង" : images ? `📷 រូបភាព ${images > 1 ? images : ""}`.trim() : `📎 ${files?.[0]?.name ?? "ឯកសារ"}`);
+  await pushChat(channel, id, access, what);
   revalidatePath("/staff/chat");
   return { ok: true, at: Date.now() };
+}
+
+export type ChatFile = { url: string; name: string; type: string; size: number; w?: number; h?: number };
+const MAX_FILE = 25 * 1024 * 1024;
+/** A one-time upload slot so a photo / file goes straight from the phone to storage (not through this server). */
+export async function chatUploadSlot(channel: string, name: string, size: number): Promise<{ path?: string; token?: string; error?: string }> {
+  const { id, access } = await me();
+  if (!canUseChannel(access, channel)) return { error: "invalid" };
+  if (!(size > 0) || size > MAX_FILE) return { error: "too-big" };
+  const safe = (name.normalize("NFKD").replace(/[^\w.\-]+/g, "_").replace(/_+/g, "_").slice(-80) || "file").replace(/^\.+/, "");
+  const path = `${channel}/${id}/${crypto.randomUUID()}/${safe}`;
+  const { data, error } = await createServiceRoleClient().storage.from("staff-files").createSignedUploadUrl(path);
+  if (error || !data) return { error: error?.message ?? "upload" };
+  return { path, token: data.token };
+}
+
+const REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+/** React to a message (the same emoji again takes it back). */
+export async function reactChat(messageId: string, emoji: string) {
+  const { id, access } = await me();
+  if (!REACTIONS.includes(emoji)) return;
+  const db = createServiceRoleClient();
+  const { data: m } = await db.from("staff_messages").select("channel").eq("id", messageId).maybeSingle();
+  if (!m || !canUseChannel(access, m.channel)) return;
+  const { data: cur } = await db.from("staff_message_reactions").select("emoji").eq("message_id", messageId).eq("user_id", id).maybeSingle();
+  if (cur?.emoji === emoji) await db.from("staff_message_reactions").delete().eq("message_id", messageId).eq("user_id", id);
+  else await db.from("staff_message_reactions").upsert({ message_id: messageId, user_id: id, emoji, created_at: new Date().toISOString() });
+  revalidatePath("/staff/chat");
+}
+
+// ── Calls (voice / video) in a chat room ──────────────────────────────
+/** Start a call in a room (or join the one already going on there). */
+export async function startCall(channel: string, video: boolean): Promise<{ id?: string; error?: string }> {
+  const { id, access } = await me();
+  if (!canUseChannel(access, channel)) return { error: "invalid" };
+  const db = createServiceRoleClient();
+  const { data: open } = await db.from("staff_calls").select("id").eq("channel", channel).is("ended_at", null).gte("alive_at", new Date(Date.now() - 60e3).toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (open) return { id: open.id };
+  const { data: call, error } = await db.from("staff_calls").insert({ channel, started_by: id, video }).select("id").single();
+  if (error || !call) return { error: error?.message ?? "call" };
+  await db.from("staff_messages").insert({ channel, user_id: id, kind: "call", meta: { call_id: call.id, video } });
+  const ROOM: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
+  await sendPush((await chatMembers(channel)).filter((u) => u !== id), {
+    title: `${video ? "📹" : "📞"} ${who(access)} កំពុងហៅ`,
+    body: `${video ? "ហៅជាវីដេអូ" : "ហៅជាសំឡេង"} · ${ROOM[channel] ?? channel} — ចុចដើម្បីចូលរួម`,
+    url: `/staff/call/${call.id}`,
+    tag: `call-${call.id}`,
+    urgent: true,
+  });
+  revalidatePath("/staff/chat");
+  return { id: call.id };
+}
+/** The last person leaving ends the call. */
+export async function endCall(callId: string) {
+  const { access } = await me();
+  const db = createServiceRoleClient();
+  const { data: c } = await db.from("staff_calls").select("channel").eq("id", callId).maybeSingle();
+  if (!c || !canUseChannel(access, c.channel)) return;
+  await db.from("staff_calls").update({ ended_at: new Date().toISOString() }).eq("id", callId).is("ended_at", null);
+  revalidatePath("/staff/chat");
+}
+
+/** Everyone who can read a room. */
+async function chatMembers(channel: string) {
+  return channel === "all" ? [...(await staffIds()), ...(await managerIds())] : channel === "managers" ? await managerIds() : [...(await staffIds(channel)), ...(await managerIds())];
 }
 export async function deleteChat(messageId: string) {
   const { id, access } = await me();
@@ -720,12 +823,7 @@ export async function setStaffAccount(userId: string, status: "active" | "suspen
 
 /** A new chat message reaches the phones of everyone who can read that chat (not the sender). */
 async function pushChat(channel: string, senderId: string, access: Awaited<ReturnType<typeof staffAccess>>, text: string) {
-  const ids =
-    channel === "all"
-      ? [...(await staffIds()), ...(await managerIds())]
-      : channel === "managers"
-        ? await managerIds()
-        : [...(await staffIds(channel)), ...(await managerIds())];
+  const ids = await chatMembers(channel);
   const room: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
   await sendPush(
     ids.filter((u) => u !== senderId),

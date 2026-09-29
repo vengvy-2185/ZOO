@@ -46,7 +46,14 @@ export function LiveRefresh() {
 
     const channel = supabase
       .channel("live-updates")
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_updates" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_updates" }, (e: any) => {
+        const topic = e.new?.topic as string | undefined;
+        // during a call nothing on screen needs the server; "seen" and
+        // reactions only matter to someone looking at the chat
+        if (location.pathname.startsWith("/staff/call")) return;
+        if ((topic === "staff_chat_reads" || topic === "staff_message_reactions") && location.pathname !== "/staff/chat") return;
+        schedule();
+      })
       .subscribe();
     document.addEventListener("visibilitychange", resume);
     document.addEventListener("focusout", resume);
