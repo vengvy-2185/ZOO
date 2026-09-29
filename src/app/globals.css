@@ -334,3 +334,7 @@ html.intro-on .gwz-intro {
 /* staff area: every button and link presses in a little when tapped */
 .staff-main button:not(:disabled), .staff-main a { transition: scale .12s ease, transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
 .staff-main button:not(:disabled):active, .staff-main a:active { scale: .96; }
+
+/* app setup card: a light sweeping across the install button, and a ringing bell */
+@keyframes gwzShine { 0%, 55% { left: -35%; } 100% { left: 125%; } }
+@keyframes gwzRing { 0%, 60%, 100% { transform: rotate(0); } 65% { transform: rotate(14deg); } 72% { transform: rotate(-12deg); } 79% { transform: rotate(8deg); } 86% { transform: rotate(-5deg); } }
