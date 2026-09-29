@@ -414,6 +414,7 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
   const { data: sent, error } = await db.from("staff_messages").insert({ channel, body: body || null, user_id: id, audio_url, audio_secs }).select("created_at").single();
   if (error) return { error: error.message };
   await db.from("staff_chat_reads").upsert({ user_id: id, channel, last_read_at: sent.created_at });
+  await pushChat(channel, id, access, body ? body : "🎤 សារសំឡេង");
   revalidatePath("/staff/chat");
   return { ok: true, at: Date.now() };
 }
@@ -715,4 +716,41 @@ export async function setStaffAccount(userId: string, status: "active" | "suspen
   await setStaffStatus(userId, status);
   revalidatePath("/staff", "layout");
   revalidatePath("/admin/staff");
+}
+
+/** A new chat message reaches the phones of everyone who can read that chat (not the sender). */
+async function pushChat(channel: string, senderId: string, access: Awaited<ReturnType<typeof staffAccess>>, text: string) {
+  const ids =
+    channel === "all"
+      ? [...(await staffIds()), ...(await managerIds())]
+      : channel === "managers"
+        ? await managerIds()
+        : [...(await staffIds(channel)), ...(await managerIds())];
+  const room: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
+  await sendPush(
+    ids.filter((u) => u !== senderId),
+    { title: `💬 ${who(access)} · ${room[channel] ?? channel}`, body: text.slice(0, 140), url: `/staff/chat?c=${channel}`, tag: `chat-${channel}` }
+  );
+}
+
+// ── Notices (managers and admins) ─────────────────────────────────────
+export type NoticeState = { ok?: boolean; error?: string };
+/** A notice for every staff member: shown on the staff home page and sent to their phones. */
+export async function postStaffNotice(_prev: NoticeState, formData: FormData): Promise<NoticeState> {
+  const { id, access } = await me();
+  if (!isManager(access)) return { error: "Only managers can post notices." };
+  const title = String(formData.get("title") ?? "").trim().slice(0, 120);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
+  if (!title || !body) return { error: "invalid" };
+  const { error } = await createServiceRoleClient().from("staff_announcements").insert({ title, body, pinned: formData.get("pinned") === "on", created_by: id });
+  if (error) return { error: error.message };
+  await sendPush((await staffIds()).filter((u) => u !== id), { title: `📢 ${title}`, body: body.slice(0, 160), url: "/staff", tag: "notice" });
+  revalidatePath("/staff", "layout");
+  return { ok: true };
+}
+export async function removeStaffNotice(noticeId: string) {
+  const { access } = await me();
+  if (!isManager(access)) throw new Error("Only managers.");
+  await createServiceRoleClient().from("staff_announcements").delete().eq("id", noticeId);
+  revalidatePath("/staff", "layout");
 }

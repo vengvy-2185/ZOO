@@ -10,8 +10,10 @@ import { ensureHolidays } from "@/lib/server/holidays";
 import { ensureAutoRoster } from "@/lib/server/roster";
 import { MySection } from "@/components/staff/MySection";
 import { AppSetup } from "@/components/staff/AppSetup";
+import { ActionButton } from "@/components/staff/ActionButton";
+import { NoticeComposer } from "@/components/staff/NoticeComposer";
 import { StaffShell } from "@/components/staff/StaffShell";
-import { clockIn, clockOut } from "./actions";
+import { clockIn, clockOut , removeStaffNotice } from "./actions";
 import { getAttendanceSettings } from "@/lib/server/attendance";
 import { QrCode } from "lucide-react";
 
@@ -89,7 +91,6 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
       {searchParams.denied && (
         <p className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 ring-1 ring-amber-200"><ShieldAlert size={18} /> {L.denied}</p>
       )}
-      {!access.staff && <p className="card p-4 text-sm text-ink/65">{L.admin}</p>}
 
       {access.staff && (
         <Link href="/staff/checkin" className="group block overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] p-5 text-white shadow-lift transition hover:-translate-y-0.5 md:p-6">
@@ -197,6 +198,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-extrabold text-forest"><Megaphone size={20} className="text-[#1D4ED8]" /> {L.notices}</h2>
           <div className="space-y-2">
+            {showTeam && <NoticeComposer km={km} />}
             {(notices ?? []).length === 0 ? (
               <p className="card p-5 text-sm text-ink/55">{L.noNotices}</p>
             ) : (
@@ -207,6 +209,11 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
                     <span className="ml-auto text-[11px] font-semibold text-ink/40">{date(n.created_at)}</span>
                   </p>
                   <p className="mt-1 whitespace-pre-line text-sm text-ink/70">{n.body}</p>
+                  {showTeam && (
+                    <div className="mt-2 flex justify-end">
+                      <ActionButton action={removeStaffNotice.bind(null, n.id)} label={km ? "លុប" : "Delete"} confirm={km ? "លុបសេចក្តីជូនដំណឹងនេះ?" : "Delete this notice?"} className="px-3 py-1 text-xs text-red-600 ring-1 ring-red-200 hover:bg-red-50" />
+                    </div>
+                  )}
                 </div>
               ))
             )}

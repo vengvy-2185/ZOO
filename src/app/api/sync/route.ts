@@ -132,5 +132,9 @@ async function handle(op: z.infer<typeof Op>, userId: string, access: Awaited<Re
   if (!body || !CHANNELS.includes(channel) || !allowed) return { id: op.id, status: "rejected", title: "Message not sent", detail: body.slice(0, 60), problem: true };
   const { error } = await db.from("staff_messages").insert({ channel, body, user_id: userId });
   if (error) throw new Error(error.message);
+  const { sendPush, staffIds, managerIds } = await import("@/lib/server/push");
+  const ids = channel === "all" ? [...(await staffIds()), ...(await managerIds())] : channel === "managers" ? await managerIds() : [...(await staffIds(channel)), ...(await managerIds())];
+  const name = access.staff ? access.staff.full_name_km || access.staff.full_name : "Admin";
+  await sendPush(ids.filter((u) => u !== userId), { title: `💬 ${name}`, body: body.slice(0, 140), url: `/staff/chat?c=${channel}`, tag: `chat-${channel}` });
   return { id: op.id, status: "done" };
 }
