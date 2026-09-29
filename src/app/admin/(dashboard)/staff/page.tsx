@@ -14,6 +14,7 @@ import { getStaffSettings } from "@/lib/server/staff-settings";
 import { StaffSettingsPanel } from "@/components/admin/StaffSettingsPanel";
 import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
 
+import { AccountButtons } from "@/components/staff/StaffAccounts";
 export const dynamic = "force-dynamic";
 
 const TABS = ["people", "attendance", "payroll", "leave", "notices", "positions", "settings"] as const;
@@ -114,6 +115,9 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                           <span className={cn("rounded-full px-2 py-0.5 font-bold", s.status === "active" ? "bg-light-green text-primary" : "bg-red-50 text-red-700")}>{L.st[s.status]}</span>
                           {l.openShift && <span className="inline-flex items-center gap-1 font-bold text-emerald-600"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> {L.onShiftNow}</span>}
                         </p>
+                        <div className="mt-2">
+                          <AccountButtons userId={s.user_id} name={s.full_name} status={s.status} km={km} />
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="font-display text-lg font-extrabold text-forest">{usd(l.gross)}</p>

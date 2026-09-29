@@ -43,6 +43,9 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const userId = getVerifiedUserId()!;
   const access = await staffAccess(userId);
   const manager = access.admin || access.perms.has("reports");
+  // only the admin and positions given "change the schedule" can edit, re-plan or approve
+  const planner = access.admin || access.perms.has("roster");
+  const seesAll = manager || planner;
   const { locale } = getI18n();
   const km = locale === "km";
   const today = localDay();
@@ -53,9 +56,9 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const monthDays = new Date(Date.UTC(Number(base.slice(0, 4)), Number(base.slice(5, 7)), 0)).getUTCDate();
   const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)) : Array.from({ length: monthDays }, (_, i) => addDays(monthStart, i));
 
-  const sections = (Object.keys(TASK_SECTIONS) as (keyof typeof TASK_SECTIONS)[]).filter((k) => manager || access.perms.has(k));
+  const sections = (Object.keys(TASK_SECTIONS) as (keyof typeof TASK_SECTIONS)[]).filter((k) => seesAll || access.perms.has(k));
   const mySections = sections.filter((k) => access.perms.has(k) && k !== "reports");
-  const section = (sections as string[]).includes(searchParams.s ?? "") ? (searchParams.s as keyof typeof TASK_SECTIONS) : manager ? null : mySections[0] ?? null;
+  const section = (sections as string[]).includes(searchParams.s ?? "") ? (searchParams.s as keyof typeof TASK_SECTIONS) : seesAll ? null : mySections[0] ?? null;
 
   // automatic mode: this week and next are planned for anyone with nothing yet
   await ensureHolidays(today).catch(() => {});
@@ -76,7 +79,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const team = (staffRows ?? [])
     .filter((p: any) => !section || (p.position?.permissions ?? []).includes(section))
     .sort((a: any, b: any) => ORDER.indexOf(primaryOf(a) as any) - ORDER.indexOf(primaryOf(b) as any) || String(a.full_name).localeCompare(String(b.full_name)));
-  if (!manager && access.staff && !team.some((p: any) => p.user_id === userId)) team.unshift(access.staff as any);
+  if (!seesAll && access.staff && !team.some((p: any) => p.user_id === userId)) team.unshift(access.staff as any);
   const ids = team.map((p: any) => p.user_id);
   const [{ data: roster }, { data: requests }, { data: myUpcoming }] = await Promise.all([
     ids.length ? db.from("staff_roster").select("id, user_id, day, shift, note, cover_user, cover_shift").in("user_id", ids).gte("day", days[0]).lte("day", days[days.length - 1]) : Promise.resolve({ data: [] as any[] }),
@@ -107,7 +110,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   // only people on the staff list can take a cover (an admin account has no shifts or pay)
   const forMe = reqs.filter((r) => Boolean(access.staff) && (r.status === "open" || r.taken_by === userId) && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || (r.kind === "swap" && r.swap?.user_id === userId)));
   const mine = reqs.filter((r) => r.from_user === userId);
-  const toApprove = manager ? reqs.filter((r) => r.status === "accepted") : [];
+  const toApprove = planner ? reqs.filter((r) => r.status === "accepted") : [];
   // what each person already works on the days in the requests (to know if a cover fits)
   const reqDays = [...new Set(reqs.map((r) => r.roster?.day).filter(Boolean))] as string[];
   const { data: onReqDays } = reqDays.length ? await db.from("staff_roster").select("user_id, day, shift").in("day", reqDays) : { data: [] as any[] };
@@ -116,6 +119,13 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
     .filter((r: any) => r.user_id !== userId && r.shift !== "off" && r.day >= today)
     .map((r: any) => ({ id: r.id, label: `${nameOf.get(r.user_id) ?? "—"} · ${dateLabel(r.day)} · ${km ? SHIFT[r.shift as Shift].km : SHIFT[r.shift as Shift].en}` }));
   const myWeek = days.slice(0, 7);
+  const teamLabel = section ? (km ? TASK_SECTIONS[section].km : TASK_SECTIONS[section].en) : km ? "ក្រុមទាំងអស់" : "all teams";
+  const planFrom = (view === "week" ? weekStart : monday(today)) < today ? today : view === "week" ? weekStart : monday(today);
+  const planTo = addDays(view === "week" ? weekStart : monday(today), 6);
+  const warn = (what: string) =>
+    km
+      ? `ចាប់ពីថ្ងៃ ${dateLabel(planFrom)} ដល់ ${dateLabel(planTo)} នឹងមានការកែប្រែកាលវិភាគ សម្រាប់${teamLabel}។ ${what}\n\nក្រុមនឹងទទួលសារជូនដំណឹងក្នុងជជែកក្រុម។ បន្តទេ?`
+      : `The schedule of ${teamLabel} will change from ${dateLabel(planFrom)} to ${dateLabel(planTo)}. ${what}\n\nThe team gets a message in its chat. Continue?`;
 
   const L = km
     ? { title: "កាលវិភាគការងារ", sub: "វេនធ្វើការប្រចាំសប្តាហ៍ និងប្រចាំខែ របស់ក្រុមនីមួយៗ។ ប្តូរវេន ឬរកអ្នកជំនួស ពេលមានបញ្ហា។", week: "សប្តាហ៍", month: "ខែ", all: "ទាំងអស់", save: "រក្សាទុកកាលវិភាគ", saving: "កំពុងរក្សាទុក…", copy: "ចម្លងសប្តាហ៍មុន", mine: "វេនរបស់ខ្ញុំសប្តាហ៍នេះ", team: "កាលវិភាគក្រុមទាំងមូល", ask: "មកធ្វើការមិនបាន? ស្នើអ្នកជំនួស ឬប្តូរវេន", forMe: "មិត្តរួមការងារកំពុងរកអ្នកជំនួស", myReq: "សំណើរបស់ខ្ញុំ", approve: "រង់ចាំអ្នកគ្រប់គ្រងអនុម័ត", take: "ខ្ញុំជំនួស", agree: "យល់ព្រមដូរ", cancel: "បោះបង់", yes: "អនុម័ត", no: "បដិសេធ", st: { open: "រង់ចាំអ្នកជំនួស", accepted: "មានអ្នកទទួលហើយ · រង់ចាំអនុម័ត" }, cover: "ជំនួស", swap: "ដូរ", nothing: "គ្មានទេ", none: "—", legend: "ពន្យល់", today: "ថ្ងៃនេះ", noTeam: "មិនមានបុគ្គលិកក្នុងក្រុមនេះទេ។" }
@@ -139,7 +149,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
           <Link href={q({ w: today })} className="ml-1 rounded-full px-3 py-1.5 text-xs font-bold text-[#1D4ED8] ring-1 ring-[#BFDBFE]">{L.today}</Link>
         </div>
         <div className="no-scrollbar flex w-full gap-1.5 overflow-x-auto md:ml-auto md:w-auto">
-          {manager && <Link href={`/staff/roster?${new URLSearchParams({ v: view, w: base })}`} className={cn("flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold", !section ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10")}>{L.all}</Link>}
+          {seesAll && <Link href={`/staff/roster?${new URLSearchParams({ v: view, w: base })}`} className={cn("flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold", !section ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10")}>{L.all}</Link>}
           {sections.map((k) => {
             const S = TASK_SECTIONS[k];
             return (
@@ -151,8 +161,8 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
         </div>
       </div>
 
-      {/* the rules the automatic schedule follows (managers) */}
-      {manager && (
+      {/* the rules the automatic schedule follows (people allowed to change the schedule) */}
+      {planner && (
         <details className="card group p-0">
           <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-700"><Settings2 size={20} /></span>
@@ -228,7 +238,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
       </details>
 
       {/* my shifts */}
-      {access.staff && !manager && view === "week" && (
+      {access.staff && !seesAll && view === "week" && (
         <section className="card p-4 md:p-5">
           {(() => {
             const nx = (myUpcoming ?? [])[0] as any;
@@ -271,13 +281,14 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
       <section className="card overflow-hidden p-0">
         <div className="flex flex-wrap items-center gap-2 border-b border-black/5 px-4 py-3">
           <h2 className="flex flex-1 items-center gap-2 font-display text-xl font-extrabold text-forest"><CalendarRange size={20} className="text-[#1D4ED8]" /> {L.team}</h2>
-          {manager && team.length > 0 && (
+          {planner && team.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <ActionButton
                 action={autoFillWeek.bind(null, view === "week" ? weekStart : monday(today), section, false)}
                 icon={<Wand2 size={15} />}
                 label={km ? "រៀបចំស្វ័យប្រវត្តិ" : "Auto-plan"}
                 doneLabel={km ? "រួចរាល់" : "Done"}
+                confirm={warn(km ? "ប្រអប់ទទេនឹងត្រូវបំពេញ។" : "Empty boxes are filled in.")}
                 className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-soft"
               />
               <ActionButton
@@ -285,7 +296,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                 icon={<Wand2 size={14} />}
                 label={km ? "រៀបចំឡើងវិញ" : "Re-plan"}
                 doneLabel={km ? "រួចរាល់" : "Done"}
-                confirm={km ? "រៀបចំឡើងវិញទាំងអស់សម្រាប់សប្តាហ៍នេះ? វេនដែលកែដោយដៃនឹងត្រូវជំនួស។" : "Re-plan the whole week? Boxes changed by hand will be replaced."}
+                confirm={warn(km ? "វេនដែលកែដោយដៃនឹងត្រូវរៀបឡើងវិញ (ការជំនួស និងការដូរវេននៅដដែល)។" : "Boxes changed by hand are planned again (covers and swaps stay).")}
                 className="text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50"
               />
               <ActionButton
@@ -293,6 +304,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                 icon={<Copy size={14} />}
                 label={L.copy}
                 doneLabel={km ? "បានចម្លង" : "Copied"}
+                confirm={warn(km ? "វេនសប្តាហ៍មុននឹងត្រូវចម្លងមក។" : "Last week's shifts are copied in.")}
                 className="text-[#1D4ED8] ring-1 ring-[#BFDBFE] hover:bg-[#EEF2FF]"
               />
             </div>
@@ -305,10 +317,14 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
               {k !== "off" && <span className="font-semibold text-ink/40">{shiftTimes[k]}</span>}
             </span>
           ))}
+          <span className="w-full text-[11px] font-semibold text-ink/45 md:ml-auto md:w-auto">
+            {km ? "ជំនួស = តែមួយថ្ងៃ (ថ្ងៃបន្ទាប់ត្រឡប់ទៅវេនធម្មតា) · ដូរវេន = នៅដដែលរហូត" : "Cover = that day only (the normal shift comes back next day) · Swap = stays"}
+          </span>
         </div>
         <RosterGrid
           km={km}
-          editable={manager}
+          teamLabel={teamLabel}
+          editable={planner}
           compact={view === "month"}
           times={shiftTimes}
           save={saveRosterWeek}
@@ -377,7 +393,13 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                     })()}
                     <div className="mt-2 flex justify-end gap-2">
                       <ActionButton action={decideShiftRequest.bind(null, r.id, false)} icon={<XCircle size={14} />} label={L.no} className="text-red-600 ring-1 ring-red-200 hover:bg-red-50" />
-                      <ActionButton action={decideShiftRequest.bind(null, r.id, true)} icon={<CheckCircle2 size={14} />} label={L.yes} className="bg-emerald-600 text-white hover:bg-emerald-700" />
+                      <ActionButton
+                        action={decideShiftRequest.bind(null, r.id, true)}
+                        icon={<CheckCircle2 size={14} />}
+                        label={L.yes}
+                        confirm={km ? `នៅថ្ងៃ ${dateLabel(r.roster.day)} នឹងមានការកែប្រែកាលវិភាគក្រុម៖ ${nameOf.get(r.taken_by)} ${r.kind === "cover" ? "ជំនួស" : "ដូរវេនជាមួយ"} ${nameOf.get(r.from_user)}។\n\nក្រុមនឹងទទួលសារជូនដំណឹង។ យល់ព្រមទេ?` : `On ${dateLabel(r.roster.day)} the team schedule changes: ${nameOf.get(r.taken_by)} ${r.kind === "cover" ? "covers" : "swaps with"} ${nameOf.get(r.from_user)}.\n\nThe team gets a message. Approve?`}
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                      />
                     </div>
                   </div>
                 ))}

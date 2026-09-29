@@ -8,6 +8,7 @@ import { staffAccess, openShift, leaveUsage } from "@/lib/server/staff";
 import { getStaffSettings } from "@/lib/server/staff-settings";
 import { planWeek, mondayOf, ROSTER_SECTIONS, type RosterSection } from "@/lib/server/roster";
 import { notify, tg } from "@/lib/server/telegram";
+import { announce, announceChanges, snapshot } from "@/lib/server/roster-notice";
 
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
@@ -254,6 +255,8 @@ export async function saveEventCount(ref: string, formData: FormData) {
 }
 
 const isManager = (access: Awaited<ReturnType<typeof staffAccess>>) => access.admin || access.perms.has("reports");
+/** Who may change the schedule: the admin, and positions the admin gave "change the schedule". */
+const canPlan = (access: Awaited<ReturnType<typeof staffAccess>>) => access.admin || access.perms.has("roster");
 const localToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
 
 // ── Tasks given by a manager ──────────────────────────────────────────
@@ -426,7 +429,7 @@ const isDay = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 /** Manager: save a week grid (cells named s_<userId>_<day>). */
 export async function saveRosterWeek(formData: FormData) {
   const { id, access } = await me();
-  if (!isManager(access)) throw new Error("Only managers can plan the schedule.");
+  if (!canPlan(access)) throw new Error("Only people allowed to change the schedule.");
   const db = createServiceRoleClient();
   const put: any[] = [];
   const del: { user_id: string; day: string }[] = [];
@@ -437,8 +440,13 @@ export async function saveRosterWeek(formData: FormData) {
     if (!val) del.push({ user_id: m[1], day: m[2] });
     else if (SHIFTS.includes(val)) put.push({ user_id: m[1], day: m[2], shift: val, created_by: id, updated_at: new Date().toISOString() });
   }
+  const { data: was } = put.length + del.length ? await db.from("staff_roster").select("user_id, day, shift").in("user_id", [...new Set([...put, ...del].map((x) => x.user_id))]).in("day", [...new Set([...put, ...del].map((x) => x.day))]) : { data: [] as any[] };
   if (put.length) await db.from("staff_roster").upsert(put, { onConflict: "user_id,day" });
   for (const d of del) await db.from("staff_roster").delete().eq("user_id", d.user_id).eq("day", d.day);
+  // tell the team which days changed
+  const before = new Map((was ?? []).map((r: any) => [`${r.user_id}_${r.day}`, r.shift]));
+  const changed = [...put.filter((x) => before.get(`${x.user_id}_${x.day}`) !== x.shift), ...del.filter((x) => before.has(`${x.user_id}_${x.day}`))].map((x) => ({ user: x.user_id, day: x.day }));
+  if (changed.length) await announce(changed, id);
   revalidatePath("/staff/roster");
 }
 /** Manager: copy the week before into this week (for the people listed). */
@@ -450,7 +458,7 @@ export async function saveRosterWeek(formData: FormData) {
  */
 export async function copyLastWeek(weekStart: string, userIds: string[]) {
   const { id, access } = await me();
-  if (!isManager(access) || !isDay(weekStart)) throw new Error("Only managers.");
+  if (!canPlan(access) || !isDay(weekStart)) throw new Error("Only managers.");
   const db = createServiceRoleClient();
   const shift = (d: string, n: number) => {
     const t = new Date(`${d}T12:00:00Z`);
@@ -473,11 +481,13 @@ export async function copyLastWeek(weekStart: string, userIds: string[]) {
     // this week's holidays and leave win
     .filter((r) => !holidays.has(r.day) && !onLeave(r.user_id, r.day))
     .map((r) => ({ ...r, note: null, created_by: id, updated_at: new Date().toISOString() }));
+  const before = await snapshot(weekStart, end);
   // this week becomes last week's pattern (cover/swap/leave boxes stay)
   await db.from("staff_roster").delete().in("user_id", userIds).gte("day", weekStart).lte("day", end).is("note", null);
   if (rows.length) await db.from("staff_roster").upsert(rows, { onConflict: "user_id,day" });
   // the boxes that were left out (holidays, leave, new people) are planned by the rules
   await planWeek(weekStart, { by: id });
+  await announceChanges(before, await snapshot(weekStart, end), id);
   revalidatePath("/staff/roster");
 }
 
@@ -536,7 +546,7 @@ export async function cancelShiftRequest(requestId: string) {
 /** Manager approves (the schedule changes) or refuses. */
 export async function decideShiftRequest(requestId: string, approve: boolean) {
   const { id, access } = await me();
-  if (!isManager(access)) throw new Error("Only managers.");
+  if (!canPlan(access)) throw new Error("Only managers.");
   const db = createServiceRoleClient();
   const { data: r } = await db.from("staff_shift_requests").select("*").eq("id", requestId).in("status", ["open", "accepted"]).maybeSingle();
   if (!r) return;
@@ -548,6 +558,7 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
       // schedule, attendance and pay follow (see lib/server/cover.ts)
       const { applyCover } = await import("@/lib/server/cover");
       if (!(await applyCover(r.id, r.roster_id, r.from_user, r.taken_by, id))) return;
+      await announce([{ user: r.from_user, day: a.day }], id, "មានអ្នកជំនួស");
     } else {
       const { data: b } = await db.from("staff_roster").select("*").eq("id", r.swap_roster_id).maybeSingle();
       if (!b) return;
@@ -563,6 +574,11 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
       }
     }
   }
+  if (approve && r.kind === "swap") {
+    const { data: b2 } = await db.from("staff_roster").select("day").eq("id", r.swap_roster_id).maybeSingle();
+    const { data: a2 } = await db.from("staff_roster").select("day").eq("id", r.roster_id).maybeSingle();
+    await announce([a2 && { user: r.from_user, day: a2.day }, b2 && { user: r.taken_by, day: b2.day }].filter(Boolean) as { user: string; day: string }[], id, "ដូរវេន");
+  }
   await db.from("staff_shift_requests").update({ status: approve ? "approved" : "rejected", decided_by: id, decided_at: new Date().toISOString() }).eq("id", requestId);
   revalidatePath("/staff/roster");
 }
@@ -570,17 +586,24 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
 /** Manager: plan a week by the rules (fill empty boxes, or re-plan everything). */
 export async function autoFillWeek(weekStart: string, section: string | null, replace: boolean) {
   const { id, access } = await me();
-  if (!isManager(access) || !isDay(weekStart)) throw new Error("Only managers.");
+  if (!canPlan(access) || !isDay(weekStart)) throw new Error("Only managers.");
   // past days stay as they were (attendance was already counted on them)
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+  const weekEnd = (() => {
+    const t = new Date(`${weekStart}T12:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + 6);
+    return t.toISOString().slice(0, 10);
+  })();
+  const before = await snapshot(weekStart, weekEnd);
   await planWeek(weekStart, { section: (ROSTER_SECTIONS as string[]).includes(section ?? "") ? (section as RosterSection) : null, replace, by: id, from: today });
+  await announceChanges(before, await snapshot(weekStart, weekEnd), id);
   revalidatePath("/staff/roster");
 }
 
 /** Manager: the rules the automatic schedule follows. */
 export async function saveRosterRules(formData: FormData) {
-  const { access } = await me();
-  if (!isManager(access)) throw new Error("Only managers.");
+  const { id, access } = await me();
+  if (!canPlan(access)) throw new Error("Only managers.");
   const num = (k: string, d: number, max: number) => {
     const v = Number(formData.get(k));
     return Number.isFinite(v) && String(formData.get(k) ?? "") !== "" ? Math.max(0, Math.min(max, Math.round(v))) : d;
@@ -593,10 +616,13 @@ export async function saveRosterRules(formData: FormData) {
   // new rules apply straight away: this week (from today) and next week are planned again
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
   const monday = mondayOf(today);
-  await planWeek(monday, { replace: true, by: null, from: today });
   const next = new Date(`${monday}T12:00:00Z`);
   next.setUTCDate(next.getUTCDate() + 7);
+  const end = new Date(next.getTime() + 6 * 864e5).toISOString().slice(0, 10);
+  const before = await snapshot(today, end);
+  await planWeek(monday, { replace: true, by: null, from: today });
   await planWeek(next.toISOString().slice(0, 10), { replace: true, by: null, from: today });
+  await announceChanges(before, await snapshot(today, end), id, "ច្បាប់កាលវិភាគថ្មី");
   revalidatePath("/staff/roster");
 }
 
@@ -623,4 +649,22 @@ export async function addDayOff(formData: FormData) {
   const { setDayOff } = await import("@/lib/server/holidays");
   await setDayOff(day, true, name, id, new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date()));
   revalidatePath("/staff", "layout");
+}
+
+/**
+ * Admin or manager: turn a staff account off, remove it, or turn it back on.
+ * Off / removed: can't sign in, signed out everywhere, taken off the schedule
+ * from today. Only an admin or a manager can turn it on again.
+ */
+export async function setStaffAccount(userId: string, status: "active" | "suspended" | "left") {
+  const { id, access } = await me();
+  if (!isManager(access) || userId === id || !["active", "suspended", "left"].includes(status)) throw new Error("Not allowed.");
+  const { data: target } = await createServiceRoleClient().from("staff_members").select("position:staff_positions(permissions)").eq("user_id", userId).maybeSingle();
+  if (!target) throw new Error("Not a staff member.");
+  // a manager can't switch off another manager (only the admin can)
+  if (!access.admin && ((target as any).position?.permissions ?? []).includes("reports")) throw new Error("Only the admin can change a manager's account.");
+  const { setStaffStatus } = await import("@/lib/server/staff-account");
+  await setStaffStatus(userId, status);
+  revalidatePath("/staff", "layout");
+  revalidatePath("/admin/staff");
 }

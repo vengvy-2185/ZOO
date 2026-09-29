@@ -113,7 +113,10 @@ export async function updateStaff(userId: string, formData: FormData) {
   if (name) await db.from("profiles").update({ full_name: name }).eq("id", userId);
   // Suspended / left: they can no longer sign in to the staff area (checked on every request)
   // and their card's QR shows "not valid". Signing out other sessions right away:
-  if (status === "suspended" || status === "left") await db.auth.admin.signOut(userId).catch(() => {});
+  if (["active", "suspended", "left"].includes(status)) {
+    const { setStaffStatus } = await import("@/lib/server/staff-account");
+    await setStaffStatus(userId, status as "active" | "suspended" | "left");
+  }
   done();
 }
 

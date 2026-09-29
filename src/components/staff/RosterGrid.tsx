@@ -27,6 +27,7 @@ export function RosterGrid({
   times,
   save,
   need,
+  teamLabel,
 }: {
   days: GridDay[];
   groups: GridGroup[];
@@ -38,12 +39,15 @@ export function RosterGrid({
   save: (fd: FormData) => Promise<void>;
   /** people needed each day (morning / afternoon) for the teams shown */
   need?: { am: number; pm: number };
+  /** the team shown, for the "the schedule will change" check before saving */
+  teamLabel?: string;
 }) {
   const router = useRouter();
   const [changes, setChanges] = useState<Record<string, Shift | "">>({});
   const [menu, setMenu] = useState<{ key: string; top: number; left: number } | null>(null);
   const [pending, start] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [asking, setAsking] = useState(false);
   const dirty = Object.keys(changes).length;
 
   // new data from the server replaces local edits that were saved
@@ -112,12 +116,12 @@ export function RosterGrid({
   return (
     <>
       <div className="no-scrollbar overflow-x-auto">
-        <table className="w-full border-separate border-spacing-0 text-sm">
+        <table className={cn("w-full table-fixed border-separate border-spacing-0 text-sm", compact ? "min-w-[64rem]" : "min-w-[46rem]")}>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 min-w-[8.5rem] bg-white px-3 py-2 text-left text-xs font-bold text-ink/45 md:min-w-[11rem]">{L.name}</th>
+              <th className="sticky left-0 z-10 w-[8.5rem] bg-white px-3 py-2 text-left text-xs font-bold text-ink/45 md:w-[11rem]">{L.name}</th>
               {days.map((d) => (
-                <th key={d.day} className={cn("px-1 py-2 text-center text-[11px] font-bold", d.today ? "text-[#1D4ED8]" : "text-ink/45", compact ? "min-w-[2.6rem]" : "min-w-[5.5rem]")}>
+                <th key={d.day} className={cn("px-1 py-2 text-center text-[11px] font-bold", d.today ? "text-[#1D4ED8]" : "text-ink/45")}>
                   <span className="block">{d.name}</span>
                   <span className={cn("mx-auto mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs", d.today && "bg-[#1D4ED8] text-white")}>{d.num}</span>
                 </th>
@@ -174,6 +178,43 @@ export function RosterGrid({
         </>
       )}
 
+      {/* "the schedule will change on …" before saving */}
+      {asking && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => setAsking(false)}>
+          <div className="w-full max-w-md animate-[gwzPop_.2s_ease-out_both] rounded-3xl bg-white p-5 text-ink shadow-lift" onClick={(e) => e.stopPropagation()}>
+            <p className="font-display text-lg font-extrabold text-forest">{km ? "បញ្ជាក់ការកែកាលវិភាគ" : "Confirm the schedule change"}</p>
+            <p className="mt-2 text-sm text-ink/70">
+              {km ? `នៅថ្ងៃខាងក្រោម នឹងមានការកែប្រែកាលវិភាគ សម្រាប់${teamLabel ?? "ក្រុម"}៖` : `The schedule of ${teamLabel ?? "the team"} will change on:`}
+            </p>
+            <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+              {[...new Set(Object.keys(changes).map((k) => k.slice(37)))].sort().map((day) => {
+                const who = Object.keys(changes).filter((k) => k.slice(37) === day).map((k) => groups.flatMap((x) => x.people).find((p) => p.id === k.slice(0, 36))?.name).filter(Boolean);
+                return (
+                  <li key={day} className="rounded-xl bg-[#EEF2FF] px-3 py-2 text-sm">
+                    <b className="text-[#1E3A8A]">{new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC", numberingSystem: "latn" }).format(new Date(`${day}T12:00:00Z`))}</b>
+                    <span className="block text-xs text-ink/60">{who.join(", ")}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-xs font-semibold text-ink/50">{km ? "ក្រុមនឹងទទួលសារជូនដំណឹងក្នុងជជែកក្រុម។" : "The team gets a message in its chat."}</p>
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setAsking(false)} className="flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-bold text-ink/65">{km ? "ត្រឡប់" : "Back"}</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsking(false);
+                  saveAll();
+                }}
+                className="flex-1 rounded-2xl bg-forest py-3 text-sm font-extrabold text-white"
+              >
+                {km ? "បាទ/ចាស រក្សាទុក" : "Yes, save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* save bar */}
       {editable && (dirty > 0 || saved) && (
         <div className="sticky bottom-20 z-30 mx-3 mb-3 mt-2 flex animate-[gwzPop_.25s_ease-out_both] items-center gap-2 rounded-2xl bg-forest p-2 pl-4 text-white shadow-lift md:bottom-4">
@@ -185,7 +226,7 @@ export function RosterGrid({
               <button type="button" disabled={pending} onClick={() => setChanges({})} className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold text-white/80 transition hover:bg-white/10 active:scale-95">
                 <X size={15} /> {L.undo}
               </button>
-              <button type="button" disabled={pending} onClick={saveAll} className="inline-flex items-center gap-1.5 rounded-full bg-leaf px-5 py-2 text-sm font-extrabold text-forest transition active:scale-95 disabled:opacity-80">
+              <button type="button" disabled={pending} onClick={() => setAsking(true)} className="inline-flex items-center gap-1.5 rounded-full bg-leaf px-5 py-2 text-sm font-extrabold text-forest transition active:scale-95 disabled:opacity-80">
                 {pending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {pending ? L.saving : L.save}
               </button>
             </>
@@ -225,7 +266,8 @@ function GroupRows({ g, days, compact, editable, km, value, changes, cells, open
               <span className="text-ink/20">·</span>
             );
             return (
-              <td key={d.day} className={cn("border-t border-black/5 px-1 py-1.5 text-center", d.today && "bg-[#EEF2FF]/60", p.me && "bg-[#F8FAFF]")}>
+              <td key={d.day} className={cn("border-t border-black/5 px-1 py-1.5 text-center align-top", d.today && "bg-[#EEF2FF]/60", p.me && "bg-[#F8FAFF]")}>
+                <div className={cn("flex flex-col justify-start", compact ? "h-[2.9rem]" : "h-[3.4rem]")}>
                 {editable ? (
                   <button type="button" onClick={(e) => openMenu(k, e.currentTarget)} className={cn("relative block w-full rounded-lg transition duration-150 hover:-translate-y-0.5 active:scale-90", changed && "ring-2 ring-violet-500 ring-offset-1")}>
                     {badge}
@@ -238,8 +280,9 @@ function GroupRows({ g, days, compact, editable, km, value, changes, cells, open
                     {note === "cover" ? (km ? `ជំនួស ${cells[k]!.with}` : `for ${cells[k]!.with}`) : km ? `ជំនួសដោយ ${cells[k]!.with}` : `by ${cells[k]!.with}`}
                   </span>
                 ) : (
-                  note && !compact && !changed && <span className="mt-0.5 block text-[9px] font-bold uppercase text-ink/35">{note === "cover" ? (km ? "ជំនួស" : "cover") : note === "swap" ? (km ? "ដូរ" : "swap") : note === "leave" ? (km ? "ច្បាប់" : "leave") : ""}</span>
+                  note && !compact && !changed && <span className="mt-0.5 block truncate text-[9px] font-bold uppercase text-ink/35">{note === "cover" ? (km ? "ជំនួស" : "cover") : note === "swap" ? (km ? "ដូរ" : "swap") : note === "leave" ? (km ? "ច្បាប់" : "leave") : ""}</span>
                 )}
+                </div>
               </td>
             );
           })}
