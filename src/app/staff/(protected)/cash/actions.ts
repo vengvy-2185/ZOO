@@ -8,6 +8,7 @@ import { expectedCash, usd } from "@/lib/server/cash";
 import { zooToday } from "@/lib/data/gate";
 import { notify, tg } from "@/lib/server/telegram";
 
+import { audit } from "@/lib/server/audit";
 export type CashState = { ok?: boolean; error?: string };
 
 async function me() {
@@ -74,6 +75,7 @@ export async function submitCashClose(_prev: CashState, formData: FormData): Pro
 /** Managers check a close: approve it, or flag it to look into. */
 export async function reviewCashClose(closeId: string, status: "approved" | "flagged" | "submitted") {
   const { id, access } = await me();
+  await audit("cash.review", "staff_cash_closes", closeId, { status });
   if (!(access.admin || access.perms.has("reports"))) throw new Error("Only managers.");
   if (!["approved", "flagged", "submitted"].includes(status)) throw new Error("invalid");
   await createServiceRoleClient()

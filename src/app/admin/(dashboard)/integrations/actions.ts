@@ -8,6 +8,7 @@ import { recentChats, sendTelegram } from "@/lib/server/telegram";
 import { checkAccount } from "@/lib/server/bakong";
 import { resolveImage } from "@/lib/admin/upload";
 
+import { audit } from "@/lib/server/audit";
 // Server actions run as POST requests to the admin page, so they re-check
 // the admin role themselves before touching secrets with the service role.
 async function requireAdmin() {
@@ -24,6 +25,7 @@ async function save(key: "payment" | "tts" | "telegram", value: object) {
 
 export async function savePayment(formData: FormData) {
   await requireAdmin();
+  await audit("settings.payment", "private_settings");
   const current = await getPrivateSetting<PaymentSettings>("payment");
   const account = str(formData, "bakong_account_id");
   // A Bakong ID is name@bank (no dot after the @) — an email address is a common mix-up.
@@ -58,6 +60,7 @@ export async function testPayment() {
 
 export async function saveTts(formData: FormData) {
   await requireAdmin();
+  await audit("settings.tts", "private_settings");
   const current = await getPrivateSetting<TtsSettings>("tts");
   const next: TtsSettings = {
     azure_key: str(formData, "azure_key") === "-" ? undefined : str(formData, "azure_key") || current.azure_key,
@@ -72,6 +75,7 @@ export async function saveTts(formData: FormData) {
 
 export async function saveTelegram(formData: FormData) {
   await requireAdmin();
+  await audit("settings.telegram", "private_settings");
   const current = await getPrivateSetting<TelegramSettings>("telegram");
   const token = str(formData, "bot_token");
   if (token && token !== "-" && !/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(token)) redirect("/admin/integrations?msg=bad-telegram-token#telegram");

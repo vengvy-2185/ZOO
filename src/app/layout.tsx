@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/NavigationProgress";
 import { ScrollReveal } from "@/components/ScrollReveal";
@@ -32,8 +32,13 @@ export const metadata: Metadata = {
   description:
     "Explore Green Wild Zoo: individual animal profiles, digital storybooks, multi-language audio guides, an interactive zoo map, and digital tickets.",
   // Browsers still request /favicon.ico directly — point it at the SVG icon.
-  icons: { icon: "/icon.svg", shortcut: "/icon.svg" },
+  icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  // can be installed on a phone's home screen like an app
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Green Wild Zoo", statusBarStyle: "default" },
 };
+
+export const viewport: Viewport = { themeColor: "#176B3A" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = getLocale();

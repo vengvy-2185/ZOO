@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { staffAccess } from "@/lib/server/staff";
+import { needsSecondStep } from "@/lib/server/mfa";
 
 // middleware.ts verifies the user with Supabase Auth and forwards the id;
 // this layout is what actually enforces access: admins, or staff whose
@@ -11,5 +12,7 @@ export default async function StaffProtectedLayout({ children }: { children: Rea
   if (!userId) redirect("/staff/login");
   const access = await staffAccess(userId);
   if (!access.ok) redirect("/staff/login");
+  // an admin with two-step sign-in must enter the code here too
+  if (access.admin && (await needsSecondStep())) redirect("/admin/mfa?next=/staff");
   return <>{children}</>;
 }

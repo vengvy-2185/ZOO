@@ -9,6 +9,7 @@ import { ClockButton } from "@/components/staff/StaffForms";
 import { ensureHolidays } from "@/lib/server/holidays";
 import { ensureAutoRoster } from "@/lib/server/roster";
 import { MySection } from "@/components/staff/MySection";
+import { AppSetup } from "@/components/staff/AppSetup";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { clockIn, clockOut } from "./actions";
 import { getAttendanceSettings } from "@/lib/server/attendance";
@@ -154,6 +155,9 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
           </Link>
         </div>
       )}
+
+      {/* install the app + notifications (hides itself once set up) */}
+      <AppSetup km={km} compact />
 
       <MySection userId={userId} perms={access.perms} km={km} />
 

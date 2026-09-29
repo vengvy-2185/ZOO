@@ -108,7 +108,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const reqs = (requests ?? []) as any[];
   const colleaguesOfMe = new Set((staffRows ?? []).filter((p: any) => (p.position?.permissions ?? []).some((x: string) => mySections.includes(x as any))).map((p: any) => p.user_id));
   // only people on the staff list can take a cover (an admin account has no shifts or pay)
-  const forMe = reqs.filter((r) => Boolean(access.staff) && (r.status === "open" || r.taken_by === userId) && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || (r.kind === "swap" && r.swap?.user_id === userId)));
+  const forMe = reqs.filter((r) => Boolean(access.staff) && (r.status === "open" || r.taken_by === userId) && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || ((r.kind === "swap" || r.kind === "dayoff") && r.swap?.user_id === userId)));
   const mine = reqs.filter((r) => r.from_user === userId);
   const toApprove = planner ? reqs.filter((r) => r.status === "accepted") : [];
   // what each person already works on the days in the requests (to know if a cover fits)
@@ -119,6 +119,12 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
     .filter((r: any) => r.user_id !== userId && r.shift !== "off" && r.day >= today)
     .map((r: any) => ({ id: r.id, label: `${nameOf.get(r.user_id) ?? "—"} · ${dateLabel(r.day)} · ${km ? SHIFT[r.shift as Shift].km : SHIFT[r.shift as Shift].en}` }));
   const myWeek = days.slice(0, 7);
+  // day-off swaps: my plain days off, and my team-mates' plain days off (next 30 days)
+  const { data: offRows } = access.staff
+    ? await db.from("staff_roster").select("id, user_id, day").eq("shift", "off").is("note", null).gt("day", today).lte("day", addDays(today, 30)).in("user_id", [userId, ...[...colleaguesOfMe].filter((u) => u !== userId)]).order("day")
+    : { data: [] as any[] };
+  const myOff = (offRows ?? []).filter((r: any) => r.user_id === userId).map((r: any) => ({ id: r.id, label: dateLabel(r.day) }));
+  const othersOff = (offRows ?? []).filter((r: any) => r.user_id !== userId).map((r: any) => ({ id: r.id, label: `${nameOf.get(r.user_id) ?? "—"} · ${dateLabel(r.day)}` }));
   const teamLabel = section ? (km ? TASK_SECTIONS[section].km : TASK_SECTIONS[section].en) : km ? "ក្រុមទាំងអស់" : "all teams";
   const planFrom = (view === "week" ? weekStart : monday(today)) < today ? today : view === "week" ? weekStart : monday(today);
   const planTo = addDays(view === "week" ? weekStart : monday(today), 6);
@@ -364,7 +370,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
         {access.staff && (
           <section className="card p-5">
             <h2 className="mb-4 font-display text-xl font-extrabold text-forest">{L.ask}</h2>
-            <ShiftRequestForm km={km} mine={(myUpcoming ?? []).map((r: any) => ({ id: r.id, label: `${dateLabel(r.day)} · ${km ? SHIFT[r.shift as Shift].km : SHIFT[r.shift as Shift].en}` }))} others={others} />
+            <ShiftRequestForm km={km} mine={(myUpcoming ?? []).map((r: any) => ({ id: r.id, label: `${dateLabel(r.day)} · ${km ? SHIFT[r.shift as Shift].km : SHIFT[r.shift as Shift].en}` }))} others={others} myOff={myOff} othersOff={othersOff} />
           </section>
         )}
 
@@ -378,8 +384,8 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                   <div key={r.id} className="rounded-2xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
                     <p className="text-sm text-ink/75">
                       {r.kind === "cover" ? <LifeBuoy size={14} className="-mt-0.5 mr-1 inline text-red-500" /> : <ArrowLeftRight size={14} className="-mt-0.5 mr-1 inline text-[#1D4ED8]" />}
-                      <b>{nameOf.get(r.taken_by)}</b> {r.kind === "cover" ? (km ? "ជំនួស" : "covers") : km ? "ដូរជាមួយ" : "swaps with"} <b>{nameOf.get(r.from_user)}</b> · {dateLabel(r.roster.day)} ({km ? SHIFT[r.roster.shift as Shift].km : SHIFT[r.roster.shift as Shift].en})
-                      {r.kind === "swap" && r.swap && <> ⇄ {dateLabel(r.swap.day)} ({km ? SHIFT[r.swap.shift as Shift].km : SHIFT[r.swap.shift as Shift].en})</>}
+                      <b>{nameOf.get(r.taken_by)}</b> {(r.kind === "cover" ? (km ? "ជំនួស" : "covers") : r.kind === "dayoff" ? (km ? "ដូរថ្ងៃឈប់ជាមួយ" : "swaps days off with") : km ? "ដូរជាមួយ" : "swaps with")} <b>{nameOf.get(r.from_user)}</b> · {dateLabel(r.roster.day)} ({km ? SHIFT[r.roster.shift as Shift].km : SHIFT[r.roster.shift as Shift].en})
+                      {r.kind !== "cover" && r.swap && <> ⇄ {dateLabel(r.swap.day)} ({km ? SHIFT[r.swap.shift as Shift].km : SHIFT[r.swap.shift as Shift].en})</>}
                     </p>
                     <p className="mt-1 text-xs text-ink/50">“{r.reason}”</p>
                     {r.kind === "cover" && (() => {
@@ -397,7 +403,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                         action={decideShiftRequest.bind(null, r.id, true)}
                         icon={<CheckCircle2 size={14} />}
                         label={L.yes}
-                        confirm={km ? `នៅថ្ងៃ ${dateLabel(r.roster.day)} នឹងមានការកែប្រែកាលវិភាគក្រុម៖ ${nameOf.get(r.taken_by)} ${r.kind === "cover" ? "ជំនួស" : "ដូរវេនជាមួយ"} ${nameOf.get(r.from_user)}។\n\nក្រុមនឹងទទួលសារជូនដំណឹង។ យល់ព្រមទេ?` : `On ${dateLabel(r.roster.day)} the team schedule changes: ${nameOf.get(r.taken_by)} ${r.kind === "cover" ? "covers" : "swaps with"} ${nameOf.get(r.from_user)}.\n\nThe team gets a message. Approve?`}
+                        confirm={km ? `នៅថ្ងៃ ${dateLabel(r.roster.day)} នឹងមានការកែប្រែកាលវិភាគក្រុម៖ ${nameOf.get(r.taken_by)} ${r.kind === "cover" ? "ជំនួស" : r.kind === "dayoff" ? "ដូរថ្ងៃឈប់ជាមួយ" : "ដូរវេនជាមួយ"} ${nameOf.get(r.from_user)}។\n\nក្រុមនឹងទទួលសារជូនដំណឹង។ យល់ព្រមទេ?` : `On ${dateLabel(r.roster.day)} the team schedule changes: ${nameOf.get(r.taken_by)} ${r.kind === "cover" ? "covers" : "swaps with"} ${nameOf.get(r.from_user)}.\n\nThe team gets a message. Approve?`}
                         className="bg-emerald-600 text-white hover:bg-emerald-700"
                       />
                     </div>
@@ -418,7 +424,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                   <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-red-50/50 p-3 ring-1 ring-red-100">
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="font-bold text-forest">{nameOf.get(r.from_user)} · {dateLabel(r.roster.day)} · {km ? SHIFT[r.roster.shift as Shift].km : SHIFT[r.roster.shift as Shift].en}</p>
-                      <p className="text-xs text-ink/55">“{r.reason}”{r.kind === "swap" && r.swap && <> · {km ? "ដូរនឹងវេនរបស់អ្នក" : "for your shift"} {dateLabel(r.swap.day)}</>}</p>
+                      <p className="text-xs text-ink/55">“{r.reason}”{r.kind !== "cover" && r.swap && <> · {r.kind === "dayoff" ? (km ? "គាត់ធ្វើការថ្ងៃ" : "they work on") : km ? "ដូរនឹងវេនរបស់អ្នក" : "for your shift"} {dateLabel(r.swap.day)}{r.kind === "dayoff" && (km ? " ហើយអ្នកធ្វើការថ្ងៃ " + dateLabel(r.roster.day) : ` and you work ${dateLabel(r.roster.day)}`)}</>}</p>
                     </div>
                     {r.taken_by === userId ? (
                       // I said yes: now it waits for a manager
@@ -450,7 +456,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                 {mine.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-slate-50 p-3">
                     <div className="min-w-0 flex-1 text-sm">
-                      <p className="font-bold text-forest">{r.kind === "cover" ? L.cover : L.swap} · {dateLabel(r.roster.day)}</p>
+                      <p className="font-bold text-forest">{r.kind === "cover" ? L.cover : r.kind === "dayoff" ? (km ? "ដូរថ្ងៃឈប់" : "Day-off swap") : L.swap} · {dateLabel(r.roster.day)}</p>
                       <p className={cn("text-xs font-bold", r.status === "accepted" ? "text-emerald-600" : "text-amber-600")}>{L.st[r.status as "open" | "accepted"]}{r.taken_by && ` (${nameOf.get(r.taken_by)})`}</p>
                     </div>
                     <ActionButton action={cancelShiftRequest.bind(null, r.id)} label={L.cancel} className="text-ink/55 ring-1 ring-black/10 hover:text-red-600" />

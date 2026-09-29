@@ -9,7 +9,9 @@ import { getStaffSettings } from "@/lib/server/staff-settings";
 import { planWeek, mondayOf, ROSTER_SECTIONS, type RosterSection } from "@/lib/server/roster";
 import { notify, tg } from "@/lib/server/telegram";
 import { announce, announceChanges, snapshot } from "@/lib/server/roster-notice";
+import { sendPush, staffIds, managerIds } from "@/lib/server/push";
 
+import { audit } from "@/lib/server/audit";
 // Staff actions run with the service role, so each one first checks who is
 // signed in and what their position allows.
 
@@ -361,6 +363,7 @@ export async function sendSos(_prev: SosState, formData: FormData): Promise<SosS
   if (error) return { error: error.message };
   const SOS_KM: Record<string, string> = { medical: "សង្គ្រោះបន្ទាន់ / របួស", animal: "សត្វរត់ចេញ / គ្រោះថ្នាក់សត្វ", security: "សន្តិសុខ", fire: "អគ្គិភ័យ", child: "កុមារបាត់", other: "ផ្សេងៗ" };
   const hasGps = Number.isFinite(lat) && Number.isFinite(lng) && formData.get("lat");
+  await sendPush([...(await staffIds()), ...(await managerIds())].filter((u) => u !== id), { title: `🆘 SOS · ${SOS_KM[kind]}`, body: `${who(await staffAccess(id))}${place ? ` · ${place}` : ""}${note ? ` · ${note}` : ""}`, url: "/staff/sos", tag: "sos", urgent: true });
   await notify("sos", `🆘 <b>SOS · ${SOS_KM[kind]}</b>
 👤 ${tg(who((await staffAccess(id))))}${place ? `
 📍 ${tg(place)}` : ""}${note ? `
@@ -429,6 +432,7 @@ const isDay = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 /** Manager: save a week grid (cells named s_<userId>_<day>). */
 export async function saveRosterWeek(formData: FormData) {
   const { id, access } = await me();
+  await audit("roster.edit", "staff_roster", null, { boxes: [...formData.keys()].filter((k) => k.startsWith("s_")).length });
   if (!canPlan(access)) throw new Error("Only people allowed to change the schedule.");
   const db = createServiceRoleClient();
   const put: any[] = [];
@@ -458,6 +462,7 @@ export async function saveRosterWeek(formData: FormData) {
  */
 export async function copyLastWeek(weekStart: string, userIds: string[]) {
   const { id, access } = await me();
+  await audit("roster.copy", "staff_roster", null, { weekStart });
   if (!canPlan(access) || !isDay(weekStart)) throw new Error("Only managers.");
   const db = createServiceRoleClient();
   const shift = (d: string, n: number) => {
@@ -494,23 +499,46 @@ export async function copyLastWeek(weekStart: string, userIds: string[]) {
 export type ShiftReqState = { ok?: boolean; error?: string };
 /** Ask for someone to cover my shift, or offer to trade it for a colleague's. */
 export async function requestShiftChange(_prev: ShiftReqState, formData: FormData): Promise<ShiftReqState> {
-  const { id } = await me();
+  const { id, access } = await me();
   const kind = String(formData.get("kind") ?? "cover");
   const rosterId = String(formData.get("roster_id") ?? "");
   const swapId = String(formData.get("swap_roster_id") ?? "");
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
-  if (!["cover", "swap"].includes(kind) || !reason) return { error: "invalid" };
+  if (!["cover", "swap", "dayoff"].includes(kind) || !reason) return { error: "invalid" };
   const db = createServiceRoleClient();
-  const { data: mine } = await db.from("staff_roster").select("id, user_id, day, shift").eq("id", rosterId).maybeSingle();
-  if (!mine || mine.user_id !== id || mine.shift === "off" || mine.day < localToday()) return { error: "invalid" };
-  if (kind === "swap") {
-    const { data: other } = await db.from("staff_roster").select("id, user_id, day").eq("id", swapId).maybeSingle();
-    if (!other || other.user_id === id || other.day < localToday()) return { error: "invalid" };
+  const { data: mine } = await db.from("staff_roster").select("id, user_id, day, shift, note").eq("id", rosterId).maybeSingle();
+  // a cover or swap can be for today (sick this morning); a day-off swap is for a later day
+  if (!mine || mine.user_id !== id || mine.day < localToday() || (kind === "dayoff" && mine.day === localToday())) return { error: "invalid" };
+  if (kind === "dayoff" ? mine.shift !== "off" || mine.note : mine.shift === "off") return { error: "invalid" };
+  let otherUser: string | null = null;
+  if (kind !== "cover") {
+    const { data: other } = await db.from("staff_roster").select("id, user_id, day, shift, note").eq("id", swapId).maybeSingle();
+    if (!other || other.user_id === id || other.day < localToday() || (kind === "dayoff" && other.day === localToday())) return { error: "invalid" };
+    otherUser = other.user_id;
+    if (kind === "dayoff") {
+      // a plain day off each, on different days, and each works on the other's day off
+      if (other.shift !== "off" || other.note || other.day === mine.day) return { error: "invalid" };
+      const { data: cross } = await db.from("staff_roster").select("user_id, day, shift").in("user_id", [id, other.user_id]).in("day", [mine.day, other.day]);
+      const on = (u: string, d: string) => (cross ?? []).find((x: any) => x.user_id === u && x.day === d)?.shift;
+      const theyWorkMine = ["morning", "afternoon", "full"].includes(on(other.user_id, mine.day) ?? "");
+      const iWorkTheirs = ["morning", "afternoon", "full"].includes(on(id, other.day) ?? "");
+      if (!theyWorkMine || !iWorkTheirs) return { error: "dayoff" };
+    }
   }
   const { data: dup } = await db.from("staff_shift_requests").select("id").eq("roster_id", rosterId).in("status", ["open", "accepted"]).maybeSingle();
   if (dup) return { error: "exists" };
-  const { error } = await db.from("staff_shift_requests").insert({ kind, roster_id: rosterId, swap_roster_id: kind === "swap" ? swapId : null, from_user: id, reason });
+  const { error } = await db.from("staff_shift_requests").insert({ kind, roster_id: rosterId, swap_roster_id: kind === "cover" ? null : swapId, from_user: id, reason });
   if (error) return { error: error.message };
+  // phones: a cover goes to the team; a swap / day-off swap to the colleague asked
+  const name = who(access);
+  const dayTxt = new Intl.DateTimeFormat("km-KH", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC", numberingSystem: "latn" }).format(new Date(`${mine.day}T12:00:00Z`));
+  if (kind === "cover") {
+    const { teamOf } = await import("@/lib/server/roster");
+    const team = teamOf((access.staff as any)?.position?.permissions ?? []);
+    await sendPush((await staffIds(team)).filter((u) => u !== id), { title: "🆘 រកអ្នកជំនួសវេន", body: `${name} · ${dayTxt} · «${reason}»`, url: "/staff/roster", tag: `cover-${rosterId}` });
+  } else if (otherUser) {
+    await sendPush([otherUser], { title: kind === "dayoff" ? "📅 សំណើដូរថ្ងៃឈប់" : "🔁 សំណើដូរវេន", body: `${name} · ${dayTxt} · «${reason}»`, url: "/staff/roster", tag: `swap-${rosterId}` });
+  }
   revalidatePath("/staff/roster");
   return { ok: true };
 }
@@ -522,7 +550,7 @@ export async function acceptShiftRequest(requestId: string) {
   const db = createServiceRoleClient();
   const { data: r } = await db.from("staff_shift_requests").select("*, roster:roster_id(day, shift), swap:swap_roster_id(user_id)").eq("id", requestId).eq("status", "open").maybeSingle();
   if (!r || r.from_user === id) return;
-  if (r.kind === "swap" && (r as any).swap?.user_id !== id) return;
+  if ((r.kind === "swap" || r.kind === "dayoff") && (r as any).swap?.user_id !== id) return;
   if (r.kind === "cover") {
     // not for someone who already works those hours that day (the other half is fine: it becomes a full day)
     const { data: busy } = await db.from("staff_roster").select("shift").eq("user_id", id).eq("day", (r as any).roster.day).maybeSingle();
@@ -530,6 +558,8 @@ export async function acceptShiftRequest(requestId: string) {
     if (coverFit(busy?.shift, (r as any).roster.shift) === "clash") throw new Error("Same hours as your own shift.");
   }
   await db.from("staff_shift_requests").update({ status: "accepted", taken_by: id }).eq("id", requestId).eq("status", "open");
+  await sendPush([r.from_user], { title: "✅ មានអ្នកទទួលសំណើរបស់អ្នក", body: `${who(access)} · រង់ចាំអ្នកគ្រប់គ្រងអនុម័ត`, url: "/staff/roster", tag: `req-${requestId}` });
+  await sendPush(await managerIds(), { title: "⏳ សំណើរង់ចាំអនុម័ត", body: `${who(access)} ${r.kind === "cover" ? "ជំនួស" : r.kind === "dayoff" ? "ដូរថ្ងៃឈប់ជាមួយ" : "ដូរវេនជាមួយ"} មិត្តរួមការងារ`, url: "/staff/roster", tag: `approve-${requestId}` });
   revalidatePath("/staff/roster");
 }
 /** The helper changes their mind before a manager decides: the request is open again. */
@@ -546,6 +576,7 @@ export async function cancelShiftRequest(requestId: string) {
 /** Manager approves (the schedule changes) or refuses. */
 export async function decideShiftRequest(requestId: string, approve: boolean) {
   const { id, access } = await me();
+  await audit(approve ? "roster.approve" : "roster.refuse", "staff_shift_requests", requestId);
   if (!canPlan(access)) throw new Error("Only managers.");
   const db = createServiceRoleClient();
   const { data: r } = await db.from("staff_shift_requests").select("*").eq("id", requestId).in("status", ["open", "accepted"]).maybeSingle();
@@ -554,7 +585,19 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
     if (!r.taken_by) return;
     const { data: a } = await db.from("staff_roster").select("*").eq("id", r.roster_id).maybeSingle();
     if (!a) return;
-    if (r.kind === "cover") {
+    if (r.kind === "dayoff") {
+      const { data: b } = await db.from("staff_roster").select("*").eq("id", r.swap_roster_id).maybeSingle();
+      if (!b) return;
+      for (const day of [a.day, b.day]) {
+        const { data: rows } = await db.from("staff_roster").select("id, user_id, shift").in("user_id", [r.from_user, r.taken_by]).eq("day", day);
+        const x = (rows ?? []).find((q: any) => q.user_id === r.from_user);
+        const y = (rows ?? []).find((q: any) => q.user_id === r.taken_by);
+        if (!x || !y) return;
+        await db.from("staff_roster").update({ shift: y.shift, note: "swap", updated_at: new Date().toISOString() }).eq("id", x.id);
+        await db.from("staff_roster").update({ shift: x.shift, note: "swap", updated_at: new Date().toISOString() }).eq("id", y.id);
+      }
+      await announce([{ user: r.from_user, day: a.day }, { user: r.taken_by, day: b.day }], id, "ដូរថ្ងៃឈប់");
+    } else if (r.kind === "cover") {
       // schedule, attendance and pay follow (see lib/server/cover.ts)
       const { applyCover } = await import("@/lib/server/cover");
       if (!(await applyCover(r.id, r.roster_id, r.from_user, r.taken_by, id))) return;
@@ -580,12 +623,14 @@ export async function decideShiftRequest(requestId: string, approve: boolean) {
     await announce([a2 && { user: r.from_user, day: a2.day }, b2 && { user: r.taken_by, day: b2.day }].filter(Boolean) as { user: string; day: string }[], id, "ដូរវេន");
   }
   await db.from("staff_shift_requests").update({ status: approve ? "approved" : "rejected", decided_by: id, decided_at: new Date().toISOString() }).eq("id", requestId);
+  await sendPush([r.from_user, r.taken_by].filter(Boolean), { title: approve ? "✅ សំណើត្រូវបានអនុម័ត" : "❌ សំណើមិនត្រូវបានអនុម័ត", body: approve ? "កាលវិភាគត្រូវបានកែតាមសំណើ។ សូមពិនិត្យវេនរបស់អ្នក។" : "កាលវិភាគនៅដដែល។", url: "/staff/roster", tag: `req-${requestId}` });
   revalidatePath("/staff/roster");
 }
 
 /** Manager: plan a week by the rules (fill empty boxes, or re-plan everything). */
 export async function autoFillWeek(weekStart: string, section: string | null, replace: boolean) {
   const { id, access } = await me();
+  await audit("roster.plan", "staff_roster", null, { weekStart, section, replace });
   if (!canPlan(access) || !isDay(weekStart)) throw new Error("Only managers.");
   // past days stay as they were (attendance was already counted on them)
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
@@ -603,6 +648,7 @@ export async function autoFillWeek(weekStart: string, section: string | null, re
 /** Manager: the rules the automatic schedule follows. */
 export async function saveRosterRules(formData: FormData) {
   const { id, access } = await me();
+  await audit("roster.rules", "staff_settings");
   if (!canPlan(access)) throw new Error("Only managers.");
   const num = (k: string, d: number, max: number) => {
     const v = Number(formData.get(k));
@@ -635,6 +681,7 @@ export async function saveRosterRules(formData: FormData) {
 /** Manager: turn a day into a day off (holiday) or back into a working day. */
 export async function toggleDayOff(day: string, off: boolean) {
   const { id, access } = await me();
+  await audit("roster.dayoff", "staff_holidays", null, { day, off });
   if (!isManager(access) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Only managers.");
   const { setDayOff } = await import("@/lib/server/holidays");
   await setDayOff(day, off, "", id, new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date()));
@@ -658,6 +705,7 @@ export async function addDayOff(formData: FormData) {
  */
 export async function setStaffAccount(userId: string, status: "active" | "suspended" | "left") {
   const { id, access } = await me();
+  await audit("staff.account", "staff_members", userId, { status });
   if (!isManager(access) || userId === id || !["active", "suspended", "left"].includes(status)) throw new Error("Not allowed.");
   const { data: target } = await createServiceRoleClient().from("staff_members").select("position:staff_positions(permissions)").eq("user_id", userId).maybeSingle();
   if (!target) throw new Error("Not a staff member.");

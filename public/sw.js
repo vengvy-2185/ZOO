@@ -7,7 +7,7 @@
    Pages from the signed-in areas (/staff, /admin, /account…) are kept apart
    and removed on sign-out or when someone else signs in on the device. */
 
-const VERSION = "v2"; // a new version removes the pages saved by the old one
+const VERSION = "v3"; // a new version removes the pages saved by the old one
 const STATIC = `gwz-static-${VERSION}`;
 const PAGES = `gwz-pages-${VERSION}`;
 const PRIVATE = `gwz-private-${VERSION}`;
@@ -175,3 +175,44 @@ ${staff ? '<a href="/staff/scanner">ស្កេនសំបុត្រ · Scan
 <script>addEventListener("online",function(){location.reload()})</script></body></html>`;
   return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
+
+/* ── Phone notifications ─────────────────────────────── */
+self.addEventListener("push", (event) => {
+  let d = {};
+  try {
+    d = event.data ? event.data.json() : {};
+  } catch (e) {
+    d = { title: "Green Wild Zoo", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(d.title || "Green Wild Zoo", {
+      body: d.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/badge-72.png",
+      tag: d.tag || undefined,
+      renotify: Boolean(d.tag),
+      requireInteraction: Boolean(d.urgent),
+      vibrate: d.urgent ? [300, 120, 300, 120, 300] : [120, 60, 120],
+      data: { url: d.url || "/staff" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || "/staff", self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // an open window of the site: bring it forward on that page
+      for (const c of all) {
+        if (new URL(c.url).origin === self.location.origin && "focus" in c) {
+          await c.focus();
+          if ("navigate" in c) await c.navigate(url).catch(() => {});
+          return;
+        }
+      }
+      await self.clients.openWindow(url);
+    })()
+  );
+});

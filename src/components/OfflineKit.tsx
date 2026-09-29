@@ -45,7 +45,14 @@ export function OfflineKit() {
 
   // the service worker (production only: in development it would keep old files)
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
+    // the browser offers "install this app": keep the offer for the Install button (AppSetup)
+    const offer = (e: Event) => {
+      e.preventDefault();
+      (window as any).__gwzInstall = e;
+      window.dispatchEvent(new Event("gwz-install-ready"));
+    };
+    addEventListener("beforeinstallprompt", offer);
+    if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return () => removeEventListener("beforeinstallprompt", offer);
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
     const onMsg = (e: MessageEvent) => {
       if (e.data?.type === "was-cached" && e.data.url === location.href) setCachedPage(Boolean(e.data.cached));

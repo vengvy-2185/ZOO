@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, AlarmClock, XCircle, CalendarOff, Timer, ChevronLeft, ChevronRight, Sun, Sunset, Wallet } from "lucide-react";
+import { CheckCircle2, AlarmClock, XCircle, CalendarOff, Timer, ChevronLeft, ChevronRight, Sun, Sunset, Wallet, LifeBuoy, Clock3, Coffee } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { staffAccess, monthRange, thisMonth, staffTitle } from "@/lib/server/staff";
+import { staffAccess, monthRange, thisMonth, staffTitle, payroll } from "@/lib/server/staff";
 import { attendanceMonth, localDay, type DayMark } from "@/lib/server/attendance";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
@@ -33,9 +33,11 @@ export default async function AttendancePage({ searchParams }: { searchParams: {
   const km = locale === "km";
   const month = /^\d{4}-\d{2}$/.test(searchParams.month ?? "") ? searchParams.month! : thisMonth();
   const { start, end } = monthRange(month);
-  const [{ people }, { data: shifts }] = await Promise.all([
+  const [{ people }, { data: shifts }, [pay], { data: coverRows }] = await Promise.all([
     attendanceMonth(month, userId),
     createServiceRoleClient().from("staff_attendance").select("id, clock_in, clock_out").eq("user_id", userId).gte("clock_in", start.toISOString()).lt("clock_in", end.toISOString()).order("clock_in", { ascending: false }),
+    payroll(month, userId),
+    createServiceRoleClient().from("staff_roster").select("note").eq("user_id", userId).gte("day", `${month}-01`).lt("day", new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1)).toISOString().slice(0, 10)).in("note", ["cover", "covered"]),
   ]);
   const me = people[0];
   const today = localDay();
@@ -62,6 +64,16 @@ export default async function AttendancePage({ searchParams }: { searchParams: {
     { Icon: XCircle, k: L.absent, v: me?.absent ?? 0, sub: L.times, c: "from-rose-500 to-red-700" },
     { Icon: CalendarOff, k: L.leave, v: me?.leaveDays ?? 0, sub: "", c: "from-violet-500 to-purple-700" },
   ];
+  // this month in one card: hours, days off, covers, expected pay
+  const daysOff = allDays.filter((d) => me?.days[d] && ["off", "holiday"].includes(me.days[d].morning) && ["off", "holiday"].includes(me.days[d].afternoon)).length;
+  const coversDone = (coverRows ?? []).filter((r: any) => r.note === "cover").length;
+  const coveredMe = (coverRows ?? []).filter((r: any) => r.note === "covered").length;
+  const summary = [
+    { Icon: Clock3, k: km ? "ម៉ោងធ្វើការ" : "Hours worked", v: `${Math.round(hours * 10) / 10}`, sub: km ? "ម៉ោង" : "hours" },
+    { Icon: Coffee, k: km ? "ថ្ងៃឈប់" : "Days off", v: String(daysOff), sub: km ? "ថ្ងៃ (រួមទាំងថ្ងៃបុណ្យ)" : "days (with holidays)" },
+    { Icon: LifeBuoy, k: km ? "ជំនួសគេ" : "Covered for others", v: String(coversDone), sub: coveredMe ? (km ? `គេជំនួសខ្ញុំ ${coveredMe} ដង` : `others covered me ${coveredMe}×`) : km ? "ដង" : "times" },
+    { Icon: Wallet, k: km ? "ប្រាក់ខែប៉ាន់ស្មាន" : "Expected pay", v: pay ? `$${pay.gross.toFixed(2)}` : "—", sub: pay?.payslip ? (km ? "បានបើករួច ✓" : "paid ✓") : km ? "គិតដល់ថ្ងៃនេះ" : "so far this month" },
+  ];
   const worked = allDays.filter((d) => d <= today && me?.days[d] && ["ok", "late", "absent", "leave"].some((x) => me.days[d].morning === x || me.days[d].afternoon === x)).reverse();
 
   return (
@@ -83,6 +95,30 @@ export default async function AttendancePage({ searchParams }: { searchParams: {
           </div>
         ))}
       </div>
+      {/* this month in one card */}
+      <section className="card p-4 md:p-5">
+        <h2 className="mb-3 font-display text-lg font-extrabold text-forest">{km ? `សង្ខេប${monthLabel}` : `${monthLabel} in short`}</h2>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {summary.map((x) => (
+            <div key={x.k} className="rounded-2xl bg-[#F4F7FF] p-3 ring-1 ring-[#DBEAFE]">
+              <p className="flex items-center gap-1.5 text-sm font-bold text-[#1E3A8A]"><x.Icon size={16} /> {x.k}</p>
+              <p className="mt-1 font-display text-3xl font-extrabold tabular-nums text-forest">{x.v}</p>
+              <p className="text-xs font-semibold text-ink/50">{x.sub}</p>
+            </div>
+          ))}
+        </div>
+        {pay && pay.adjustments.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm">
+            {pay.adjustments.map((a) => (
+              <li key={a.id} className="flex justify-between gap-3 rounded-xl bg-slate-50 px-3 py-1.5">
+                <span className="min-w-0 truncate text-ink/70">{a.note}</span>
+                <span className={cn("font-mono font-bold", a.amount < 0 ? "text-red-600" : "text-emerald-700")}>{a.amount < 0 ? "−" : "+"}${Math.abs(a.amount).toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {(me?.deduction ?? 0) > 0 && (
         <p className="flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-base font-bold text-red-700 ring-1 ring-red-100"><Wallet size={18} /> {L.deduct}: ${me!.deduction.toFixed(2)}</p>
       )}

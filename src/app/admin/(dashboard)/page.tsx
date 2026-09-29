@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { VisitorsTrendChart, TicketSalesChart, RevenueChart } from "@/components/admin/DashboardCharts";
 import Link from "next/link";
+import { TodayBoard } from "@/components/admin/TodayBoard";
 import { getI18n } from "@/lib/i18n/server";
 import { num, formatFullDate } from "@/lib/utils/age";
 import { PawPrint, Dna, Users, Ticket, Wallet, Map as MapIcon, Plus, TrendingUp, PieChart, Cake, CheckCircle2 } from "lucide-react";
@@ -116,6 +117,9 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* today at the zoo: staff, covers, cash, visitors */}
+      <TodayBoard />
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
         {cards.map(([label, value, Icon, color, href]) => (

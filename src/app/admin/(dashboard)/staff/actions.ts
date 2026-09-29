@@ -9,6 +9,7 @@ import { getStaffSettings } from "@/lib/server/staff-settings";
 import { getMembers, ensureCard } from "@/lib/server/members";
 import { makePassword, staffEmail, monthRange, payroll, isStaffNo, type Permission, type PayType } from "@/lib/server/staff";
 
+import { audit } from "@/lib/server/audit";
 // Staff accounts are made here, and only here: an admin fills in the form,
 // the server creates the sign-in account (Staff ID + password), the staff
 // record, the "staff" role and the ID card in one go.
@@ -32,6 +33,7 @@ export type CreateStaffState = { ok: false; error?: string } | { ok: true; staff
 
 export async function createStaff(_prev: CreateStaffState, formData: FormData): Promise<CreateStaffState> {
   const adminId = await requireAdmin();
+  await audit("staff.create", "staff_members", null, { name: String(formData.get("full_name") ?? ""), position: String(formData.get("position_id") ?? "") });
   const name = str(formData, "full_name");
   const positionId = str(formData, "position_id");
   if (!name || !positionId) return { ok: false, error: "Name and position are required." };
@@ -95,6 +97,7 @@ export async function createStaff(_prev: CreateStaffState, formData: FormData): 
 
 export async function updateStaff(userId: string, formData: FormData) {
   await requireAdmin();
+  await audit("staff.update", "staff_members", userId, { name: String(formData.get("full_name") ?? ""), status: String(formData.get("status") ?? ""), position: String(formData.get("position_id") ?? "") });
   const db = createServiceRoleClient();
   const status = str(formData, "status");
   const name = str(formData, "full_name");
@@ -123,6 +126,7 @@ export async function updateStaff(userId: string, formData: FormData) {
 export type ResetState = { password?: string; error?: string };
 export async function resetStaffPassword(userId: string, _prev: ResetState): Promise<ResetState> {
   await requireAdmin();
+  await audit("staff.password", "staff_members", userId);
   const password = makePassword();
   const { error } = await createServiceRoleClient().auth.admin.updateUserById(userId, { password });
   return error ? { error: error.message } : { password };
@@ -142,6 +146,7 @@ function positionFields(f: FormData) {
 }
 export async function savePosition(id: string | null, formData: FormData) {
   await requireAdmin();
+  await audit("position.save", "staff_positions", id, { name: String(formData.get("name") ?? ""), rate: String(formData.get("rate") ?? ""), permissions: formData.getAll("permissions").map(String) });
   const row = positionFields(formData);
   if (!row.name) return;
   const db = createServiceRoleClient();
@@ -151,6 +156,7 @@ export async function savePosition(id: string | null, formData: FormData) {
 }
 export async function deletePosition(id: string) {
   await requireAdmin();
+  await audit("position.delete", "staff_positions", id);
   await createServiceRoleClient().from("staff_positions").delete().eq("id", id);
   done();
 }
@@ -158,6 +164,7 @@ export async function deletePosition(id: string) {
 // ── Payroll ───────────────────────────────────────────────────────────
 export async function addAdjustment(userId: string, month: string, formData: FormData) {
   const adminId = await requireAdmin();
+  await audit("pay.adjust", "staff_pay_adjustments", userId, { month, amount: String(formData.get("amount") ?? ""), note: String(formData.get("note") ?? "") });
   const amount = money(formData, "amount") * (str(formData, "sign") === "-" ? -1 : 1);
   const note = str(formData, "note");
   if (!amount || !note) return;
@@ -166,12 +173,14 @@ export async function addAdjustment(userId: string, month: string, formData: For
 }
 export async function removeAdjustment(id: string) {
   await requireAdmin();
+  await audit("pay.adjust.remove", "staff_pay_adjustments", id);
   await createServiceRoleClient().from("staff_pay_adjustments").delete().eq("id", id);
   done();
 }
 /** Freezes this month's figures into a payslip, marked paid now. */
 export async function markPaid(userId: string, month: string) {
   const adminId = await requireAdmin();
+  await audit("pay.paid", "staff_payslips", userId, { month });
   const [line] = await payroll(month, userId);
   if (!line) return;
   await createServiceRoleClient().from("staff_payslips").upsert(
@@ -194,6 +203,7 @@ export async function markPaid(userId: string, month: string) {
 }
 export async function unmarkPaid(userId: string, month: string) {
   await requireAdmin();
+  await audit("pay.unpaid", "staff_payslips", userId, { month });
   await createServiceRoleClient().from("staff_payslips").delete().eq("user_id", userId).eq("month", monthRange(month).first);
   done();
 }
@@ -201,13 +211,20 @@ export async function unmarkPaid(userId: string, month: string) {
 // ── Leave requests ────────────────────────────────────────────────────
 export async function decideLeave(id: string, formData: FormData) {
   const adminId = await requireAdmin();
+  await audit("leave.decide", "staff_leave_requests", id, { decision: String(formData.get("decision") ?? ""), note: String(formData.get("admin_note") ?? "") });
   const status = str(formData, "decision");
   if (!["approved", "rejected"].includes(status)) return;
-  await createServiceRoleClient()
+  const { data: lr } = await createServiceRoleClient()
     .from("staff_leave_requests")
     .update({ status, admin_note: str(formData, "admin_note") || null, decided_by: adminId, decided_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("user_id, start_date, end_date")
+    .maybeSingle();
+  if (lr) {
+    const { sendPush } = await import("@/lib/server/push");
+    await sendPush([lr.user_id], { title: status === "approved" ? "✅ ច្បាប់ឈប់ត្រូវបានអនុញ្ញាត" : "❌ ច្បាប់ឈប់មិនត្រូវបានអនុញ្ញាត", body: `${lr.start_date}${lr.end_date !== lr.start_date ? ` → ${lr.end_date}` : ""}${str(formData, "admin_note") ? ` · ${str(formData, "admin_note")}` : ""}`, url: "/staff/leave", tag: `leave-${id}` });
+  }
   done();
 }
 
@@ -234,6 +251,7 @@ export async function togglePin(id: string, pinned: boolean) {
 // ── Numbers and lists for the staff area ──────────────────────────────
 export async function saveStaffSettings(formData: FormData) {
   await requireAdmin();
+  await audit("settings.staff", "staff_settings");
   const num = (k: string, d: number, min: number, max: number) => {
     const n = Number(str(formData, k));
     return Number.isFinite(n) && str(formData, k) !== "" ? Math.round(Math.min(max, Math.max(min, n))) : d;

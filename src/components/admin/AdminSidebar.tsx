@@ -3,37 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  BarChart3,
-  PawPrint,
-  Tags,
-  Dna,
-  BookOpen,
-  Headphones,
-  Cake,
-  QrCode,
-  Map,
-  MapPinned,
-  Trees,
-  Fence,
-  Ticket,
-  ClipboardList,
-  Users,
-  Settings,
-  Menu,
-  X,
-  ExternalLink,
-  ScanLine,
-  Store,
-  HeartHandshake,
-  UserRoundPlus,
-  PlugZap,
-  Sticker,
-  Star,
-  Newspaper,
-  TicketPercent,
-  type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote } from "lucide-react";
+import { LayoutDashboard, BarChart3, PawPrint, Tags, Dna, BookOpen, Headphones, Cake, QrCode, Map, MapPinned, Trees, Fence, Ticket, ClipboardList, Users, Settings, Menu, X, ExternalLink, ScanLine, Store, HeartHandshake, UserRoundPlus, PlugZap, Sticker, Star, Newspaper, TicketPercent, type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote, FileSpreadsheet, History, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
@@ -100,6 +70,9 @@ const GROUPS: { title: GroupKey; items: { key: ItemKey; href: string; icon: Luci
     items: [
       { key: "settings", href: "/admin/settings", icon: Settings },
       { key: "integrations", href: "/admin/integrations", icon: PlugZap },
+      { key: "exports", href: "/admin/exports", icon: FileSpreadsheet },
+      { key: "activity", href: "/admin/activity", icon: History },
+      { key: "security", href: "/admin/security", icon: ShieldCheck },
     ],
   },
 ];

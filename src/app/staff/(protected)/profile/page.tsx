@@ -8,6 +8,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { IdCard } from "@/components/IdCard";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { PasswordForm, ProfileForm } from "@/components/staff/StaffForms";
+import { AppSetup } from "@/components/staff/AppSetup";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function StaffProfilePage() {
     <StaffShell active="profile" title={L.title} subtitle={L.sub}>
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_auto]">
         <div className="space-y-5">
+          <AppSetup km={km} />
           {s && (
             <section className="card p-5 md:p-6">
               <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-extrabold text-forest"><BadgeCheck size={20} className="text-[#1D4ED8]" /> {L.details}</h2>
