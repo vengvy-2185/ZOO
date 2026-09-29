@@ -7,13 +7,13 @@
    Pages from the signed-in areas (/staff, /admin, /account…) are kept apart
    and removed on sign-out or when someone else signs in on the device. */
 
-const VERSION = "v1";
+const VERSION = "v2"; // a new version removes the pages saved by the old one
 const STATIC = `gwz-static-${VERSION}`;
 const PAGES = `gwz-pages-${VERSION}`;
 const PRIVATE = `gwz-private-${VERSION}`;
 const META = "gwz-meta";
 const KEEP = [STATIC, PAGES, PRIVATE, META];
-const SLOW_MS = 5000; // a page that takes longer than this is shown from the device (when saved)
+const SLOW_MS = 25000; // online: wait this long for the server before showing a saved copy
 
 const PRIVATE_PATHS = [/^\/staff(\/|$)/, /^\/admin(\/|$)/, /^\/account(\/|$)/, /^\/my-tickets(\/|$)/];
 const NEVER = [/^\/api\//, /^\/auth\//, /^\/pay\//, /^\/checkout/, /^\/staff\/login/, /^\/admin\/login/, /^\/account\/login/, /^\/_next\/data\//];
@@ -71,7 +71,7 @@ self.addEventListener("fetch", (event) => {
   // Next.js page data for moving between pages in the app
   if (req.headers.get("RSC") === "1" || url.searchParams.has("_rsc")) {
     // on a dead connection, fail fast: Next then loads the whole page, which comes from the device
-    event.respondWith(fetchWithin(req, 8000).catch(() => Response.error()));
+    event.respondWith(fetchWithin(req, self.navigator && self.navigator.onLine === false ? 3000 : 20000).catch(() => Response.error()));
     return;
   }
 
@@ -138,9 +138,12 @@ async function page(event, req, url) {
   };
 
   try {
-    // wait for the internet, but not forever when a saved copy exists
-    const slow = new Promise((resolve) => setTimeout(() => resolve("slow"), SLOW_MS));
-    const first = await Promise.race([network, slow]);
+    // with internet, always the fresh page (a saved copy could be from before an update,
+    // and its forms would no longer work); a saved copy only when the internet is gone,
+    // or the server doesn't answer at all within a long wait
+    const offline = self.navigator && self.navigator.onLine === false;
+    const wait = new Promise((resolve) => setTimeout(() => resolve("slow"), offline ? 1500 : SLOW_MS));
+    const first = await Promise.race([network, wait]);
     if (first !== "slow") {
       // the server answered with an error (e.g. its database can't be reached): a saved copy is better
       if (first.status >= 500) return (await fromDevice()) || first;

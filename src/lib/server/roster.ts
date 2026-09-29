@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { planTeam, type PlanRow, type Shift } from "@/lib/roster-plan";
 
 export type RosterSection = "tickets" | "animals" | "cleaning" | "guide";
 export const ROSTER_SECTIONS: RosterSection[] = ["tickets", "animals", "cleaning", "guide"];
@@ -39,7 +40,7 @@ export function teamOf(perms: string[]): RosterSection | null {
   return ROSTER_SECTIONS.find((s) => perms.includes(s)) ?? null;
 }
 
-type Row = { user_id: string; day: string; shift: "morning" | "afternoon" | "full" | "off"; note: string | null };
+type Row = PlanRow;
 
 /**
  * Plans one week for every team (or one), following the admin's rules:
@@ -78,96 +79,20 @@ export async function planWeek(weekStart: string, opts: { section?: RosterSectio
 
   for (const sec of opts.section ? [opts.section] : ROSTER_SECTIONS) {
     const team = (staff ?? []).filter((p: any) => teamOf(p.position?.permissions ?? []) === sec).map((p: any) => p.user_id as string);
-    if (!team.length) continue;
-    const n = team.length;
-    const rot = (u: string) => (team.indexOf(u) + seed) % n;
-    const { am, pm } = rules.need[sec];
-    const open = days.filter((d) => !closed(d));
-    const fx = (u: string, d: string) => fixedShift.get(`${u}_${d}`);
-    // per open day: what the fixed boxes already give, and who is free to plan
-    const day = new Map(
-      open.map((d) => {
-        let fAm = 0;
-        let fPm = 0;
-        for (const u of team) {
-          const f = fx(u, d);
-          if (f === "morning" || f === "full") fAm++;
-          if (f === "afternoon" || f === "full") fPm++;
-        }
-        const free = team.filter((u) => !isFixed(u, d) && !onLeave(u, d));
-        return [d, { needAm: Math.max(0, am - fAm), needPm: Math.max(0, pm - fPm), free }];
+    rows.push(
+      ...planTeam({
+        team,
+        days,
+        closed,
+        onLeave,
+        fixed: (u, d) => fixedShift.get(`${u}_${d}`) as Shift | undefined,
+        isFixed,
+        need: rules.need[sec],
+        daysOff: rules.days_off,
+        allowFull: rules.allow_full,
+        seed,
       })
     );
-    // days off: everyone gets the number the rules give (a fixed "off" already
-    // counts), on the days where the team can spare someone most; a team too
-    // small to cover every day then shows those days as short
-    const off = new Map<string, Set<string>>(team.map((u) => [u, new Set<string>()]));
-    const slack = new Map(open.map((d) => {
-      const x = day.get(d)!;
-      const needPeople = rules.allow_full ? Math.max(x.needAm, x.needPm) : x.needAm + x.needPm;
-      return [d, x.free.length - needPeople];
-    }));
-    team.forEach((u, i) => {
-      const already = open.filter((d) => fx(u, d) === "off").length;
-      for (let k = already; k < rules.days_off; k++) {
-        // spread a person's days off over the week: prefer days far from the ones they already have
-        const mine = [...off.get(u)!, ...open.filter((d) => fx(u, d) === "off")].map((d) => open.indexOf(d));
-        const gap = (j: number) => (mine.length ? Math.min(...mine.map((m) => Math.abs(m - j))) : 0);
-        const order = open.map((d, j) => ({ d, j })).sort((a, b) => slack.get(b.d)! - slack.get(a.d)! || gap(b.j) - gap(a.j) || ((a.j + i * 2 + seed) % open.length) - ((b.j + i * 2 + seed) % open.length));
-        const pick = order.find((o) => !off.get(u)!.has(o.d) && day.get(o.d)!.free.includes(u));
-        if (!pick) break;
-        off.get(u)!.add(pick.d);
-        slack.set(pick.d, slack.get(pick.d)! - 1);
-      }
-    });
-    // share out mornings / afternoons evenly over the week
-    const count = new Map(team.map((u) => [u, { am: 0, pm: 0, full: 0 }]));
-    for (const u of team)
-      for (const d of open) {
-        const f = fx(u, d);
-        if (f === "morning" || f === "full") count.get(u)!.am++;
-        if (f === "afternoon" || f === "full") count.get(u)!.pm++;
-      }
-    for (const d of days) {
-      if (closed(d)) {
-        team.filter((u) => !isFixed(u, d)).forEach((u) => rows.push({ user_id: u, day: d, shift: "off", note: null }));
-        continue;
-      }
-      const { needAm, needPm, free } = day.get(d)!;
-      const working = free.filter((u) => !off.get(u)!.has(d));
-      team.filter((u) => !isFixed(u, d) && !working.includes(u)).forEach((u) => rows.push({ user_id: u, day: d, shift: "off", note: onLeave(u, d) ? "leave" : null }));
-      // short of people: some work the full day
-      const fulls = rules.allow_full ? Math.min(working.length, Math.max(0, needAm + needPm - working.length)) : 0;
-      const fullSet = new Set([...working].sort((a, b) => count.get(a)!.full - count.get(b)!.full || rot(a) - rot(b)).slice(0, fulls));
-      let amC = fullSet.size;
-      let pmC = fullSet.size;
-      for (const u of fullSet) {
-        rows.push({ user_id: u, day: d, shift: "full", note: null });
-        const c = count.get(u)!;
-        c.full++;
-        c.am++;
-        c.pm++;
-      }
-      // the rest: first whatever is still missing, then keep both halves even,
-      // giving each person the half they have done less
-      const rest2 = working.filter((u) => !fullSet.has(u)).sort((a, b) => count.get(a)!.am - count.get(a)!.pm - (count.get(b)!.am - count.get(b)!.pm) || rot(a) - rot(b));
-      for (const u of rest2) {
-        const c = count.get(u)!;
-        let wantAm: boolean;
-        if (amC < needAm && pmC >= needPm) wantAm = true;
-        else if (pmC < needPm && amC >= needAm) wantAm = false;
-        else if (amC < needAm && pmC < needPm) wantAm = needAm - amC > needPm - pmC ? true : needAm - amC < needPm - pmC ? false : c.am <= c.pm;
-        else wantAm = amC - needAm < pmC - needPm ? true : amC - needAm > pmC - needPm ? false : c.am <= c.pm;
-        if (wantAm) {
-          amC++;
-          c.am++;
-        } else {
-          pmC++;
-          c.pm++;
-        }
-        rows.push({ user_id: u, day: d, shift: wantAm ? "morning" : "afternoon", note: null });
-      }
-    }
   }
 
   const toSave = rows; // fixed boxes were never planned, so everything here is new

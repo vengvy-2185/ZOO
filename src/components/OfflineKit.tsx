@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { WifiOff, CloudUpload, CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { flush, pendingOps, onQueueChange, syncLog, markLogSeen, clearLog, isFlushing, currentUser, type LogEntry } from "@/lib/offline/queue";
@@ -20,11 +20,28 @@ export function OfflineKit() {
   const path = usePathname();
   const [online, setOnline] = useState(true);
   const [cachedPage, setCachedPage] = useState(false);
+  const fromCache = useRef(false);
+  useEffect(() => {
+    fromCache.current = cachedPage;
+  }, [cachedPage]);
   const [waiting, setWaiting] = useState(0);
   const [sending, setSending] = useState(false);
   const [justSent, setJustSent] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [open, setOpen] = useState(false);
+  const [healed, setHealed] = useState(false);
+
+  // the page reloaded itself after an error: say so, in case something typed was lost
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("gwz-healed")) {
+        sessionStorage.removeItem("gwz-healed");
+        setHealed(true);
+        const t = setTimeout(() => setHealed(false), 7000);
+        return () => clearTimeout(t);
+      }
+    } catch {}
+  }, []);
 
   // the service worker (production only: in development it would keep old files)
   useEffect(() => {
@@ -62,8 +79,15 @@ export function OfflineKit() {
     const net = () => {
       setOnline(navigator.onLine);
       if (navigator.onLine) {
-        setCachedPage(false);
         void flush();
+        // a page shown from the saved copy may be from an older version: load the fresh one
+        // (unless the person is typing something)
+        if (fromCache.current) {
+          const el = document.activeElement as HTMLInputElement | null;
+          const typing = el && /INPUT|TEXTAREA/.test(el.tagName) && el.value;
+          if (!typing) setTimeout(() => location.reload(), 800);
+        }
+        setCachedPage(false);
       }
     };
     net();
@@ -91,6 +115,13 @@ export function OfflineKit() {
     };
   }, []);
 
+  if (healed && online && !waiting && !log.length)
+    return (
+      <button type="button" onClick={() => setHealed(false)} className="fixed left-1/2 z-[70] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2 rounded-full bg-[#1D4ED8] px-4 py-2 text-xs font-extrabold text-white shadow-lift" style={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)" }} aria-live="polite">
+        <CheckCircle2 size={15} className="flex-shrink-0" />
+        <span className="truncate">{km ? "ទំព័រត្រូវបានផ្ទុកឡើងវិញ · បើអ្នកទើបបញ្ចូលអ្វីមួយ សូមបញ្ចូលម្តងទៀត" : "The page was refreshed · if you just entered something, please enter it again"}</span>
+      </button>
+    );
   const show = !online || cachedPage || waiting > 0 || justSent || log.length > 0;
   if (!show) return null;
 
