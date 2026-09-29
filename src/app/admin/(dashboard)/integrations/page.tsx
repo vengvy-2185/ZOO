@@ -1,10 +1,10 @@
-import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send } from "lucide-react";
+import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send, ShoppingBag, PhoneCall } from "lucide-react";
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
 import { SubmitButton, ImageUploadField } from "@/components/admin/ui-client";
 import { PaymentTest } from "@/components/admin/PaymentTest";
 import { bakongUsage } from "@/lib/server/payments";
-import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings } from "@/lib/server/private-settings";
-import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats } from "./actions";
+import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type ShopPaymentSettings, type TurnSettings } from "@/lib/server/private-settings";
+import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveShopPayment, saveTurn, testTurn } from "./actions";
 
 const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], string> = {
   sos: "SOS / emergency (always recommended)",
@@ -14,12 +14,21 @@ const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], string> = {
   cash: "Daily cash close (and any difference)",
   booking: "Paid online bookings",
   sync: "Work sent in late after the internet came back",
+  shop: "Souvenir shop sales (paid)",
+  live: "A staff member went live",
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage({ searchParams }: { searchParams: { msg?: string; test?: string; tg?: string; detail?: string } }) {
-  const [pay, tts, tele, usage] = await Promise.all([getPrivateSetting<PaymentSettings>("payment"), getPrivateSetting<TtsSettings>("tts"), getPrivateSetting<TelegramSettings>("telegram"), bakongUsage()]);
+  const [pay, tts, tele, usage, shop, turn] = await Promise.all([
+    getPrivateSetting<PaymentSettings>("payment"),
+    getPrivateSetting<TtsSettings>("tts"),
+    getPrivateSetting<TelegramSettings>("telegram"),
+    bakongUsage(),
+    getPrivateSetting<ShopPaymentSettings>("shop_payment"),
+    getPrivateSetting<TurnSettings>("turn"),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -176,6 +185,77 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           {usage.limited && <span className="w-full text-xs font-bold text-red-700">Limit reached: payments made now are confirmed automatically on the first check tomorrow. For busy days, ask NBC (api-bakong.nbc.gov.kh) for a higher daily limit.</span>}
         </div>
         <PaymentTest />
+
+        {/* ── Souvenir shop KHQR (its own account) ─────────────────────────────── */}
+        <form action={saveShopPayment} autoComplete="off" id="shop" className="scroll-mt-6">
+          <FormSection icon={ShoppingBag} title="Souvenir shop KHQR (a separate account)" hint="Shop sales get their own KHQR, so souvenir money goes to a different Bakong account from tickets. Sales are marked paid only when Bakong reports the transfer.">
+            <div className={`rounded-2xl p-3 text-sm font-bold ring-1 ${shop.enabled && shop.bakong_account_id && (shop.api_token || pay.api_token) ? "bg-light-green text-primary ring-primary/20" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>
+              {shop.enabled && shop.bakong_account_id && (shop.api_token || pay.api_token)
+                ? `Shop KHQR is on: money goes to ${shop.bakong_account_id}.`
+                : "Shop KHQR is off: sellers can still take cash. Add the shop's Bakong ID and turn it on."}
+            </div>
+            <label className="flex w-fit cursor-pointer items-center gap-3 rounded-2xl bg-cream px-4 py-3 text-sm font-semibold text-forest">
+              <input type="checkbox" name="enabled" defaultChecked={shop.enabled} className="h-5 w-5 accent-[#176B3A]" /> Turn on KHQR for shop sales
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Shop Bakong account ID" name="bakong_account_id" defaultValue={shop.bakong_account_id} placeholder="zooshop@aclb" autoComplete="off" spellCheck={false} data-1p-ignore data-lpignore="true" pattern="[A-Za-z0-9._\-]+@[A-Za-z0-9]+" title="name@bank" hint="The account that receives souvenir money (different from tickets if you like)." />
+              <Field label="Merchant name (on the QR)" name="merchant_name" defaultValue={shop.merchant_name ?? "GWZ Souvenir Shop"} maxLength={25} />
+              <Field label="Bank account number (optional)" name="bank_account" defaultValue={shop.bank_account} inputMode="numeric" autoComplete="off" data-1p-ignore data-lpignore="true" />
+              <Field label="Bank name (optional)" name="bank_name" defaultValue={shop.bank_name} placeholder="e.g. ABA Bank" />
+              <Field label="City" name="merchant_city" defaultValue={shop.merchant_city ?? "Phnom Penh"} maxLength={15} />
+              <SelectField label="Charge in" name="currency" defaultValue={shop.currency ?? "USD"}>
+                <option value="USD">USD ($)</option>
+                <option value="KHR">KHR (៛) — uses the rate above</option>
+              </SelectField>
+              <Field
+                label={`API token for the shop ${shop.api_token ? `(saved ${mask(shop.api_token)})` : "(optional)"}`}
+                name="api_token"
+                autoComplete="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
+                style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+                placeholder={shop.api_token ? "Leave blank to keep · type - to remove" : "Blank = use the ticket token above"}
+                hint="One Bakong token can confirm payments to any account, so this can stay blank."
+              />
+            </div>
+            <div className="flex justify-end">
+              <SubmitButton label="Save shop payment" pendingLabel="Saving…" />
+            </div>
+          </FormSection>
+        </form>
+
+        {/* ── Calls & live video ─────────────────────────────── */}
+        <form action={saveTurn} autoComplete="off" id="turn" className="scroll-mt-6">
+          <FormSection icon={PhoneCall} title="Calls & live video (TURN server)" hint="Calls and live video go straight between phones. On some mobile networks (4G) two phones can't reach each other directly; a TURN server passes the video along so it always connects.">
+            <ol className="list-decimal space-y-1 rounded-2xl bg-cream p-4 pl-8 text-sm text-ink/75">
+              <li>Easiest: open <a className="font-bold text-primary underline" href="https://dashboard.metered.ca/signup?tool=turnserver" target="_blank" rel="noreferrer">metered.ca</a> → sign up free (20 GB a month) → <b>TURN Server</b> → create an app.</li>
+              <li>Copy the app name (the part before <b>.metered.live</b>) and the <b>API key</b>, paste them below and save.</li>
+              <li>Press <b>Test</b>: it should say the TURN server answered.</li>
+            </ol>
+            <div className="grid gap-4 md:grid-cols-2">
+              <SelectField label="Provider" name="provider" defaultValue={turn.provider ?? "none"}>
+                <option value="none">None (direct only)</option>
+                <option value="metered">Metered.ca (free 20 GB)</option>
+                <option value="cloudflare">Cloudflare Realtime TURN</option>
+                <option value="custom">My own TURN server</option>
+              </SelectField>
+              <Field label="Metered app name" name="metered_app" defaultValue={turn.metered_app} placeholder="greenwildzoo" />
+              <Field label={`Metered API key ${turn.metered_key ? `(saved ${mask(turn.metered_key)})` : ""}`} name="metered_key" autoComplete="off" data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: "disc" } as React.CSSProperties} placeholder={turn.metered_key ? "Leave blank to keep" : ""} />
+              <Field label="Cloudflare TURN key id" name="cf_key_id" defaultValue={turn.cf_key_id} />
+              <Field label={`Cloudflare API token ${turn.cf_token ? `(saved ${mask(turn.cf_token)})` : ""}`} name="cf_token" autoComplete="off" data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: "disc" } as React.CSSProperties} placeholder={turn.cf_token ? "Leave blank to keep" : ""} />
+              <Field label="Own TURN URLs (comma separated)" name="url" defaultValue={turn.url} placeholder="turn:turn.example.com:3478,turns:turn.example.com:443" />
+              <Field label="Own TURN username" name="username" defaultValue={turn.username} autoComplete="off" />
+              <Field label={`Own TURN password ${turn.credential ? `(saved ${mask(turn.credential)})` : ""}`} name="credential" autoComplete="off" data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: "disc" } as React.CSSProperties} placeholder={turn.credential ? "Leave blank to keep" : ""} />
+            </div>
+            <div className="flex justify-end">
+              <SubmitButton label="Save call settings" pendingLabel="Saving…" />
+            </div>
+          </FormSection>
+        </form>
+        <form action={testTurn} className="-mt-3 flex justify-end">
+          <button className="btn-outline bg-white px-4 py-2 text-xs">Test TURN server</button>
+        </form>
 
         {/* ── Text to speech ─────────────────────────────── */}
         <form action={saveTts}>

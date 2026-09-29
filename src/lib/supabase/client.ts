@@ -8,6 +8,8 @@ import type { Database } from "@/types/database";
 export function createClient() {
   return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    // calls and live video send small bursts of connection notes (default is 10 a second)
+    { realtime: { params: { eventsPerSecond: 40 } } }
   );
 }

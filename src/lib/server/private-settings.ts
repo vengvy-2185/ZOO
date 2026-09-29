@@ -21,6 +21,31 @@ export interface PaymentSettings {
   api_token?: string; // from https://api-bakong.nbc.gov.kh/register
 }
 
+/** The souvenir shop's own KHQR (money goes to a different Bakong account from tickets). */
+export interface ShopPaymentSettings {
+  enabled?: boolean;
+  bakong_account_id?: string;
+  merchant_name?: string;
+  merchant_city?: string;
+  bank_account?: string;
+  bank_name?: string;
+  currency?: "USD" | "KHR";
+  /** blank = use the ticket API token (one Bakong token can confirm payments to any account) */
+  api_token?: string;
+}
+
+/** Where calls and live video connect when two phones can't reach each other directly. */
+export interface TurnSettings {
+  provider?: "none" | "metered" | "cloudflare" | "custom";
+  metered_app?: string; // e.g. "greenwildzoo" from greenwildzoo.metered.live
+  metered_key?: string;
+  cf_key_id?: string;
+  cf_token?: string;
+  url?: string; // custom: turn:host:3478,turns:host:443
+  username?: string;
+  credential?: string;
+}
+
 export interface TtsSettings {
   azure_key?: string;
   azure_region?: string; // e.g. "southeastasia"
@@ -30,7 +55,7 @@ export interface TtsSettings {
 }
 
 /** Which news goes to Telegram (all on unless turned off). */
-export const TELEGRAM_EVENTS = ["sos", "leave", "issue", "supply", "cash", "booking", "sync"] as const;
+export const TELEGRAM_EVENTS = ["sos", "leave", "issue", "supply", "cash", "booking", "sync", "shop", "live"] as const;
 export type TelegramEvent = (typeof TELEGRAM_EVENTS)[number];
 
 export interface TelegramSettings {
@@ -46,7 +71,7 @@ export function serviceClient() {
   });
 }
 
-export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram"): Promise<T> {
+export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram" | "shop_payment" | "turn"): Promise<T> {
   const { data } = await serviceClient().from("private_settings").select("value").eq("key", key).maybeSingle();
   return ((data?.value as T) ?? ({} as T)) as T;
 }

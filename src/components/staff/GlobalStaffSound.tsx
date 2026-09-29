@@ -6,10 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { BellRing, VolumeX, Siren, X, Phone, PhoneOff, Video, MessageCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { playSound, unlockSound, soundUnlocked } from "@/lib/client-sound";
+import { createClient } from "@/lib/supabase/client";
 
 type Alert = { id: string; kind: string; place: string | null; name: string; own: boolean; created_at: string };
 type News = { key: string; kind: "chat" | "notice"; channel: string | null; title: string; body: string; avatar: string | null; url: string };
-type Ring = { id: string; video: boolean; room: string; name: string; avatar: string | null };
+type Ring = { id: string; video: boolean; direct?: boolean; room: string; name: string; avatar: string | null };
 type Data = { allowed: boolean; alerts?: Alert[]; chime?: string[]; sound?: { enabled: boolean; volume: number; every: number }; news?: News[]; calls?: Ring[]; unread?: number };
 
 const MUTED = "gwz_sos_muted";
@@ -87,9 +88,24 @@ export function GlobalStaffSound() {
         .catch(() => {});
     load();
     const id = setInterval(() => allowed.current && document.visibilityState === "visible" && load(), 5000);
+    // a call or a message: check at once (don't wait for the next 5 seconds)
+    const sb = createClient();
+    let soon: ReturnType<typeof setTimeout> | undefined;
+    const ch = sb
+      .channel("gwz-staff-news")
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_updates" }, (e: any) => {
+        const t = e.new?.topic;
+        if (allowed.current && (t === "staff_calls" || t === "staff_messages" || t === "staff_alerts")) {
+          clearTimeout(soon);
+          soon = setTimeout(load, 300);
+        }
+      })
+      .subscribe();
     return () => {
       alive = false;
       clearInterval(id);
+      clearTimeout(soon);
+      sb.removeChannel(ch);
     };
   }, [pathname]);
 
@@ -189,8 +205,15 @@ export function GlobalStaffSound() {
             </span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setDeclined((x) => [...x, rings[0].id])} className="flex items-center justify-center gap-2 rounded-2xl bg-red-600 py-2.5 font-extrabold active:scale-95"><PhoneOff size={18} /> {km ? "បដិសេធ" : "Decline"}</button>
-            <button type="button" onClick={() => { setDeclined((x) => [...x, rings[0].id]); router.push(`/staff/call/${rings[0].id}`); }} className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-2.5 font-extrabold active:scale-95">{rings[0].video ? <Video size={18} /> : <Phone size={18} />} {km ? "ឆ្លើយ" : "Answer"}</button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeclined((x) => [...x, rings[0].id]);
+                // a call just to me: tell the caller straight away
+                if (rings[0].direct) fetch("/api/staff/call", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: rings[0].id, action: "end" }) }).catch(() => {});
+              }}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-red-600 py-2.5 font-extrabold active:scale-95"><PhoneOff size={18} /> {km ? "បដិសេធ" : "Decline"}</button>
+            <button type="button" onClick={() => { setDeclined((x) => [...x, rings[0].id]); router.push(`/staff/call/${rings[0].id}?start=${rings[0].video ? "video" : "voice"}`); }} className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-2.5 font-extrabold active:scale-95">{rings[0].video ? <Video size={18} /> : <Phone size={18} />} {km ? "ឆ្លើយ" : "Answer"}</button>
           </div>
         </div>
       )}

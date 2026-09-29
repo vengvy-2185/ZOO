@@ -49,6 +49,7 @@ const SOUNDS = {
   chime: () => wav([{ f0: 880, dur: 0.22 }, { f0: 1320, dur: 0.45 }]),
   alert: () => wav([{ f0: 1000, dur: 0.12, wave: "square", gap: 0.06 }, { f0: 1000, dur: 0.12, wave: "square", gap: 0.06 }, { f0: 1400, dur: 0.25, wave: "square" }]),
   ok: () => wav([{ f0: 660, dur: 0.12 }, { f0: 990, dur: 0.25 }]),
+  ringback: () => wav([{ f0: 425, dur: 1.0 }]),
   ring: () => wav([{ f0: 784, dur: 0.18, gap: 0.05 }, { f0: 988, dur: 0.18, gap: 0.05 }, { f0: 784, dur: 0.18, gap: 0.05 }, { f0: 988, dur: 0.3 }]),
 };
 export type SoundName = keyof typeof SOUNDS;

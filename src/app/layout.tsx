@@ -12,6 +12,7 @@ import { OfflineKit } from "@/components/OfflineKit";
 import { AppBackButton } from "@/components/AppBackButton";
 import { GlobalAttendanceQR } from "@/components/staff/GlobalAttendanceQR";
 import { GlobalStaffSound } from "@/components/staff/GlobalStaffSound";
+import { LiveNowPill } from "@/components/live/LiveNowPill";
 import { getBranding } from "@/lib/branding";
 import { ScrollTopOnSameLink } from "@/components/ScrollTopOnSameLink";
 import { getLocale } from "@/lib/i18n/server";
@@ -75,6 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ZooAssistant />
           <GlobalAttendanceQR />
           <GlobalStaffSound />
+          <LiveNowPill />
           <OfflineKit />
           <AppBackButton />
           <IntroSplash videoUrl={heroVideoUrl} />

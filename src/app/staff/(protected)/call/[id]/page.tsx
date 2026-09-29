@@ -5,6 +5,8 @@ import { staffAccess, staffTitle } from "@/lib/server/staff";
 import { peopleFor } from "@/lib/server/avatars";
 import { getI18n } from "@/lib/i18n/server";
 import { CallRoom } from "@/components/staff/CallRoom";
+import { iceServers } from "@/lib/server/ice";
+import { mayJoinCall } from "@/lib/server/call-access";
 
 export const dynamic = "force-dynamic";
 export const generateMetadata = () => staffTitle("Call", "ការហៅ");
@@ -18,14 +20,6 @@ const ROOM: Record<string, [string, string]> = {
   guide: ["Guides", "មគ្គុទ្ទេសក៍"],
 };
 
-/** Where calls connect when two phones can't reach each other directly (optional: TURN_URL / TURN_USERNAME / TURN_CREDENTIAL). */
-function iceServers(): RTCIceServer[] {
-  const list: RTCIceServer[] = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] }];
-  const turn = process.env.TURN_URL;
-  if (turn) list.push({ urls: turn.split(",").map((u) => u.trim()).filter(Boolean), username: process.env.TURN_USERNAME, credential: process.env.TURN_CREDENTIAL });
-  return list;
-}
-
 /** A voice / video call in a chat room. */
 export default async function CallPage({ params, searchParams }: { params: { id: string }; searchParams: { start?: string } }) {
   const userId = getVerifiedUserId()!;
@@ -34,8 +28,8 @@ export default async function CallPage({ params, searchParams }: { params: { id:
   const km = locale === "km";
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const db = createServiceRoleClient();
-  const { data: call } = await db.from("staff_calls").select("id, channel, video, started_by, created_at, alive_at, ended_at").eq("id", params.id).maybeSingle();
-  const can = call && (access.admin || call.channel === "all" || (call.channel === "managers" ? access.perms.has("reports") : access.perms.has(call.channel as any)));
+  const { data: call } = await db.from("staff_calls").select("id, channel, video, started_by, to_user, created_at, alive_at, ended_at").eq("id", params.id).maybeSingle();
+  const can = call && mayJoinCall(call, userId, access);
   if (!call || !can) notFound();
   const ended = Boolean(call.ended_at) || Date.parse(call.alive_at) < Date.now() - 60e3;
   // everyone who may show up in this room
@@ -46,7 +40,8 @@ export default async function CallPage({ params, searchParams }: { params: { id:
     <CallRoom
       callId={call.id}
       channel={call.channel}
-      room={ROOM[call.channel]?.[km ? 1 : 0] ?? call.channel}
+      room={call.to_user ? (people.get(call.to_user === userId ? call.started_by ?? "" : call.to_user)?.name ?? "—") : ROOM[call.channel]?.[km ? 1 : 0] ?? call.channel}
+      direct={Boolean(call.to_user)}
       video={call.video}
       startedBy={call.started_by}
       me={userId}
@@ -54,7 +49,7 @@ export default async function CallPage({ params, searchParams }: { params: { id:
       km={km}
       ended={ended}
       autoStart={!ended && (searchParams.start === "voice" || searchParams.start === "video") ? (searchParams.start as "voice" | "video") : null}
-      ice={iceServers()}
+      ice={await iceServers()}
     />
   );
 }

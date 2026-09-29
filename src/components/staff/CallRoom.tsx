@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, SwitchCamera, Volume2, Loader2, ChevronLeft, Users } from "lucide-react";
 import type { Person } from "@/lib/server/avatars";
 import { createClient } from "@/lib/supabase/client";
+import { playSound, unlockSound } from "@/lib/client-sound";
 import { cn } from "@/lib/utils/cn";
 
 // Group calls straight between the phones (WebRTC, each person connected to
@@ -16,6 +17,8 @@ type Props = {
   callId: string;
   channel: string;
   room: string;
+  /** a call to one person (not a whole room) */
+  direct?: boolean;
   video: boolean;
   startedBy: string | null;
   me: string;
@@ -28,7 +31,10 @@ type Props = {
 type Here = { session: string; user: string; mic: boolean; cam: boolean; joined: boolean };
 type Peer = { pc: RTCPeerConnection; stream: MediaStream; ice: RTCIceCandidateInit[]; user: string };
 
-const beat = (id: string, action: "alive" | "end") => fetch("/api/staff/call", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action }), keepalive: true }).catch(() => {});
+const beat = (id: string, action: "alive" | "end"): Promise<{ ended?: boolean }> =>
+  fetch("/api/staff/call", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action }), keepalive: true })
+    .then((r) => r.json())
+    .catch(() => ({}));
 
 export function CallRoom(p: Props) {
   const { km, me } = p;
@@ -72,10 +78,15 @@ export function CallRoom(p: Props) {
       bump();
     };
     pc.onicecandidate = (e) => e.candidate && send(remote, { type: "ice", c: e.candidate.toJSON() });
+    let wobble: ReturnType<typeof setTimeout> | undefined;
     pc.onconnectionstatechange = () => {
+      clearTimeout(wobble);
       if (pc.connectionState === "connected") setSince((s) => s ?? Date.now());
-      // the network changed (wifi → 4G…): the one who called first tries again
-      if (pc.connectionState === "failed" && session.current < remote) offer(remote, true);
+      // the network changed (wifi → 4G…) or dropped for a moment: connect again.
+      // The one who called first makes the new offer; the other one asks for it.
+      const again = () => (session.current < remote ? offer(remote, true) : send(remote, { type: "restart" }));
+      if (pc.connectionState === "failed") again();
+      if (pc.connectionState === "disconnected") wobble = setTimeout(() => pc.connectionState !== "connected" && again(), 3500);
       bump();
     };
     peers.current.set(remote, peer);
@@ -119,6 +130,8 @@ export function CallRoom(p: Props) {
     } else if (data.type === "answer" && peer) {
       await peer.pc.setRemoteDescription(data.sdp).catch(() => {});
       await flush(peer);
+    } else if (data.type === "restart" && peer) {
+      await offer(from, true);
     } else if (data.type === "ice" && peer) {
       if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(data.c).catch(() => {});
       else peer.ice.push(data.c);
@@ -211,25 +224,50 @@ export function CallRoom(p: Props) {
   const others = here.filter((h) => h.joined && h.session !== session.current);
   const othersRef = useRef(0);
   othersRef.current = others.length;
+  const everHadSomeone = useRef(false);
+  if (others.length) everHadSomeone.current = true;
 
   // "still here" every 20 s; ringing alone for a minute = no answer
   useEffect(() => {
     if (phase !== "in") return;
     const id = setInterval(() => {
-      beat(p.callId, "alive");
+      beat(p.callId, "alive").then((r) => {
+        if (r.ended && (othersRef.current === 0 || p.direct)) leave(p.direct && !everHadSomeone.current ? (km ? "គាត់មិនអាចទទួលបានទេ" : "They couldn't answer") : km ? "ការហៅបានបញ្ចប់" : "The call has ended");
+      });
       setNow(Date.now());
-    }, 20000);
+    }, othersRef.current ? 20000 : 5000);
     const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       clearInterval(id);
       clearInterval(clock);
     };
-  }, [phase, p.callId]);
-  const [joinedAt] = useState(() => Date.now());
-  const everHadSomeone = useRef(false);
-  if (others.length) everHadSomeone.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, p.callId, others.length > 0]);
+  // the one calling hears a waiting tone until someone answers
+  const waiting = phase === "in" && others.length === 0 && p.startedBy === me && !everHadSomeone.current;
   useEffect(() => {
-    if (phase === "in" && !everHadSomeone.current && now - joinedAt > 60000 && p.autoStart) leave(km ? "គ្មាននរណាឆ្លើយ" : "No answer");
+    if (!waiting) return;
+    unlockSound();
+    playSound("ringback", 0.35);
+    const id = setInterval(() => playSound("ringback", 0.35), 3000);
+    return () => clearInterval(id);
+  }, [waiting]);
+  // keep the screen on during a call
+  useEffect(() => {
+    if (phase !== "in") return;
+    let lock: any = null;
+    const get = () => (navigator as any).wakeLock?.request("screen").then((l: any) => (lock = l)).catch(() => {});
+    get();
+    const again = () => document.visibilityState === "visible" && get();
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      document.removeEventListener("visibilitychange", again);
+      lock?.release?.().catch?.(() => {});
+    };
+  }, [phase]);
+  const [joinedAt] = useState(() => Date.now());
+  useEffect(() => {
+    if (phase === "in" && !everHadSomeone.current && now - joinedAt > 60000 && p.startedBy === me) leave(km ? "គ្មាននរណាឆ្លើយ" : "No answer");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now]);
 
@@ -240,7 +278,8 @@ export function CallRoom(p: Props) {
     joined.current = false;
   };
   const leave = async (why?: string) => {
-    const alone = othersRef.current === 0;
+    // a call to one person ends when either of the two hangs up; a room call when the last one leaves
+    const alone = othersRef.current === 0 || Boolean(p.direct);
     cleanup();
     await chan.current?.untrack?.();
     if (alone) await beat(p.callId, "end");
@@ -256,7 +295,7 @@ export function CallRoom(p: Props) {
   useEffect(() => {
     const bye = () => {
       if (!joined.current) return;
-      navigator.sendBeacon?.("/api/staff/call", new Blob([JSON.stringify({ id: p.callId, action: othersRef.current === 0 ? "end" : "alive" })], { type: "application/json" }));
+      navigator.sendBeacon?.("/api/staff/call", new Blob([JSON.stringify({ id: p.callId, action: othersRef.current === 0 || p.direct ? "end" : "alive" })], { type: "application/json" }));
       cleanup();
     };
     addEventListener("pagehide", bye);
@@ -349,7 +388,7 @@ export function CallRoom(p: Props) {
           <div>
             <p className="text-sm font-bold uppercase tracking-widest text-white/50">{p.video ? (km ? "ការហៅជាវីដេអូ" : "Video call") : km ? "ការហៅជាសំឡេង" : "Voice call"} · {p.room}</p>
             <h1 className="mt-1 font-display text-3xl font-extrabold">{starter}</h1>
-            <p className="mt-1 text-white/60">{km ? "កំពុងហៅក្រុម…" : "is calling the team…"}</p>
+            <p className="mt-1 text-white/60">{p.direct ? (km ? "កំពុងហៅអ្នក…" : "is calling you…") : km ? "កំពុងហៅក្រុម…" : "is calling the team…"}</p>
           </div>
           {others.length > 0 && (
             <div className="flex flex-col items-center gap-2">
@@ -385,7 +424,7 @@ export function CallRoom(p: Props) {
         {tiles.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-4 text-center">
             <span className="relative"><span className="absolute inset-0 animate-ping rounded-full bg-white/20" /><Face p={person(me)} size={96} /></span>
-            <p className="text-white/60">{km ? "បានផ្ញើការជូនដំណឹងទៅទូរស័ព្ទក្រុមហើយ" : "The team's phones are ringing"}</p>
+            <p className="text-white/60">{p.direct ? (km ? `កំពុងរោទ៍ទៅ ${p.room}…` : `Ringing ${p.room}…`) : km ? "បានផ្ញើការជូនដំណឹងទៅទូរស័ព្ទក្រុមហើយ" : "The team's phones are ringing"}</p>
           </div>
         )}
         {tiles.map(({ h, peer }) => (

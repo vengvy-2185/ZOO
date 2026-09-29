@@ -486,12 +486,20 @@ export async function reactChat(messageId: string, emoji: string) {
 }
 
 // ── Calls (voice / video) in a chat room ──────────────────────────────
-/** Start a call in a room (or join the one already going on there). */
-export async function startCall(channel: string, video: boolean): Promise<{ id?: string; error?: string }> {
+/** Start a call in a room (or join the one already going on there), or call one person. */
+export async function startCall(channel: string, video: boolean, toUser?: string): Promise<{ id?: string; error?: string }> {
   const { id, access } = await me();
-  if (!canUseChannel(access, channel)) return { error: "invalid" };
   const db = createServiceRoleClient();
-  const { data: open } = await db.from("staff_calls").select("id").eq("channel", channel).is("ended_at", null).gte("alive_at", new Date(Date.now() - 60e3).toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (toUser) {
+    // one person: anyone on the team (staff or admin), not myself
+    if (toUser === id || !(await staffAccess(toUser)).ok) return { error: "invalid" };
+    const { data: call, error } = await db.from("staff_calls").insert({ channel: "all", started_by: id, video, to_user: toUser }).select("id").single();
+    if (error || !call) return { error: error?.message ?? "call" };
+    await sendPush([toUser], { title: `${video ? "📹" : "📞"} ${who(access)} កំពុងហៅអ្នក`, body: video ? "ហៅជាវីដេអូ — ចុចដើម្បីឆ្លើយ" : "ហៅជាសំឡេង — ចុចដើម្បីឆ្លើយ", url: `/staff/call/${call.id}`, tag: `call-${call.id}`, urgent: true });
+    return { id: call.id };
+  }
+  if (!canUseChannel(access, channel)) return { error: "invalid" };
+  const { data: open } = await db.from("staff_calls").select("id").eq("channel", channel).is("to_user", null).is("ended_at", null).gte("alive_at", new Date(Date.now() - 60e3).toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (open) return { id: open.id };
   const { data: call, error } = await db.from("staff_calls").insert({ channel, started_by: id, video }).select("id").single();
   if (error || !call) return { error: error?.message ?? "call" };
@@ -511,8 +519,9 @@ export async function startCall(channel: string, video: boolean): Promise<{ id?:
 export async function endCall(callId: string) {
   const { access } = await me();
   const db = createServiceRoleClient();
-  const { data: c } = await db.from("staff_calls").select("channel").eq("id", callId).maybeSingle();
-  if (!c || !canUseChannel(access, c.channel)) return;
+  const { data: c } = await db.from("staff_calls").select("channel, to_user, started_by").eq("id", callId).maybeSingle();
+  const { id } = await me();
+  if (!c || (c.to_user ? ![c.to_user, c.started_by].includes(id) : !canUseChannel(access, c.channel))) return;
   await db.from("staff_calls").update({ ended_at: new Date().toISOString() }).eq("id", callId).is("ended_at", null);
   revalidatePath("/staff/chat");
 }

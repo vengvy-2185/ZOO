@@ -43,12 +43,13 @@ export async function GET(req: Request) {
   // calls ringing in my rooms right now (started in the last minute, still going)
   const { data: ringing } = await db
     .from("staff_calls")
-    .select("id, channel, video, started_by, created_at")
-    .in("channel", channels)
+    .select("id, channel, video, started_by, to_user, created_at")
+    .or(`to_user.eq.${me.id},and(to_user.is.null,channel.in.(${channels.join(",")}))`)
     .is("ended_at", null)
     .gte("created_at", new Date(Date.now() - 60e3).toISOString())
     .gte("alive_at", new Date(Date.now() - 45e3).toISOString())
     .neq("started_by", me.id)
+    .order("created_at", { ascending: false })
     .limit(3);
   // names and photos for the pop-ups on screen
   const km = getI18n().locale === "km";
@@ -69,7 +70,7 @@ export async function GET(req: Request) {
     ...fresh.map((m: any) => ({ key: `m:${m.id}`, kind: "chat", channel: m.channel, title: `${person(m.user_id).name} · ${ROOM[m.channel] ?? m.channel}`, body: msgText(m, km).slice(0, 160), avatar: person(m.user_id).avatar, url: `/staff/chat?c=${m.channel}` })),
     ...(s.chime_notices ? (notices ?? []).slice(0, 3).map((n: any) => ({ key: `n:${n.id}`, kind: "notice", channel: null, title: `📢 ${n.title}`, body: String(n.body ?? "").slice(0, 160), avatar: null, url: "/staff" })) : []),
   ];
-  const calls = (ringing ?? []).map((c: any) => ({ id: c.id, video: c.video, room: ROOM[c.channel] ?? c.channel, name: person(c.started_by).name, avatar: person(c.started_by).avatar }));
+  const calls = (ringing ?? []).map((c: any) => ({ id: c.id, video: c.video, direct: Boolean(c.to_user), room: c.to_user ? (km ? "ហៅមកអ្នក" : "calling you") : ROOM[c.channel] ?? c.channel, name: person(c.started_by).name, avatar: person(c.started_by).avatar }));
   const mine = (alerts ?? []).filter((a: any) => manager || a.user_id === me.id);
   const ids = [...new Set(mine.map((a: any) => a.user_id).filter(Boolean))];
   const { data: who } = ids.length ? await db.from("staff_members").select("user_id, full_name").in("user_id", ids) : { data: [] as any[] };

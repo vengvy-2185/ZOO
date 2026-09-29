@@ -25,6 +25,9 @@ export type Msg = {
   meta: any;
   reply_to: string | null;
   created_at: string;
+  /** time and day, written on the server (so the phone shows exactly the same text) */
+  t: string;
+  day: string;
 };
 export type RoomData = {
   me: string;
@@ -45,7 +48,6 @@ export type RoomData = {
 };
 
 const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-const TZ = "Asia/Phnom_Penh";
 
 function Avatar({ p, size = 32, online = false }: { p: Person | undefined; size?: number; online?: boolean }) {
   const name = p?.name ?? "?";
@@ -144,8 +146,6 @@ export function ChatRoom(d: RoomData) {
   const seenBy = (m: Msg) => Object.entries(d.reads).filter(([uid, when]) => uid !== m.user_id && t(when) >= t(m.created_at)).map(([uid]) => uid);
   const lastMine = [...msgs].reverse().find((m) => m.user_id === me)?.id;
 
-  const time = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ, numberingSystem: "latn" }).format(new Date(iso));
-  const dayOf = (iso: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TZ, numberingSystem: "latn" }).format(new Date(iso));
   const typers = Object.keys(typing).filter((u) => u !== me);
 
   const act = (m: Msg | null) => {
@@ -193,8 +193,8 @@ export function ChatRoom(d: RoomData) {
           const own = m.user_id === me;
           const p = who(m.user_id);
           const prev = msgs[i - 1];
-          const newDay = !prev || dayOf(prev.created_at) !== dayOf(m.created_at);
-          const sameGroup = (x: Msg | undefined, y: Msg | undefined) => !!x && !!y && x.user_id === y.user_id && x.kind !== "call" && y.kind !== "call" && dayOf(x.created_at) === dayOf(y.created_at) && Math.abs(t(y.created_at) - t(x.created_at)) < 5 * 60e3;
+          const newDay = !prev || prev.day !== m.day;
+          const sameGroup = (x: Msg | undefined, y: Msg | undefined) => !!x && !!y && x.user_id === y.user_id && x.kind !== "call" && y.kind !== "call" && x.day === y.day && Math.abs(t(y.created_at) - t(x.created_at)) < 5 * 60e3;
           const grouped = !newDay && sameGroup(prev, m);
           const lastInGroup = !sameGroup(m, msgs[i + 1]);
           const reacts = d.reactions[m.id] ?? [];
@@ -205,14 +205,14 @@ export function ChatRoom(d: RoomData) {
             const c = d.calls[m.meta?.call_id] ?? { live: false, secs: 0, video: !!m.meta?.video };
             return (
               <div key={m.id}>
-                {newDay && <DayLine text={dayOf(m.created_at)} />}
+                {newDay && <DayLine text={m.day} />}
                 <div className="my-2 flex justify-center">
                   <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-2.5 shadow-sm ring-1 ring-black/5">
                     <span className={cn("flex h-10 w-10 items-center justify-center rounded-full text-white", c.live ? "bg-emerald-500" : "bg-slate-400")}>{c.live ? c.video ? <Video size={18} /> : <Phone size={18} /> : <PhoneOff size={18} />}</span>
                     <span className="text-sm">
                       <b className="text-forest">{name(m.user_id)}</b> {c.video ? (km ? "បានហៅជាវីដេអូ" : "started a video call") : km ? "បានហៅជាសំឡេង" : "started a voice call"}
                       <span className="block text-xs text-ink/50">
-                        {time(m.created_at)} · {c.live ? (km ? "កំពុងនិយាយ" : "in progress") : `${km ? "បានបញ្ចប់" : "ended"}${c.secs > 5 ? ` · ${dur(c.secs)}` : ""}`}
+                        {m.t} · {c.live ? (km ? "កំពុងនិយាយ" : "in progress") : `${km ? "បានបញ្ចប់" : "ended"}${c.secs > 5 ? ` · ${dur(c.secs)}` : ""}`}
                       </span>
                     </span>
                     {c.live && (
@@ -232,7 +232,7 @@ export function ChatRoom(d: RoomData) {
           const bubble = own ? "bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white" : "bg-white text-ink/85 ring-1 ring-black/5";
           return (
             <div key={m.id}>
-              {newDay && <DayLine text={dayOf(m.created_at)} />}
+              {newDay && <DayLine text={m.day} />}
               <Pressable onLong={() => act(m)} className={cn("group flex items-end gap-2", own && "flex-row-reverse", grouped && "-mt-1.5", reacts.length > 0 && "mb-3")}>
                 {!own && <span className={cn(!lastInGroup && "invisible")}><Avatar p={p} online={!!m.user_id && online.has(m.user_id)} /></span>}
                 <div className={cn("flex min-w-0 max-w-[80%] animate-[gwzPop_.25s_ease-out_both] flex-col md:max-w-[70%]", own ? "items-end" : "items-start")}>
@@ -288,7 +288,7 @@ export function ChatRoom(d: RoomData) {
                   </div>
                   {(lastInGroup || seen.length > 0 || m.id === lastMine) && (
                     <p className={cn("mt-0.5 flex items-center gap-1 px-1 text-[10px] text-ink/40", reacts.length > 0 && "mt-4")}>
-                      {time(m.created_at)}
+                      {m.t}
                       {m.id === lastMine &&
                         (seen.length ? (
                           <button type="button" onClick={() => setInfo(m)} className="inline-flex items-center gap-0.5 font-bold text-[#1D4ED8] hover:underline">

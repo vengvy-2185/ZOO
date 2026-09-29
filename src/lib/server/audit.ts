@@ -9,7 +9,8 @@ export type AuditAction =
   | "roster.edit" | "roster.plan" | "roster.copy" | "roster.rules" | "roster.approve" | "roster.refuse" | "roster.dayoff"
   | "staff.create" | "staff.update" | "staff.password" | "staff.account"
   | "pay.adjust" | "pay.adjust.remove" | "pay.paid" | "pay.unpaid" | "position.save" | "position.delete"
-  | "leave.decide" | "cash.review" | "report.export" | "settings.staff" | "settings.payment" | "settings.telegram" | "settings.tts" | "settings.site" | "settings.scratch";
+  | "leave.decide" | "cash.review" | "report.export" | "settings.staff" | "settings.payment" | "settings.telegram" | "settings.tts" | "settings.site" | "settings.scratch"
+  | "settings.shop_payment" | "settings.turn" | "shop.product" | "shop.stock" | "shop.cancel" | "live.remove";
 
 export async function audit(action: AuditAction, table: string, id?: string | null, meta?: Record<string, unknown>, actorId?: string) {
   try {

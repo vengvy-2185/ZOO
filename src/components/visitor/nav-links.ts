@@ -1,4 +1,4 @@
-import { Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, HeartHandshake, Star, Newspaper, Route, CircleHelp, Camera, Mail, Lightbulb, MessageCircle, Cake, ShieldAlert, BarChart3, type LucideIcon } from "lucide-react";
+import { Radio, ShoppingBag, Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, HeartHandshake, Star, Newspaper, Route, CircleHelp, Camera, Mail, Lightbulb, MessageCircle, Cake, ShieldAlert, BarChart3, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Single source of truth for the visitor site's menu — the desktop header,
@@ -23,6 +23,7 @@ export const MORE_GROUPS: { key: keyof Dictionary["nav"]; links: NavLink[] }[] =
   {
     key: "groupPlay",
     links: [
+      { href: "/live", key: "live", icon: Radio },
       { href: "/photo-booth", key: "booth", icon: Camera },
       { href: "/postcard", key: "postcard", icon: Mail },
       { href: "/facts", key: "facts", icon: Lightbulb },
@@ -36,6 +37,7 @@ export const MORE_GROUPS: { key: keyof Dictionary["nav"]; links: NavLink[] }[] =
       { href: "/planner", key: "planner", icon: Route },
       { href: "/calendar", key: "calendar", icon: CalendarDays },
       { href: "/adopt", key: "adopt", icon: HeartHandshake },
+      { href: "/shop", key: "shop", icon: ShoppingBag },
       { href: "/conservation", key: "conservation", icon: ShieldAlert },
       { href: "/news", key: "news", icon: Newspaper },
     ],

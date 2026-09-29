@@ -8,7 +8,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { ChatRoom, type Msg } from "@/components/staff/ChatRoom";
 import { msgText } from "@/lib/chat-text";
-import { CallButtons } from "@/components/staff/CallButtons";
+import { CallButtons, CallPerson } from "@/components/staff/CallButtons";
 import { staffIds, managerIds } from "@/lib/server/push";
 import { cn } from "@/lib/utils/cn";
 
@@ -71,7 +71,9 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     await db.from("staff_chat_reads").upsert({ user_id: userId, channel: ch.key, last_read_at: newest });
     readAt.set(ch.key, newest);
   } else if (!newest) readAt.set(ch.key, now);
-  const msgs = (rows ?? []).reverse() as Msg[];
+  const fmtTime = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" });
+  const fmtDay = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" });
+  const msgs = ((rows ?? []) as any[]).reverse().map((m) => ({ ...m, t: fmtTime.format(new Date(m.created_at)), day: fmtDay.format(new Date(m.created_at)) })) as Msg[];
   const ids = msgs.map((m) => m.id);
   const replyIds = [...new Set(msgs.map((m) => m.reply_to).filter(Boolean))] as string[];
   const callIds = msgs.filter((m) => m.kind === "call" && m.meta?.call_id).map((m) => m.meta.call_id as string);
@@ -81,7 +83,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     db.from("staff_chat_reads").select("user_id, last_read_at").eq("channel", ch.key),
     callIds.length ? db.from("staff_calls").select("id, video, created_at, alive_at, ended_at").in("id", callIds) : Promise.resolve({ data: [] as any[] }),
     replyIds.length ? db.from("staff_messages").select("id, user_id, body, kind, files, audio_url, meta").in("id", replyIds) : Promise.resolve({ data: [] as any[] }),
-    db.from("staff_calls").select("id, video, started_by").eq("channel", ch.key).is("ended_at", null).gte("alive_at", aliveSince).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("staff_calls").select("id, video, started_by").eq("channel", ch.key).is("to_user", null).is("ended_at", null).gte("alive_at", aliveSince).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ch.key === "all" ? Promise.all([staffIds(), managerIds()]).then((x) => x.flat()) : ch.key === "managers" ? managerIds() : Promise.all([staffIds(ch.key), managerIds()]).then((x) => x.flat()),
   ]);
   const reactions: Record<string, { user_id: string; emoji: string }[]> = {};
@@ -97,10 +99,11 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
   const roomReadMap: Record<string, string> = {};
   for (const r of roomReads ?? []) roomReadMap[r.user_id] = r.last_read_at;
   const memberIds = [...new Set(members as string[])];
+  const team = [...new Set([...(await staffIds()), ...(await managerIds())])].filter((u) => u !== userId);
   const onlineIds = new Set((presence ?? []).map((p: any) => p.user_id as string));
   onlineIds.add(userId);
   const people = await peopleFor(
-    [...msgs.map((m) => m.user_id ?? ""), ...onlineIds, ...[...lastOf.values()].map((r) => r.user_id), ...memberIds, ...Object.keys(roomReadMap), ...(reactRows ?? []).map((r: any) => r.user_id), ...Object.values(replies).map((r) => r.user_id ?? ""), openCall?.started_by ?? ""],
+    [...msgs.map((m) => m.user_id ?? ""), ...onlineIds, ...[...lastOf.values()].map((r) => r.user_id), ...memberIds, ...Object.keys(roomReadMap), ...(reactRows ?? []).map((r: any) => r.user_id), ...Object.values(replies).map((r) => r.user_id ?? ""), openCall?.started_by ?? "", ...team],
     km
   );
   const inConversation = Boolean(searchParams.c);
@@ -133,7 +136,10 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
         {/* ── inbox (list of chats), like Messenger ── */}
         <aside className={cn("min-h-0 w-full flex-col overflow-hidden bg-white md:flex md:w-80 md:flex-shrink-0 md:rounded-3xl md:shadow-soft md:ring-1 md:ring-black/5", inConversation ? "hidden" : "flex")}>
           <div className="px-4 pb-2 pt-4">
-            <h1 className="font-display text-2xl font-extrabold text-forest">{km ? "ជជែកក្រុម" : "Chats"}</h1>
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="font-display text-2xl font-extrabold text-forest">{km ? "ជជែកក្រុម" : "Chats"}</h1>
+              <CallPerson km={km} people={team.filter((u) => people.has(u)).map((u) => ({ id: u, name: people.get(u)!.name, avatar: people.get(u)!.avatar, role: people.get(u)!.role, online: onlineIds.has(u) }))} />
+            </div>
           </div>
           {/* online people */}
           <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-3">
