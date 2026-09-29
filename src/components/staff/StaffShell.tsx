@@ -45,7 +45,6 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
     [
       ["home", "/staff", "main", true],
       ["chat", "/staff/chat", "main", true],
-      ["tasks", "/staff/tasks", "main", true],
       ["roster", "/staff/roster", "main", true],
       ["scanner", "/staff/scanner", "tools", can("tickets")],
       ["gate", "/staff/gate", "tools", can("tickets")],

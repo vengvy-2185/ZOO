@@ -146,13 +146,15 @@ export async function attendanceMonth(month: string, onlyUserId?: string) {
         const mark = (session: Session): DayMark["morning"] => {
           const c = mine.find((x: any) => x.day === d && x.session === session);
           if (c) return c.status === "leave" ? "leave" : c.status === "absent" ? "absent" : c.late_minutes > 0 ? "late" : "ok";
-          // on the schedule: a day off, or the other half of the day, is not expected
-          const sh = shiftOf.get(`${p.user_id}_${d}`);
-          if (sh === "off" || (sh === "morning" && session === "afternoon") || (sh === "afternoon" && session === "morning")) return "off";
           if (d < p.hired_on || d < s.tracking_from) return "none";
           if (hol.has(d)) return "holiday";
-          if (s.rest_days.includes(weekday(d))) return "off";
           if (onLeave(d)) return "leave";
+          // the schedule decides: only a shift on it is expected. No shift that day
+          // (a day off, the other half of the day, covered by someone, or nothing
+          // planned) is never an absence. A helper's full day expects both halves.
+          const sh = shiftOf.get(`${p.user_id}_${d}`);
+          const expected = sh === "full" || sh === session;
+          if (!expected) return "off";
           const end = toMin(session === "morning" ? s.morning_end : s.afternoon_end);
           if (d > today || (d === today && nowMin < end)) return "future";
           return "absent";

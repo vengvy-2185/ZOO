@@ -131,7 +131,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
     ? { title: "កាលវិភាគការងារ", sub: "វេនធ្វើការប្រចាំសប្តាហ៍ និងប្រចាំខែ របស់ក្រុមនីមួយៗ។ ប្តូរវេន ឬរកអ្នកជំនួស ពេលមានបញ្ហា។", week: "សប្តាហ៍", month: "ខែ", all: "ទាំងអស់", save: "រក្សាទុកកាលវិភាគ", saving: "កំពុងរក្សាទុក…", copy: "ចម្លងសប្តាហ៍មុន", mine: "វេនរបស់ខ្ញុំសប្តាហ៍នេះ", team: "កាលវិភាគក្រុមទាំងមូល", ask: "មកធ្វើការមិនបាន? ស្នើអ្នកជំនួស ឬប្តូរវេន", forMe: "មិត្តរួមការងារកំពុងរកអ្នកជំនួស", myReq: "សំណើរបស់ខ្ញុំ", approve: "រង់ចាំអ្នកគ្រប់គ្រងអនុម័ត", take: "ខ្ញុំជំនួស", agree: "យល់ព្រមដូរ", cancel: "បោះបង់", yes: "អនុម័ត", no: "បដិសេធ", st: { open: "រង់ចាំអ្នកជំនួស", accepted: "មានអ្នកទទួលហើយ · រង់ចាំអនុម័ត" }, cover: "ជំនួស", swap: "ដូរ", nothing: "គ្មានទេ", none: "—", legend: "ពន្យល់", today: "ថ្ងៃនេះ", noTeam: "មិនមានបុគ្គលិកក្នុងក្រុមនេះទេ។" }
     : { title: "Work schedule", sub: "Each team's shifts by week or month. Swap a shift or find cover when something comes up.", week: "Week", month: "Month", all: "Everyone", save: "Save schedule", saving: "Saving…", copy: "Copy last week", mine: "My shifts this week", team: "Whole team schedule", ask: "Can't come? Ask for cover or a swap", forMe: "Colleagues looking for cover", myReq: "My requests", approve: "Waiting for approval", take: "I'll cover", agree: "Agree to swap", cancel: "Cancel", yes: "Approve", no: "Refuse", st: { open: "Looking for cover", accepted: "Taken · waiting for approval" }, cover: "Cover", swap: "Swap", nothing: "Nothing", none: "—", legend: "Key", today: "Today", noTeam: "No staff in this team." };
   const badge = (sh: Shift | undefined, compact = false) =>
-    sh ? <span className={cn("inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-extrabold ring-1", SHIFT[sh].cls, compact && "w-full px-0.5 py-0.5 text-[10px]")}>{compact ? (km ? SHIFT[sh].shortKm : SHIFT[sh].short) : km ? SHIFT[sh].km : SHIFT[sh].en}</span> : <span className="text-ink/20">·</span>;
+    sh ? <span className={cn("inline-flex w-20 items-center justify-center rounded-lg px-2 py-1.5 text-xs font-extrabold ring-1", SHIFT[sh].cls, compact && "w-full px-0.5 py-0.5 text-[10px]")}>{compact ? (km ? SHIFT[sh].shortKm : SHIFT[sh].short) : km ? SHIFT[sh].km : SHIFT[sh].en}</span> : <span className="text-ink/20">·</span>;
 
   return (
     <StaffShell title={L.title} subtitle={L.sub}>
@@ -269,7 +269,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
                     <span className="block text-[15px] font-bold text-forest">{dayName(d, "long")}{d === today && <span className="ml-2 rounded-full bg-[#1D4ED8] px-2 py-0.5 text-[11px] text-white">{L.today}</span>}</span>
                     <span className="block text-sm text-ink/55">{sh && sh !== "off" ? shiftTimes[sh] : sh === "off" ? (km ? "សម្រាក" : "Rest day") : km ? "មិនទាន់កំណត់" : "Not planned yet"}</span>
                   </span>
-                  {sh ? badge(sh) : <span className="text-sm text-ink/30">—</span>}
+                  {sh ? badge(sh) : <span className="inline-block w-20 text-center text-sm text-ink/30">—</span>}
                 </li>
               );
             })}

@@ -13,7 +13,7 @@ const refresh = () => {
 
 export type CheckInResult =
   | { ok: true; session: Session; late: number; time: string; distance: number | null; already?: boolean; clockIn?: string }
-  | { ok: false; error: "signin" | "not-staff" | "qr" | "location" | "far" | "closed"; distance?: number; radius?: number };
+  | { ok: false; error: "signin" | "not-staff" | "qr" | "location" | "far" | "closed" | "no-shift"; distance?: number; radius?: number };
 
 /**
  * A staff member scanned the QR on the zoo's screen. Checked here: it's
@@ -42,6 +42,10 @@ export async function checkInAttendance(token: string, lat: number | null, lng: 
   if (!now) return { ok: false, error: "closed" };
   const day = localDay();
   const db = createServiceRoleClient();
+  // the schedule decides who checks in: your shift today must include this half
+  // (a full day, e.g. when covering for someone, includes both)
+  const { data: shift } = await db.from("staff_roster").select("shift").eq("user_id", id).eq("day", day).maybeSingle();
+  if (!(shift?.shift === "full" || shift?.shift === now.session)) return { ok: false, error: "no-shift" };
   const { data: existing } = await db.from("staff_session_checks").select("checked_at, late_minutes, status").eq("user_id", id).eq("day", day).eq("session", now.session).maybeSingle();
   const fmt = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh" }).format(new Date(iso));
   if (existing && existing.status === "present") return { ok: true, session: now.session, late: existing.late_minutes, time: fmt(existing.checked_at), distance, already: true };

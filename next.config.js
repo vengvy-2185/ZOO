@@ -9,6 +9,8 @@ const nextConfig = {
     return [
       // the games were removed: old links go to the home page
       ...["/games", "/quiz", "/guess", "/coloring", "/compare", "/older", "/kids", "/kids/:path*", "/match", "/love", "/zodiac"].map((source) => ({ source, destination: "/", permanent: false })),
+      // assigned tasks were removed from the staff area
+      { source: "/staff/tasks", destination: "/staff", permanent: false },
     ];
   },
   // Safety headers on every page: no framing by other sites (click-jacking),

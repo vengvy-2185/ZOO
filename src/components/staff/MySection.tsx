@@ -93,19 +93,8 @@ export async function MySection({ userId, perms, km }: { userId: string; perms: 
           </Link>
         ))}
       </div>
-      {/* thanks + my supplies: for everyone */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Link href="/staff/tasks" className={`group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lift ${urgentTasks ? "ring-2 ring-red-300" : ""}`}>
-          <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-indigo-700 text-white shadow-sm transition group-hover:scale-110">
-            <ListChecks size={22} />
-            {myTasks.length > 0 && <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-extrabold ring-2 ring-white">{myTasks.length}</span>}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-display text-lg font-extrabold text-forest">{km ? "ការងាររបស់ខ្ញុំ" : "My tasks"}</span>
-            <span className="block text-xs text-ink/55">{myTasks.length ? (km ? `${myTasks.length} ត្រូវធ្វើ${urgentTasks ? ` · ${urgentTasks} បន្ទាន់` : ""}` : `${myTasks.length} to do${urgentTasks ? ` · ${urgentTasks} urgent` : ""}`) : km ? "គ្មានការងារនៅសល់ 🎉" : "Nothing left to do 🎉"}</span>
-          </span>
-          <ChevronRight size={18} className="text-ink/25" />
-        </Link>
+      {/* handover notes: for everyone */}
+      <div className="mt-3 grid gap-3">
         <Link href="/staff/handover" className="group card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lift">
           <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-700 text-white shadow-sm transition group-hover:scale-110"><NotebookPen size={22} /></span>
           <span className="min-w-0 flex-1">
