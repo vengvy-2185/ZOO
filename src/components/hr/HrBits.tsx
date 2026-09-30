@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Check, FileText, Loader2, CalendarPlus, ThumbsUp, ThumbsDown, UserPlus, Send, Trash2, Star, Save, ChevronDown, ScanSearch, Undo2, Trophy, BadgeCheck, NotebookPen } from "lucide-react";
+import { Copy, Check, FileText, Loader2, CalendarPlus, ThumbsUp, ThumbsDown, UserPlus, Send, Trash2, Star, Save, ChevronDown, ScanSearch, Undo2, Trophy, BadgeCheck, NotebookPen, MapPin, Lock } from "lucide-react";
 import { setHrStatus, scheduleInterview, setResult, saveHrNote, messageApplicant, cvLink, hireApplicant, deleteApplicant, saveJob } from "@/app/staff/(protected)/hr/actions";
 import { cn } from "@/lib/utils/cn";
 
@@ -74,7 +74,7 @@ export function JobEditor({ km, job }: { km: boolean; job?: Job }) {
   );
 }
 
-type A = { id: string; status: string; hr_note: string | null; rating: number | null; result_note: string | null; interview_place: string | null; interview_note: string | null; has_cv: boolean; cv_name: string | null; telegram: boolean; hired: boolean; position_id: string | null };
+type A = { id: string; status: string; hr_note: string | null; rating: number | null; result_note: string | null; interview_place: string | null; interview_note: string | null; interview_map: string | null; has_cv: boolean; cv_name: string | null; telegram: boolean; hired: boolean; position_id: string | null };
 
 /** Everything HR does with one applicant. */
 export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean; admin: boolean; a: A; msgs: { id: string; from_hr: boolean; body: string; created_at: string }[]; positions: { id: string; name: string }[] }) {
@@ -93,6 +93,15 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
       router.refresh();
     });
   const card = "card space-y-3 p-4";
+  // passed / not selected / hired / withdrawn: final, the buttons are gone
+  const decided = ["offer", "rejected", "hired", "withdrawn"].includes(a.status);
+  const LOCK = L("This application is already decided, it can't be changed.", "ពាក្យនេះបានសម្រេចរួចហើយ មិនអាចប្តូរបានទេ។");
+  const act = (fn: () => Promise<unknown>, done: string) =>
+    start(async () => {
+      const r = (await fn()) as { error?: string } | undefined;
+      setInfo(r?.error === "locked" ? LOCK : r?.error === "map" ? L("The map link must start with https:// (or be coordinates like 11.56, 104.92)", "តំណផែនទីត្រូវចាប់ផ្តើមដោយ https:// (ឬជាកូអរដោនេ ឧ. 11.56, 104.92)") : done);
+      router.refresh();
+    });
   const tgNote = a.telegram ? L(" · sent on Telegram", " · បានផ្ញើតាម Telegram") : "";
 
   return (
@@ -103,26 +112,46 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
           <FileText size={18} /> {L("Open CV", "បើក CV")} {a.cv_name ? <span className="max-w-[10rem] truncate text-xs font-semibold opacity-80">({a.cv_name})</span> : null}
         </button>
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={pending} onClick={() => run(() => setHrStatus(a.id, "screening"), L("Marked as reviewing", "កំពុងពិនិត្យ") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 py-2 text-sm font-bold text-amber-800"><ScanSearch size={16} /> {L("Reviewing", "ពិនិត្យ")}</button>
-          <button type="button" disabled={pending} onClick={() => run(() => setHrStatus(a.id, "withdrawn"))} className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 py-2 text-sm font-bold text-slate-600"><Undo2 size={16} /> {L("Withdrawn", "ដកពាក្យ")}</button>
+          <button type="button" disabled={pending || decided || a.status === "screening"} onClick={() => act(() => setHrStatus(a.id, "screening"), L("Marked as reviewing", "កំពុងពិនិត្យ") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 py-2 text-sm font-bold text-amber-800 disabled:opacity-40"><ScanSearch size={16} /> {L("Reviewing", "ពិនិត្យ")}</button>
+          <button type="button" disabled={pending || a.status === "hired" || a.status === "rejected" || a.status === "withdrawn"} onClick={() => confirm(L("Mark as withdrawn? This is final.", "សម្គាល់ថាដកពាក្យ? មិនអាចប្តូរវិញបានទេ។")) && act(() => setHrStatus(a.id, "withdrawn"), L("Withdrawn", "បានដកពាក្យ"))} className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 py-2 text-sm font-bold text-slate-600 disabled:opacity-40"><Undo2 size={16} /> {L("Withdrawn", "ដកពាក្យ")}</button>
         </div>
       </div>
 
-      <form className={card} action={(fd) => run(() => scheduleInterview(a.id, fd), L("Interview set", "បានណាត់សម្ភាសន៍") + tgNote)}>
+      {!decided && (
+      <form className={card} action={(fd) => act(() => scheduleInterview(a.id, fd), L("Interview set", "បានណាត់សម្ភាសន៍") + tgNote)}>
         <p className="flex items-center gap-2 font-display font-extrabold text-forest"><CalendarPlus size={18} /> {L("Interview", "ណាត់សម្ភាសន៍")}</p>
         <input type="datetime-local" name="at" required className={field} />
         <input name="place" defaultValue={a.interview_place ?? ""} placeholder={L("Where (e.g. HR office, main gate)", "ទីកន្លែង (ឧ. ការិយាល័យ HR)")} className={field} />
+        <label className="block">
+          <span className="mb-1 flex items-center gap-1.5 text-xs font-bold text-ink/55"><MapPin size={13} /> {L("Location on the map (Google Maps link)", "ទីតាំងលើផែនទី (តំណ Google Maps)")}</span>
+          <input name="map" type="text" inputMode="url" defaultValue={a.interview_map ?? ""} placeholder="https://maps.app.goo.gl/…" className={field} />
+          <span className="mt-1 block text-[11px] text-ink/45">{L("In Google Maps: tap the place → Share → Copy link. The applicant gets a map pin in Telegram.", "ក្នុង Google Maps៖ ចុចទីតាំង → Share → Copy link។ បេក្ខជននឹងទទួលបានម្ជុលទីតាំងក្នុង Telegram។")}</span>
+        </label>
         <input name="note" defaultValue={a.interview_note ?? ""} placeholder={L("Note (bring ID card…)", "កំណត់សម្គាល់ (យកអត្តសញ្ញាណប័ណ្ណ…)")} className={field} />
-        <button disabled={pending} className="w-full rounded-xl bg-violet-600 py-2.5 font-bold text-white">{L("Send the invitation", "ផ្ញើការអញ្ជើញ")}</button>
+        <button disabled={pending} className="w-full rounded-xl bg-violet-600 py-2.5 font-bold text-white disabled:opacity-60">{pending ? <Loader2 size={16} className="mx-auto animate-spin" /> : L("Send the invitation", "ផ្ញើការអញ្ជើញ")}</button>
       </form>
+      )}
 
       <div className={card}>
         <p className="flex items-center gap-2 font-display font-extrabold text-forest"><Trophy size={18} className="text-amber-500" /> {L("Result", "លទ្ធផល")}</p>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={L("Message with the result (optional)", "សារជាមួយលទ្ធផល (ជម្រើស)")} className={field} />
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={pending} onClick={() => run(() => setResult(a.id, true, note), L("Passed", "ជាប់") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-bold text-white"><ThumbsUp size={16} /> {L("Passed", "ជាប់")}</button>
-          <button type="button" disabled={pending} onClick={() => run(() => setResult(a.id, false, note), L("Not selected", "មិនជាប់") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-200 py-2.5 font-bold text-slate-700"><ThumbsDown size={16} /> {L("Not selected", "មិនជាប់")}</button>
-        </div>
+        {decided ? (
+          <div className={cn("flex items-start gap-2 rounded-2xl px-3 py-3 text-sm font-bold", a.status === "rejected" || a.status === "withdrawn" ? "bg-slate-100 text-slate-700" : "bg-emerald-50 text-emerald-800")}>
+            <Lock size={16} className="mt-0.5 flex-shrink-0" />
+            <span>
+              {a.status === "rejected" ? L("Not selected", "មិនជាប់") : a.status === "withdrawn" ? L("Withdrawn", "ដកពាក្យ") : a.status === "hired" ? L("Hired", "ក្លាយជាបុគ្គលិក") : L("Passed", "ជាប់")}
+              <span className="block text-xs font-semibold opacity-70">{L("Final: decided once, can't be changed.", "សម្រេចរួច មិនអាចប្តូរបានទេ។")}</span>
+              {a.result_note && <span className="mt-1 block whitespace-pre-wrap text-xs font-medium opacity-80">{a.result_note}</span>}
+            </span>
+          </div>
+        ) : (
+          <>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={L("Message with the result (optional)", "សារជាមួយលទ្ធផល (ជម្រើស)")} className={field} />
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" disabled={pending} onClick={() => confirm(L("Passed? This is final and is sent to the applicant.", "ជាប់? លទ្ធផលនេះមិនអាចប្តូរបានទេ ហើយនឹងផ្ញើទៅបេក្ខជន។")) && act(() => setResult(a.id, true, note), L("Passed", "ជាប់") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-bold text-white disabled:opacity-50">{pending ? <Loader2 size={16} className="animate-spin" /> : <ThumbsUp size={16} />} {L("Passed", "ជាប់")}</button>
+              <button type="button" disabled={pending} onClick={() => confirm(L("Not selected? This is final and is sent to the applicant.", "មិនជាប់? លទ្ធផលនេះមិនអាចប្តូរបានទេ ហើយនឹងផ្ញើទៅបេក្ខជន។")) && act(() => setResult(a.id, false, note), L("Not selected", "មិនជាប់") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-200 py-2.5 font-bold text-slate-700 disabled:opacity-50"><ThumbsDown size={16} /> {L("Not selected", "មិនជាប់")}</button>
+            </div>
+          </>
+        )}
       </div>
 
       {admin && !a.hired && (a.status === "offer" || a.status === "interview") && (

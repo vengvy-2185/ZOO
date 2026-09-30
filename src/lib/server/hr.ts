@@ -64,6 +64,7 @@ type App = { id: string; code: string; full_name: string; status: HrStatus; tg_c
 export const BOT_ACTIONS = {
   status: { km: "📄 ស្ថានភាពពាក្យ", en: "📄 My application", style: "primary" },
   interview: { km: "📅 ការសម្ភាសន៍", en: "📅 Interview", style: "success" },
+  cv: { km: "📎 CV របស់ខ្ញុំ", en: "📎 My CV", style: "primary" },
   result: { km: "🏆 លទ្ធផល", en: "🏆 Result", style: "success" },
   ask: { km: "💬 សួរ HR", en: "💬 Ask HR", style: "danger" },
   jobs: { km: "💼 ការងារទំនេរ", en: "💼 Open jobs", style: "primary" },
@@ -102,6 +103,7 @@ export const BOT_COMMANDS = [
   { command: "start", description: "ម៉ឺនុយ · Menu" },
   { command: "status", description: "ស្ថានភាពពាក្យ · My application" },
   { command: "interview", description: "ការសម្ភាសន៍ · Interview" },
+  { command: "cv", description: "CV របស់ខ្ញុំ · My CV" },
   { command: "result", description: "លទ្ធផល · Result" },
   { command: "ask", description: "សួរ HR · Ask HR" },
   { command: "jobs", description: "ការងារទំនេរ · Open jobs" },
@@ -116,7 +118,7 @@ export function menu(a: Pick<App, "status" | "tg_lang">) {
     const v = BOT_ACTIONS[k];
     return { text: km ? v.km : v.en, ...(v.style ? { style: v.style } : {}) };
   };
-  const rows = [[b("status"), b("interview")], [b("result"), b("ask")], [b("jobs"), b("contact")]];
+  const rows = [[b("status"), b("cv")], [b("interview"), b("result")], [b("ask"), b("contact")], [b("jobs")]];
   if (a.status === "hired") rows.unshift([b("account")]);
   rows.push([b(km ? "lang:en" : "lang:km")]);
   return {
@@ -160,7 +162,7 @@ export async function statusText(applicantId: string) {
 /** Tells the applicant about a change made by HR (status, interview, result…). */
 export async function announce(applicantId: string, kind: "status" | "interview" | "offer" | "rejected" | "hired" | "message", extra?: string) {
   const db = createServiceRoleClient();
-  const { data: a } = await db.from("hr_applicants").select("id, code, full_name, status, tg_chat_id, tg_lang, staff_user_id, interview_at, interview_place, interview_note, result_note").eq("id", applicantId).maybeSingle();
+  const { data: a } = await db.from("hr_applicants").select("id, code, full_name, status, tg_chat_id, tg_lang, staff_user_id, interview_at, interview_place, interview_note, interview_map, interview_lat, interview_lng, result_note").eq("id", applicantId).maybeSingle();
   if (!a?.tg_chat_id) return false;
   const km = a.tg_lang !== "en";
   const s = await hrSettings();
@@ -184,7 +186,56 @@ export async function announce(applicantId: string, kind: "status" | "interview"
   else if (kind === "message") text = `💬 <b>${km ? "សារពី HR" : "Message from HR"}</b>\n\n${esc(extra ?? "")}`;
   else text = `🔔 ${km ? "មានការផ្លាស់ប្តូរលើពាក្យរបស់អ្នក" : "Your application was updated"}\n\n${await statusText(a.id)}`;
   if (!s.telegram_on) return false;
+  if (kind === "interview") return sendInterview(a, text);
   return tellApplicant(a as App, text);
+}
+
+/** A map link for the interview place (the link HR gave, or a map search for the place name). */
+export function interviewMapUrl(a: { interview_map?: string | null; interview_place?: string | null; interview_lat?: number | null; interview_lng?: number | null }) {
+  if (a.interview_map) return a.interview_map;
+  if (a.interview_lat != null && a.interview_lng != null) return `https://www.google.com/maps?q=${a.interview_lat},${a.interview_lng}`;
+  return a.interview_place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a.interview_place} Green Wild Zoo`)}` : null;
+}
+
+/** The interview message with an "Open the map" button, then the place as a location pin (when we know it). */
+export async function sendInterview(a: any, text: string) {
+  const s = await hrSettings();
+  if (!s.telegram_on || !s.bot_token || !a.tg_chat_id) return false;
+  const km = a.tg_lang !== "en";
+  const url = interviewMapUrl(a);
+  const r = await bot("sendMessage", { chat_id: a.tg_chat_id, text: text.slice(0, 4000), parse_mode: "HTML", disable_web_page_preview: true, reply_markup: url ? { inline_keyboard: [[{ text: km ? "📍 បើកផែនទី" : "📍 Open the map", url, style: "success" }]] } : menu(a) }, s.bot_token);
+  if (a.interview_lat != null && a.interview_lng != null)
+    await bot("sendVenue", { chat_id: a.tg_chat_id, latitude: a.interview_lat, longitude: a.interview_lng, title: a.interview_place || (km ? "ទីកន្លែងសម្ភាសន៍" : "Interview place"), address: a.interview_at ? dt(a.interview_at, km) : "Green Wild Zoo", reply_markup: menu(a) }, s.bot_token);
+  return Boolean(r?.ok);
+}
+
+/** Coordinates in a Google Maps link (short links are opened to find them). Only Google map addresses are opened. */
+export async function mapPoint(link: string): Promise<{ lat: number; lng: number } | null> {
+  const find = (u: string) => {
+    const m = u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ?? u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ?? u.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) ?? u.match(/^\s*(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\s*$/);
+    if (!m) return null;
+    const lat = Number(m[1]), lng = Number(m[2]);
+    return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+  };
+  let url = link.trim();
+  const direct = find(url);
+  if (direct) return direct;
+  for (let i = 0; i < 4; i++) {
+    let host = "";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      return null;
+    }
+    if (!/^(maps\.app\.goo\.gl|goo\.gl|(www\.|maps\.)?google\.[a-z.]+)$/.test(host)) return null;
+    const r = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(5000), cache: "no-store" }).catch(() => null);
+    const next = r?.headers.get("location");
+    if (!next) return null;
+    url = new URL(next, url).toString();
+    const p = find(decodeURIComponent(url));
+    if (p) return p;
+  }
+  return null;
 }
 
 /** Staff who work on hiring (HR permission) and admins: told about new applications and questions. */

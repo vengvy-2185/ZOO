@@ -5,7 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess } from "@/lib/server/staff";
 import { createStaffAccount } from "@/lib/server/staff-account";
-import { announce, canHr, logEvent, tellApplicant, esc, type HrStatus } from "@/lib/server/hr";
+import { announce, canHr, logEvent, mapPoint, tellApplicant, esc, type HrStatus } from "@/lib/server/hr";
 
 // The HR team's work on applications. Every step is written in the
 // application's timeline and, when the applicant linked Telegram, they are
@@ -22,14 +22,24 @@ const touch = (id: string) => {
   revalidatePath("/staff/hr");
   revalidatePath(`/staff/hr/${id}`);
 };
-const STATUSES: HrStatus[] = ["new", "screening", "interview", "offer", "hired", "rejected", "withdrawn"];
+/** Still being decided. Once passed / not selected / hired, the result is final. */
+const OPEN: HrStatus[] = ["new", "screening", "interview"];
+const LOCKED = { error: "locked" } as const;
 
 export async function setHrStatus(applicantId: string, status: HrStatus) {
   const { id } = await hr();
-  if (!STATUSES.includes(status) || status === "hired") return;
-  await createServiceRoleClient().from("hr_applicants").update({ status, updated_at: new Date().toISOString() }).eq("id", applicantId);
+  if (status !== "screening" && status !== "withdrawn") return;
+  // one step at a time: a second tap (or another HR at the same moment) changes nothing
+  const { data } = await createServiceRoleClient()
+    .from("hr_applicants")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", applicantId)
+    .in("status", status === "withdrawn" ? [...OPEN, "offer"] : OPEN)
+    .neq("status", status)
+    .select("id");
+  if (!data?.length) return LOCKED;
   await logEvent(applicantId, `status:${status}`, null, id);
-  await announce(applicantId, status === "offer" ? "offer" : status === "rejected" ? "rejected" : "status");
+  await announce(applicantId, "status");
   touch(applicantId);
 }
 
@@ -38,10 +48,25 @@ export async function scheduleInterview(applicantId: string, fd: FormData) {
   const when = String(fd.get("at") ?? "");
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when)) return { error: "time" };
   const at = new Date(`${when}:00+07:00`).toISOString(); // the time typed is Cambodia time
-  await createServiceRoleClient()
+  const map = String(fd.get("map") ?? "").trim().slice(0, 500);
+  if (map && !/^(https:\/\/|-?\d{1,2}\.\d+\s*,)/.test(map)) return { error: "map" };
+  const point = map ? await mapPoint(map) : null;
+  const { data } = await createServiceRoleClient()
     .from("hr_applicants")
-    .update({ status: "interview", interview_at: at, interview_place: String(fd.get("place") ?? "").trim().slice(0, 200) || null, interview_note: String(fd.get("note") ?? "").trim().slice(0, 1000) || null, updated_at: new Date().toISOString() })
-    .eq("id", applicantId);
+    .update({
+      status: "interview",
+      interview_at: at,
+      interview_place: String(fd.get("place") ?? "").trim().slice(0, 200) || null,
+      interview_note: String(fd.get("note") ?? "").trim().slice(0, 1000) || null,
+      interview_map: map.startsWith("https://") ? map : point ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : null,
+      interview_lat: point?.lat ?? null,
+      interview_lng: point?.lng ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", applicantId)
+    .in("status", OPEN)
+    .select("id");
+  if (!data?.length) return LOCKED;
   await logEvent(applicantId, "interview", when.replace("T", " "), id);
   await announce(applicantId, "interview");
   touch(applicantId);
@@ -50,7 +75,14 @@ export async function scheduleInterview(applicantId: string, fd: FormData) {
 
 export async function setResult(applicantId: string, pass: boolean, note: string) {
   const { id } = await hr();
-  await createServiceRoleClient().from("hr_applicants").update({ status: pass ? "offer" : "rejected", result_note: note.trim().slice(0, 1000) || null, updated_at: new Date().toISOString() }).eq("id", applicantId);
+  // decided once only: this only changes an application that is still open
+  const { data } = await createServiceRoleClient()
+    .from("hr_applicants")
+    .update({ status: pass ? "offer" : "rejected", result_note: note.trim().slice(0, 1000) || null, updated_at: new Date().toISOString() })
+    .eq("id", applicantId)
+    .in("status", OPEN)
+    .select("id");
+  if (!data?.length) return LOCKED;
   await logEvent(applicantId, pass ? "passed" : "not-selected", note || null, id);
   await announce(applicantId, pass ? "offer" : "rejected");
   touch(applicantId);
@@ -98,6 +130,7 @@ export async function hireApplicant(applicantId: string, positionId: string): Pr
   const { data: a } = await db.from("hr_applicants").select("*").eq("id", applicantId).maybeSingle();
   if (!a) return { error: "not found" };
   if (a.staff_user_id) return { error: "Already hired." };
+  if (a.status !== "offer" && a.status !== "interview") return { error: "Only an applicant who passed can be hired." };
   if (!positionId) return { error: "Choose a position." };
   const r = await createStaffAccount({ name: a.full_name, nameKm: a.full_name_km, positionId, phone: a.phone, createdBy: id });
   if (!r.ok) return { error: r.error };

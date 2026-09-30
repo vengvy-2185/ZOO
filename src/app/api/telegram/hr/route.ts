@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { bot, botAction, guestMenu, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
+import { bot, botAction, guestMenu, interviewMapUrl, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
 import { sendPush } from "@/lib/server/push";
 import { getPrivateSetting } from "@/lib/server/private-settings";
 import { allow } from "@/lib/server/rate-limit";
@@ -105,7 +105,7 @@ async function onGuest(chatId: number, m: any, text: string) {
 
 /** "/status" etc. from the blue Menu button: the same as pressing that button. */
 function cmd(text: string): any {
-  return text.match(/^\/(status|interview|result|ask|jobs|contact|link|lang|apply)(?:@\w+)?$/i)?.[1]?.toLowerCase() ?? null;
+  return text.match(/^\/(status|interview|cv|result|ask|jobs|contact|link|lang|apply)(?:@\w+)?$/i)?.[1]?.toLowerCase() ?? null;
 }
 
 async function jobsList(chatId: number, km: boolean, keypad?: unknown) {
@@ -176,7 +176,19 @@ async function doAction(chatId: number, a: any, data: string) {
   switch (data) {
     case "status":
       return send(chatId, await statusText(a.id), menu(a));
-    case "interview":
+    case "cv": {
+      if (!a.cv_path) return send(chatId, km ? "📎 មិនមាន CV ទេ។" : "📎 No CV on file.", menu(a));
+      const { data: f } = await db().storage.from("hr-files").createSignedUrl(a.cv_path, 600);
+      const cap = km ? `📎 CV ដែលអ្នកបានផ្ញើ · ${a.code}` : `📎 The CV you sent · ${a.code}`;
+      const r = f?.signedUrl ? await bot("sendDocument", { chat_id: chatId, document: f.signedUrl, caption: cap, reply_markup: menu(a) }) : null;
+      if (r?.ok) return;
+      // Telegram couldn't fetch it: a private link for 10 minutes instead
+      return send(chatId, `${cap}\n${km ? "(តំណនេះប្រើបាន ១០ នាទី)" : "(this link works for 10 minutes)"}`, f?.signedUrl ? { inline_keyboard: [[{ text: km ? "📎 បើក CV" : "📎 Open CV", url: f.signedUrl }]] } : menu(a));
+    }
+    case "interview": {
+      const map = interviewMapUrl(a);
+      if (a.interview_at && a.interview_lat != null && a.interview_lng != null)
+        await bot("sendVenue", { chat_id: chatId, latitude: a.interview_lat, longitude: a.interview_lng, title: a.interview_place || (km ? "ទីកន្លែងសម្ភាសន៍" : "Interview place"), address: dt(a.interview_at, km) });
       return send(
         chatId,
         a.interview_at
@@ -186,8 +198,9 @@ async function doAction(chatId: number, a: any, data: string) {
           : km
             ? "📅 មិនទាន់មានការណាត់សម្ភាសន៍នៅឡើយទេ។ HR នឹងផ្ញើមកទីនេះ។"
             : "📅 No interview yet. HR will message you here.",
-        menu(a)
+        a.interview_at && map ? { inline_keyboard: [[{ text: km ? "📍 បើកផែនទី" : "📍 Open the map", url: map, style: "success" }]] } : menu(a)
       );
+    }
     case "result": {
       const st = a.status as HrStatus;
       const done = st === "offer" || st === "hired" || st === "rejected";

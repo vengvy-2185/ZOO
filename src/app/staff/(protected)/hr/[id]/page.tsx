@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HrStatusIcon } from "@/components/hr/HrStatusIcon";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Phone, Mail, MapPin, Calendar, GraduationCap, Briefcase, Languages, Wrench, Wallet, Send, CalendarClock } from "lucide-react";
+import { interviewMapUrl } from "@/lib/server/hr";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle, getPositions } from "@/lib/server/staff";
@@ -23,6 +24,8 @@ export default async function Applicant({ params }: { params: { id: string } }) 
   const km = locale === "km";
   const db = createServiceRoleClient();
   const { data: a } = await db.from("hr_applicants").select("*, job:hr_jobs(title, title_km, position_id)").eq("id", params.id).maybeSingle();
+  // the map link used last time (most interviews are at the same place)
+  const lastMap = ((await db.from("hr_applicants").select("interview_map").not("interview_map", "is", null).order("updated_at", { ascending: false }).limit(1).maybeSingle()).data?.interview_map as string | undefined) ?? null;
   if (!a) notFound();
   const [{ data: msgs }, { data: events }, positions] = await Promise.all([
     db.from("hr_messages").select("id, from_hr, body, created_at").eq("applicant_id", a.id).order("created_at"),
@@ -62,6 +65,11 @@ export default async function Applicant({ params }: { params: { id: string } }) 
           <p className="mt-3 flex items-center gap-2 text-xs text-ink/50">
             <Send size={13} className={a.tg_chat_id ? "text-[#229ED9]" : ""} /> {a.tg_chat_id ? `Telegram ✓${a.tg_username ? ` @${a.tg_username}` : ""}` : L("Telegram not linked yet", "មិនទាន់ភ្ជាប់ Telegram")}
             {a.interview_at && <span className="inline-flex items-center gap-1">· <CalendarClock size={13} /> {dt(a.interview_at, km)}</span>}
+            {a.interview_at && interviewMapUrl(a) && (
+              <a href={interviewMapUrl(a)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-primary underline">
+                <MapPin size={13} /> {a.interview_place || L("Map", "ផែនទី")}
+              </a>
+            )}
           </p>
           <h3 className="mt-5 text-xs font-extrabold uppercase tracking-wider text-ink/40">{L("Timeline", "ប្រវត្តិ")}</h3>
           <ul className="mt-2 space-y-1 text-xs text-ink/60">
@@ -73,7 +81,7 @@ export default async function Applicant({ params }: { params: { id: string } }) 
         <ApplicantPanel
           km={km}
           admin={access.admin}
-          a={{ id: a.id, status: a.status, hr_note: a.hr_note, rating: a.rating, result_note: a.result_note, interview_place: a.interview_place, interview_note: a.interview_note, has_cv: Boolean(a.cv_path), cv_name: a.cv_name, telegram: Boolean(a.tg_chat_id), hired: Boolean(a.staff_user_id), position_id: a.job?.position_id ?? null }}
+          a={{ id: a.id, status: a.status, hr_note: a.hr_note, rating: a.rating, result_note: a.result_note, interview_place: a.interview_place, interview_note: a.interview_note, interview_map: a.interview_map ?? lastMap, has_cv: Boolean(a.cv_path), cv_name: a.cv_name, telegram: Boolean(a.tg_chat_id), hired: Boolean(a.staff_user_id), position_id: a.job?.position_id ?? null }}
           msgs={(msgs ?? []) as any}
           positions={positions.map((p) => ({ id: p.id, name: (km && p.name_km) || p.name }))}
         />
