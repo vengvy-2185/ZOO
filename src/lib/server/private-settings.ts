@@ -58,7 +58,7 @@ export function serviceClient() {
   });
 }
 
-export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram" | "turn"): Promise<T> {
+export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram" | "turn" | "hr"): Promise<T> {
   const { data } = await serviceClient().from("private_settings").select("value").eq("key", key).maybeSingle();
   return ((data?.value as T) ?? ({} as T)) as T;
 }

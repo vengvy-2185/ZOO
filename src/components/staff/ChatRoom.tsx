@@ -11,6 +11,7 @@ import { deleteChat, reactChat, markChatRead, olderChat } from "@/app/staff/(pro
 import { createClient } from "@/lib/supabase/client";
 import { Linkify } from "@/lib/linkify";
 import { msgText, chatTime, chatDay, chatDayKey } from "@/lib/chat-text";
+import { say } from "@/lib/voice";
 import { ChatComposer, VoiceBubble } from "./ChatBox";
 import { cn } from "@/lib/utils/cn";
 
@@ -111,6 +112,15 @@ export function ChatRoom(d: RoomData) {
   const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState<{ key: string; body: string; images: string[]; files: string[] }[]>([]);
   const addMsg = (m: Msg) => setMsgs((cur) => (cur.some((x) => x.id === m.id) ? cur : merge(cur, [m])));
+  // new messages from others are read aloud (once each)
+  const spoken = useRef(new Set(d.msgs.map((m) => m.id)));
+  useEffect(() => {
+    for (const m of msgs) {
+      if (spoken.current.has(m.id)) continue;
+      spoken.current.add(m.id);
+      if (m.user_id !== me && document.visibilityState === "visible") say(`${d.people[m.user_id ?? ""]?.name ?? ""}: ${msgText(m, km)}`);
+    }
+  }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   const chan = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const lastTyping = useRef(0);
   const online = useMemo(() => new Set(d.online), [d.online]);

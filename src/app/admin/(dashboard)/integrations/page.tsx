@@ -1,10 +1,11 @@
-import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send, PhoneCall } from "lucide-react";
+import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send, PhoneCall, Briefcase } from "lucide-react";
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
 import { SubmitButton, ImageUploadField } from "@/components/admin/ui-client";
 import { PaymentTest } from "@/components/admin/PaymentTest";
 import { bakongUsage } from "@/lib/server/payments";
+import { hrSettings } from "@/lib/server/hr";
 import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings } from "@/lib/server/private-settings";
-import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveTurn, testTurn } from "./actions";
+import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveTurn, testTurn, saveHr, connectHrBot } from "./actions";
 
 const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], string> = {
   sos: "SOS / emergency (always recommended)",
@@ -19,12 +20,13 @@ const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], string> = {
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage({ searchParams }: { searchParams: { msg?: string; test?: string; tg?: string; detail?: string } }) {
-  const [pay, tts, tele, usage, turn] = await Promise.all([
+  const [pay, tts, tele, usage, turn, hr] = await Promise.all([
     getPrivateSetting<PaymentSettings>("payment"),
     getPrivateSetting<TtsSettings>("tts"),
     getPrivateSetting<TelegramSettings>("telegram"),
     bakongUsage(),
     getPrivateSetting<TurnSettings>("turn"),
+    hrSettings(),
   ]);
 
   return (
@@ -182,6 +184,41 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           {usage.limited && <span className="w-full text-xs font-bold text-red-700">Limit reached: payments made now are confirmed automatically on the first check tomorrow. For busy days, ask NBC (api-bakong.nbc.gov.kh) for a higher daily limit.</span>}
         </div>
         <PaymentTest />
+
+        {/* ── Hiring (HR) ─────────────────────────────── */}
+        <form action={saveHr} autoComplete="off" id="hr" className="scroll-mt-6">
+          <FormSection icon={Briefcase} title="Hiring new staff (HR) & recruitment bot" hint="People apply at /careers with their CV. Turn on the two parts below: applications arrive in Staff → HR, and applicants follow everything in a Telegram bot (status, interview, result, questions — and their staff account once hired).">
+            <label className="flex w-fit cursor-pointer items-center gap-3 rounded-2xl bg-cream px-4 py-3 text-sm font-semibold text-forest">
+              <input type="checkbox" name="accept" defaultChecked={hr.accept} className="h-5 w-5 accent-[#176B3A]" /> 1 · Take applications (CVs go into Staff → HR)
+            </label>
+            <label className="flex w-fit cursor-pointer items-center gap-3 rounded-2xl bg-cream px-4 py-3 text-sm font-semibold text-forest">
+              <input type="checkbox" name="telegram_on" defaultChecked={hr.telegram_on} className="h-5 w-5 accent-[#176B3A]" /> 2 · Link applicants to the Telegram bot
+            </label>
+            <ol className="list-decimal space-y-1 rounded-2xl bg-cream p-4 pl-8 text-sm text-ink/75">
+              <li>In Telegram open <b>@BotFather</b> → <b>/newbot</b> (e.g. name “GWZ Jobs”) → copy the token.</li>
+              <li>Paste it below, save, then press <b>Connect the bot</b>.</li>
+            </ol>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={`Recruitment bot token ${hr.bot_token ? `(saved ${mask(hr.bot_token)})` : ""}`} name="bot_token" autoComplete="off" spellCheck={false} data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: "disc" } as React.CSSProperties} placeholder={hr.bot_token ? "Leave blank to keep · type - to remove" : "123456789:AAH…"} />
+              <Field label="HR contact (shown in the bot)" name="contact" defaultValue={hr.contact} placeholder="HR office · 012 345 678 · Mon–Sat 8:00–17:00" />
+            </div>
+            <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-900 ring-1 ring-sky-100">
+              <p className="font-bold">{hr.bot_username ? `Connected: @${hr.bot_username}` : "Bot not connected yet"} · this bot is only for hiring — separate from the staff notification bot above.</p>
+              <p className="mt-1">
+                HR team chat: {hr.hr_chat_id ? <b>linked ✓</b> : <b>not linked</b>} — new applications and applicants&apos; questions go there (never to the staff group).
+                {hr.link_code && !hr.hr_chat_id && (
+                  <>
+                    {" "}To link it: add @{hr.bot_username} to your HR group and send <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold">/link {hr.link_code}</code>
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="flex justify-end"><SubmitButton label="Save hiring settings" pendingLabel="Saving…" /></div>
+          </FormSection>
+        </form>
+        <form action={connectHrBot} className="-mt-3 flex justify-end">
+          <button className="btn-outline bg-white px-4 py-2 text-xs" disabled={!hr.bot_token}>Connect the bot</button>
+        </form>
 
         {/* ── Calls & live video ─────────────────────────────── */}
         <form action={saveTurn} autoComplete="off" id="turn" className="scroll-mt-6">

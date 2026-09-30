@@ -19,7 +19,7 @@ async function requireAdmin() {
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
-async function save(key: "payment" | "tts" | "telegram" | "turn", value: object) {
+async function save(key: "payment" | "tts" | "telegram" | "turn" | "hr", value: object) {
   const { error } = await serviceClient().from("private_settings").upsert({ key, value, updated_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
 }
@@ -135,4 +135,41 @@ export async function testTurn() {
   const list = await iceServers();
   const turn = list.filter((x) => [x.urls].flat().some((u) => String(u).startsWith("turn")));
   redirect(`/admin/integrations?test=${turn.length ? "ok" : "fail"}&detail=${encodeURIComponent(turn.length ? `TURN server answered ✓ (${[turn[0].urls].flat().length} addresses). Calls can now pass through it.` : "No TURN server: check the provider, app name and key.")}#turn`);
+}
+
+/** Hiring: 1) applications go to the HR panel, 2) applicants talk to the Telegram bot. */
+export async function saveHr(formData: FormData) {
+  await requireAdmin();
+  await audit("settings.hr", "private_settings");
+  const { hrSettings } = await import("@/lib/server/hr");
+  const cur = await hrSettings();
+  const token = str(formData, "bot_token");
+  if (token && token !== "-" && !/^\d{5,}:[\w-]{20,}$/.test(token)) redirect("/admin/integrations?msg=bad-telegram-token#hr");
+  await save("hr", {
+    ...cur,
+    accept: formData.get("accept") === "on",
+    telegram_on: formData.get("telegram_on") === "on",
+    contact: str(formData, "contact").slice(0, 300) || undefined,
+    bot_token: token === "-" ? undefined : token || cur.bot_token,
+    ...(token && token !== cur.bot_token ? { bot_username: undefined } : {}),
+  });
+  redirect("/admin/integrations?msg=saved#hr");
+}
+
+/** Tells Telegram to send the bot's messages to this website (with a secret only we know). */
+export async function connectHrBot() {
+  await requireAdmin();
+  const { hrSettings, bot, site } = await import("@/lib/server/hr");
+  const cur = await hrSettings();
+  if (!cur.bot_token) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent("Add the bot token first.")}#hr`);
+  const me = await bot("getMe", {}, cur.bot_token);
+  if (!me?.ok) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent(`Telegram refused the token: ${me?.description ?? "error"}`)}#hr`);
+  const secret = crypto.randomUUID().replace(/-/g, "");
+  const r = await bot("setWebhook", { url: `${site()}/api/telegram/hr`, secret_token: secret, allowed_updates: ["message", "callback_query"], drop_pending_updates: true }, cur.bot_token);
+  if (!r?.ok) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent(`Could not connect: ${r?.description ?? "error"}`)}#hr`);
+  await bot("setMyCommands", { commands: [{ command: "start", description: "ម៉ឺនុយ · Menu" }] }, cur.bot_token);
+  // a one-time code to link the HR team's own group (send "/link <code>" there)
+  const linkCode = String(Math.floor(100000 + Math.random() * 900000));
+  await save("hr", { ...cur, bot_username: me.result.username, webhook_secret: secret, telegram_on: true, link_code: cur.hr_chat_id ? cur.link_code : linkCode });
+  redirect(`/admin/integrations?test=ok&detail=${encodeURIComponent(`Connected ✓ @${me.result.username} now answers applicants.`)}#hr`);
 }

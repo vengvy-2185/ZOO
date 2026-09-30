@@ -6,7 +6,7 @@ const nextConfig = {
     // Admin forms upload photos through Server Actions (default limit is 1 MB).
     serverActions: { bodySizeLimit: "10mb" },
   },
-  // Browsers ask for /favicon.ico by default; serve the SVG app icon instead.
+  // Browsers ask for /favicon.ico by default; serve the app icon instead.
   async redirects() {
     return [
       // the games were removed: old links go to the home page
@@ -43,7 +43,7 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    return [{ source: "/favicon.ico", destination: "/icon.svg" }];
+    return [{ source: "/favicon.ico", destination: "/icon.png" }];
   },
   images: {
     remotePatterns: [

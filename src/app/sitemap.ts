@@ -17,6 +17,7 @@ const PAGES: [string, number, MetadataRoute.Sitemap[number]["changeFrequency"]][
   ["/news", 0.7, "weekly"],
   ["/calendar", 0.6, "monthly"],
   ["/adopt", 0.6, "monthly"],
+  ["/careers", 0.6, "weekly"],
   ["/quest", 0.5, "monthly"],
   ["/rewards", 0.5, "monthly"],
   ["/planner", 0.5, "monthly"],

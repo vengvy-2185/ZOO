@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, ExternalLink, LogOut } from "lucide-react";
 import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
+import { VoiceToggle } from "@/components/GlobalVoice";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { useI18n } from "@/lib/i18n/client";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
@@ -33,7 +34,7 @@ const SECTION: Record<string, ItemKey> = {
 // controls in the compact header inside AdminSidebar.)
 export function AdminTopBar({ name, email, avatarUrl }: { name: string; email: string | null; avatarUrl: string | null }) {
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   // /admin/<section> or /admin/manage/<section>; any sidebar item name works
   const parts = pathname.split("/");
   const seg = (parts[2] === "manage" ? parts[3] : parts[2]) ?? "";
@@ -50,6 +51,7 @@ export function AdminTopBar({ name, email, avatarUrl }: { name: string; email: s
       </nav>
 
       <div className="flex flex-shrink-0 items-center gap-3">
+        <VoiceToggle km={locale === "km"} className="text-forest hover:bg-light-green" />
         <LanguageSwitcher />
         <Link href="/" target="_blank" className="btn border border-black/10 px-4 py-2 text-xs text-forest hover:border-primary hover:text-primary">
           <ExternalLink size={14} /> {t.admin.viewWebsite}

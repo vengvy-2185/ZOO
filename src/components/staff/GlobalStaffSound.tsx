@@ -7,6 +7,7 @@ import { BellRing, VolumeX, Siren, X, Phone, PhoneOff, Video, MessageCircle } fr
 import { useI18n } from "@/lib/i18n/client";
 import { playSound, unlockSound, soundUnlocked } from "@/lib/client-sound";
 import { createClient } from "@/lib/supabase/client";
+import { say } from "@/lib/voice";
 
 type Alert = { id: string; kind: string; place: string | null; name: string; own: boolean; created_at: string };
 type News = { key: string; kind: "chat" | "notice"; channel: string | null; title: string; body: string; avatar: string | null; url: string };
@@ -142,6 +143,7 @@ export function GlobalStaffSound() {
       const looking = (ch: string | null) => location.pathname === "/staff/chat" && new URLSearchParams(location.search).get("c") === ch && document.visibilityState === "visible";
       const pop = (d.news ?? []).filter((n) => fresh.includes(n.key) && !(n.kind === "chat" && looking(n.channel)));
       if (pop.length) setToasts((t) => [...pop.map((n) => ({ ...n, at: Date.now() })), ...t.filter((x) => !pop.some((n) => n.key === x.key))].slice(0, 3));
+      pop.slice(0, 2).forEach((n) => say(`${n.title.replace(/ · .*/, "")}. ${n.body}`));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chimeKey, ready]);
@@ -164,6 +166,17 @@ export function GlobalStaffSound() {
   // someone is calling: ring until joined, declined or the call stops ringing
   const rings = (d?.calls ?? []).filter((c) => !declined.includes(c.id) && !pathname.startsWith("/staff/call"));
   const ringOn = rings.length > 0 && enabled;
+  const firstRing = rings[0]?.id;
+  useEffect(() => {
+    if (firstRing && rings[0]) say(km ? `${rings[0].name} កំពុងហៅអ្នក` : `${rings[0].name} is calling`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstRing]);
+  const sosKey = loud.map((a) => a.id).join(",");
+  useEffect(() => {
+    const a = loud[0];
+    if (a) say(km ? `អាសន្ន! ${KIND_KM[a.kind] ?? ""}. ${a.name}${a.place ? `, ${a.place}` : ""}` : `Emergency! ${KIND_EN[a.kind] ?? ""}. ${a.name}${a.place ? `, ${a.place}` : ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sosKey]);
   useEffect(() => {
     if (!ringOn || !ready) return;
     playSound("ring", vol);

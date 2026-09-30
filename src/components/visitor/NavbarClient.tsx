@@ -22,6 +22,7 @@ export interface SearchAnimal {
   image: string | null;
 }
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { VoiceToggle } from "@/components/GlobalVoice";
 import { useI18n } from "@/lib/i18n/client";
 
 export function NavbarClient({
@@ -182,6 +183,8 @@ export function NavbarClient({
             <MyTicketsButton label={t.nav.myTickets} />
 
             <FavoritesNavButton label={t.nav.favorites} />
+
+            <VoiceToggle km={locale === "km"} className="text-forest hover:bg-light-green" />
 
             <LanguageSwitcher className="hidden sm:flex" />
 

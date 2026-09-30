@@ -34,6 +34,7 @@ const WHAT: Record<string, { km: string; en: string }> = {
   "settings.telegram": { km: "ប្តូរការកំណត់ Telegram", en: "Changed Telegram settings" },
   "settings.tts": { km: "ប្តូរការកំណត់សំឡេង", en: "Changed voice settings" },
   "settings.turn": { km: "ប្តូរការកំណត់ការហៅ (TURN)", en: "Changed call settings (TURN)" },
+  "settings.hr": { km: "ប្តូរការកំណត់ជ្រើសរើសបុគ្គលិក", en: "Changed hiring settings" },
 };
 const GROUPS = [
   { key: "roster", km: "កាលវិភាគ", en: "Schedule", Icon: CalendarRange },

@@ -8,6 +8,7 @@ import { resolveImage } from "@/lib/admin/upload";
 import { getStaffSettings } from "@/lib/server/staff-settings";
 import { getMembers, ensureCard } from "@/lib/server/members";
 import { makePassword, staffEmail, monthRange, payroll, isStaffNo, type Permission, type PayType } from "@/lib/server/staff";
+import { createStaffAccount } from "@/lib/server/staff-account";
 
 import { audit } from "@/lib/server/audit";
 // Staff accounts are made here, and only here: an admin fills in the form,
@@ -46,51 +47,19 @@ export async function createStaff(_prev: CreateStaffState, formData: FormData): 
     return { ok: false, error: e.message };
   }
 
-  // Staff ID: typed by the admin, or the next automatic one (GWZ-S-0001, …).
-  const typed = str(formData, "staff_no").toUpperCase();
-  let staffNo: string;
-  if (typed) {
-    if (!isStaffNo(typed)) return { ok: false, error: "Staff ID: use 3-20 letters, numbers or dashes (e.g. GWZ-S-0101)." };
-    const { data: taken } = await db.from("staff_members").select("user_id").eq("staff_no", typed).maybeSingle();
-    if (taken) return { ok: false, error: `Staff ID ${typed} is already used.` };
-    staffNo = typed;
-  } else {
-    const { data: next, error: seqErr } = await db.rpc("next_staff_no");
-    if (seqErr || !next) return { ok: false, error: "Could not make a Staff ID." };
-    staffNo = next;
-  }
-  const password = makePassword();
-  const { data: created, error: authErr } = await db.auth.admin.createUser({
-    email: staffEmail(staffNo),
-    password,
-    email_confirm: true, // internal address: nothing is ever mailed
-    user_metadata: { full_name: name, display_name: name, ...(photo ? { custom_avatar_url: photo } : {}), staff_no: staffNo },
-  });
-  if (authErr || !created.user) return { ok: false, error: authErr?.message ?? "Could not create the account." };
-  const userId = created.user.id;
-
-  // The profile row is made by the auth trigger; give it the staff role.
-  await db.from("profiles").update({ role: "staff", full_name: name, ...(photo ? { avatar_url: photo } : {}) }).eq("id", userId);
-  const { error: staffErr } = await db.from("staff_members").insert({
-    user_id: userId,
-    staff_no: staffNo,
-    full_name: name,
-    full_name_km: str(formData, "full_name_km") || null,
-    position_id: positionId,
+  const r = await createStaffAccount({
+    name,
+    nameKm: str(formData, "full_name_km") || null,
+    positionId,
     phone: str(formData, "phone") || null,
-    hired_on: str(formData, "hired_on") || undefined,
+    hiredOn: str(formData, "hired_on") || undefined,
     allowance: money(formData, "allowance"),
-    leave_quota: (await getStaffSettings()).default_leave_quota,
-    created_by: adminId,
+    photo,
+    staffNo: str(formData, "staff_no").toUpperCase() || undefined,
+    createdBy: adminId,
   });
-  if (staffErr) {
-    await db.auth.admin.deleteUser(userId);
-    return { ok: false, error: staffErr.message };
-  }
-
-  // ID card straight away (status "ready" = ready to print).
-  const [m] = await getMembers(userId);
-  if (m) await ensureCard(m);
+  if (!r.ok) return { ok: false, error: r.error };
+  const { staffNo, password, userId } = r;
   done();
   return { ok: true, staffNo, password, name, userId };
 }

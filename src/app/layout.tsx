@@ -11,6 +11,7 @@ import { LiveRefresh } from "@/components/LiveRefresh";
 import { OfflineKit } from "@/components/OfflineKit";
 import { AppBackButton } from "@/components/AppBackButton";
 import { AppUpdateBar } from "@/components/AppUpdateBar";
+import { GlobalVoice } from "@/components/GlobalVoice";
 import { GlobalAttendanceQR } from "@/components/staff/GlobalAttendanceQR";
 import { GlobalStaffSound } from "@/components/staff/GlobalStaffSound";
 import { getBranding } from "@/lib/branding";
@@ -81,6 +82,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <OfflineKit />
           <AppBackButton />
           <AppUpdateBar />
+          <GlobalVoice />
           <IntroSplash videoUrl={heroVideoUrl} />
         </LocaleProvider>
         <ScrollReveal />
