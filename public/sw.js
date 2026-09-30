@@ -7,7 +7,7 @@
    Pages from the signed-in areas (/staff, /admin, /account…) are kept apart
    and removed on sign-out or when someone else signs in on the device. */
 
-const VERSION = "v5"; // a new version removes the pages saved by the old one
+const VERSION = "v6"; // a new version removes the pages saved by the old one
 const STATIC = `gwz-static-${VERSION}`;
 const PAGES = `gwz-pages-${VERSION}`;
 const PRIVATE = `gwz-private-${VERSION}`;
@@ -41,7 +41,9 @@ const isPrivate = (path) => PRIVATE_PATHS.some((r) => r.test(path));
 
 self.addEventListener("message", (event) => {
   const d = event.data || {};
-  if (d.type === "clear") {
+  if (d.type === "skip-waiting") {
+    self.skipWaiting();
+  } else if (d.type === "clear") {
     event.waitUntil(Promise.all([caches.delete(PRIVATE), caches.delete(PAGES)]));
   } else if (d.type === "owner") {
     // someone else signed in on this device: forget the previous person's pages

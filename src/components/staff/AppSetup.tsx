@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Download, Share, SquarePlus, CheckCircle2, Loader2, X, Send, Smartphone, AlarmClock, Siren, LifeBuoy, CalendarRange, Ticket, BarChart3, ShieldAlert, Map as MapIcon, PartyPopper } from "lucide-react";
+import { Bell, BellOff, Download, Share, SquarePlus, CheckCircle2, Loader2, X, Send, Smartphone, AlarmClock, Siren, LifeBuoy, CalendarRange, Ticket, BarChart3, ShieldAlert, Map as MapIcon, PartyPopper , RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { updateApp } from "@/lib/app-update";
 import { InstallGuide, guideKind, type GuideKind } from "./InstallGuide";
 
 type Push = "unsupported" | "needs-install" | "denied" | "off" | "on";
@@ -238,6 +239,9 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
           <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3 ring-1 ring-emerald-200">
             <PartyPopper size={22} className="text-emerald-600" />
             <p className="flex-1 text-sm font-extrabold text-emerald-700">{km ? "រួចរាល់! កម្មវិធីនៅលើទូរស័ព្ទ ហើយការជូនដំណឹងបានបើក" : "All set! The app is on your phone with notifications on"}</p>
+            <button type="button" onClick={() => { setBusy(true); updateApp(); }} className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-extrabold text-emerald-700 ring-1 ring-emerald-200">
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Update
+            </button>
           </div>
         ) : (
           <button

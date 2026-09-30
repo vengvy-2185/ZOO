@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // which version of the website this is (the installed app compares it to learn about updates)
+  env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_BUILD_ID || String(Date.now()) },
   experimental: {
     // Admin forms upload photos through Server Actions (default limit is 1 MB).
     serverActions: { bodySizeLimit: "10mb" },

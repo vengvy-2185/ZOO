@@ -10,6 +10,7 @@ import { ZooAssistant } from "@/components/ZooAssistant";
 import { LiveRefresh } from "@/components/LiveRefresh";
 import { OfflineKit } from "@/components/OfflineKit";
 import { AppBackButton } from "@/components/AppBackButton";
+import { AppUpdateBar } from "@/components/AppUpdateBar";
 import { GlobalAttendanceQR } from "@/components/staff/GlobalAttendanceQR";
 import { GlobalStaffSound } from "@/components/staff/GlobalStaffSound";
 import { getBranding } from "@/lib/branding";
@@ -44,9 +45,9 @@ export const metadata: Metadata = {
   // Browsers still request /favicon.ico directly — point it at the SVG icon;
   // search engines prefer a square PNG in sizes of 48px steps
   icons: {
-    icon: [{ url: "/icon.png", sizes: "96x96", type: "image/png" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }],
-    shortcut: "/icon.png",
-    apple: "/icons/apple-touch-icon.png",
+    icon: [{ url: "/icon.png?v=2", sizes: "96x96", type: "image/png" }, { url: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png?v=2", sizes: "512x512", type: "image/png" }],
+    shortcut: "/icon.png?v=2",
+    apple: "/icons/apple-touch-icon.png?v=2",
   },
   // can be installed on a phone's home screen like an app
   manifest: "/manifest.webmanifest",
@@ -79,6 +80,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <GlobalStaffSound />
           <OfflineKit />
           <AppBackButton />
+          <AppUpdateBar />
           <IntroSplash videoUrl={heroVideoUrl} />
         </LocaleProvider>
         <ScrollReveal />
