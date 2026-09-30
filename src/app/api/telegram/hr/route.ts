@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { bot, botAction, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
+import { bot, botAction, guestMenu, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
 import { sendPush } from "@/lib/server/push";
 import { getPrivateSetting } from "@/lib/server/private-settings";
+import { allow } from "@/lib/server/rate-limit";
 
 // The recruitment bot. Telegram sends every message / button press here,
 // with the secret we gave it when connecting (anything without it is
@@ -53,10 +54,66 @@ async function welcomeStranger(chatId: number, lang: string) {
   return send(
     chatId,
     km
-      ? `🐘 <b>សួស្តី! នេះជា Bot ជ្រើសរើសបុគ្គលិករបស់ Green Wild Zoo</b>\n\nដាក់ពាក្យធ្វើការនៅ ${site()}/careers\nបន្ទាប់ពីដាក់ពាក្យ ចុចប៊ូតុង «បើក Telegram» ដើម្បីភ្ជាប់ពាក្យរបស់អ្នកមកទីនេះ។`
-      : `🐘 <b>Hello! This is the Green Wild Zoo hiring bot</b>\n\nApply for a job at ${site()}/careers\nAfter applying, press "Open Telegram" to link your application here.`,
-    { inline_keyboard: [[{ text: km ? "💼 មើលការងារទំនេរ" : "💼 See open jobs", url: `${site()}/careers` }]] }
+      ? `🐘 <b>សួស្តី! នេះជា Bot ជ្រើសរើសបុគ្គលិករបស់ Green Wild Zoo</b>\n\n• <b>💼 ការងារទំនេរ</b> — មើលការងារដែលកំពុងរើស\n• <b>📝 ដាក់ពាក្យធ្វើការ</b> — បំពេញពាក្យ និងភ្ជាប់ CV\n• <b>🔗 ភ្ជាប់ពាក្យដែលបានដាក់</b> — បើអ្នកបានដាក់ពាក្យរួច ដើម្បីតាមដានការសម្ភាសន៍ លទ្ធផល និងសួរ HR នៅទីនេះ`
+      : `🐘 <b>Hello! This is the Green Wild Zoo hiring bot</b>\n\n• <b>💼 Open jobs</b> — see who we're hiring\n• <b>📝 Apply for a job</b> — fill in the form with your CV\n• <b>🔗 Link my application</b> — if you already applied: follow your interview and result, and ask HR here`,
+    guestMenu(km)
   );
+}
+
+/** Someone not linked yet pressed a button (or typed "HR-0001 012345678"). */
+async function onGuest(chatId: number, m: any, text: string) {
+  const km = !String(m.from?.language_code ?? "").startsWith("en");
+  const act = botAction(text) ?? cmd(text);
+  if (act === "jobs") return jobsList(chatId, km, guestMenu(km));
+  if (act === "apply")
+    return send(chatId, km ? "📝 ចុចប៊ូតុងខាងក្រោម ដើម្បីជ្រើសការងារ និងដាក់ពាក្យ។ ក្រោយដាក់ពាក្យ ចុច «បើក Telegram» ដើម្បីភ្ជាប់មកទីនេះ។" : '📝 Tap below to choose a job and apply. After applying, press "Open Telegram" to link it here.', {
+      inline_keyboard: [[{ text: km ? "📝 ដាក់ពាក្យឥឡូវ" : "📝 Apply now", url: `${site()}/careers`, style: "success" }]],
+    });
+  if (act === "contact") {
+    const s = await hrSettings();
+    return send(chatId, `📞 <b>${km ? "ទំនាក់ទំនង HR" : "Contact HR"}</b>\n${esc(s.contact || "—")}\n\n🌐 ${site()}/careers`, guestMenu(km));
+  }
+  if (act === "link")
+    return send(
+      chatId,
+      km
+        ? "🔗 សូមផ្ញើ <b>លេខកូដពាក្យ</b> និង <b>លេខទូរស័ព្ទ</b> ដែលបានសរសេរក្នុងពាក្យ ដូចនេះ៖\n\n<code>HR-0012 012345678</code>\n\n(លេខកូដមាននៅទំព័រ «បានទទួលពាក្យ» ក្រោយពេលដាក់ពាក្យ)"
+        : "🔗 Send your <b>application code</b> and the <b>phone number</b> you applied with, like this:\n\n<code>HR-0012 012345678</code>\n\n(the code is on the thank-you page after applying)",
+      guestMenu(km)
+    );
+  const code = text.match(/\bHR-?(\d{3,6})\b/i);
+  if (code) {
+    if (!(await allow("hr-tg-link", 6, 3600, String(chatId)))) return send(chatId, km ? "⏳ ព្យាយាមច្រើនដងពេក។ សូមរង់ចាំបន្តិច។" : "⏳ Too many tries. Please wait a while.", guestMenu(km));
+    const digits = (x: string) => x.replace(/\D/g, "").replace(/^855/, "").replace(/^0/, "");
+    const phone = digits(text.replace(code[0], ""));
+    const { data: a } = await db().from("hr_applicants").select("id, phone, tg_chat_id").eq("code", `HR-${code[1].padStart(4, "0")}`).maybeSingle();
+    if (!a || phone.length < 7 || digits(a.phone) !== phone)
+      return send(chatId, km ? "❌ លេខកូដ ឬលេខទូរស័ព្ទមិនត្រូវគ្នាទេ។ សូមពិនិត្យ ហើយសាកម្តងទៀត។" : "❌ The code or phone number doesn't match. Please check and try again.", guestMenu(km));
+    if (a.tg_chat_id && Number(a.tg_chat_id) !== chatId)
+      return send(chatId, km ? "⚠️ ពាក្យនេះបានភ្ជាប់ជាមួយ Telegram មួយផ្សេងរួចហើយ។ សូមទាក់ទង HR។" : "⚠️ This application is already linked to another Telegram. Please contact HR.", guestMenu(km));
+    const { data: linked } = await db()
+      .from("hr_applicants")
+      .update({ tg_chat_id: chatId, tg_username: m.from?.username ?? null, tg_lang: km ? "km" : "en", updated_at: new Date().toISOString() })
+      .eq("id", a.id)
+      .select("*")
+      .single();
+    await send(chatId, km ? `🎉 បានភ្ជាប់ពាក្យ ${esc(linked.code)} ហើយ! ពីនេះទៅ អ្នកនឹងទទួលដំណឹងការសម្ភាសន៍ និងលទ្ធផលនៅទីនេះ។` : `🎉 Application ${esc(linked.code)} is linked! From now on you get interview and result news here.`, menu(linked));
+    return send(chatId, await statusText(linked.id));
+  }
+  return welcomeStranger(chatId, m.from?.language_code);
+}
+
+/** "/status" etc. from the blue Menu button: the same as pressing that button. */
+function cmd(text: string): any {
+  return text.match(/^\/(status|interview|result|ask|jobs|contact|link|lang|apply)(?:@\w+)?$/i)?.[1]?.toLowerCase() ?? null;
+}
+
+async function jobsList(chatId: number, km: boolean, keypad?: unknown) {
+  const { data: jobs } = await db().from("hr_jobs").select("slug, title, title_km, salary").eq("open", true).order("sort").limit(10);
+  if (!jobs?.length) return send(chatId, km ? "មិនទាន់មានការងារទំនេរទេ។" : "No open jobs right now.", keypad);
+  return send(chatId, km ? "💼 <b>ការងារទំនេរ</b>\nចុចលើការងារ ដើម្បីមើលព័ត៌មាន និងដាក់ពាក្យ៖" : "💼 <b>Open jobs</b>\nTap a job to read more and apply:", {
+    inline_keyboard: jobs.map((j: any) => [{ text: `${(km && j.title_km) || j.title}${j.salary ? ` · ${j.salary}` : ""}`, url: `${site()}/careers/${j.slug}` }]),
+  });
 }
 
 async function onMessage(m: any) {
@@ -67,7 +124,9 @@ async function onMessage(m: any) {
   if (start) {
     if (!start[1]) {
       const a = await byChat(chatId);
-      return a ? send(chatId, await statusText(a.id), menu(a)) : welcomeStranger(chatId, m.from?.language_code);
+      if (!a) return welcomeStranger(chatId, m.from?.language_code);
+      await send(chatId, a.tg_lang !== "en" ? `👋 សួស្តី ${esc(a.full_name)}! សូមប្រើម៉ឺនុយខាងក្រោម។` : `👋 Hello ${esc(a.full_name)}! Use the menu below.`, menu(a));
+      return send(chatId, await statusText(a.id));
     }
     // link this chat to the application (the private token proves it's theirs)
     const { data: a } = await db().from("hr_applicants").update({ tg_chat_id: chatId, tg_username: m.from?.username ?? null, tg_lang: m.from?.language_code?.startsWith("en") ? "en" : "km", updated_at: new Date().toISOString() }).eq("token", start[1]).select("*").maybeSingle();
@@ -77,11 +136,14 @@ async function onMessage(m: any) {
     return send(chatId, await statusText(a.id), menu(a));
   }
   const a = await byChat(chatId);
-  if (!a) return welcomeStranger(chatId, m.from?.language_code);
+  if (!a) return onGuest(chatId, m, text);
   const km = a.tg_lang !== "en";
   if (!text) return send(chatId, km ? "សូមសរសេរជាអក្សរ 🙏" : "Please send text 🙏", menu(a));
   // a menu button (it arrives as its own text), not a question
-  const act = botAction(text);
+  const act = botAction(text) ?? cmd(text);
+  if (act === "lang") return doAction(chatId, a, km ? "lang:en" : "lang:km");
+  if (act === "apply") return doAction(chatId, a, "jobs");
+  if (act === "link") return send(chatId, km ? `✅ ពាក្យ ${esc(a.code)} បានភ្ជាប់រួចហើយ។` : `✅ Application ${esc(a.code)} is already linked.`, menu(a));
   if (act) return doAction(chatId, a, act);
   // anything they write is a question for HR
   await db().from("hr_messages").insert({ applicant_id: a.id, body: text.slice(0, 2000) });
@@ -142,11 +204,8 @@ async function doAction(chatId: number, a: any, data: string) {
     case "ask":
       await db().from("hr_applicants").update({ tg_state: "ask" }).eq("id", a.id);
       return send(chatId, km ? "💬 សូមសរសេរសំណួររបស់អ្នក ហើយផ្ញើមក។ HR នឹងឆ្លើយតបនៅទីនេះ។" : "💬 Type your question and send it. HR will answer here.");
-    case "jobs": {
-      const { data: jobs } = await db().from("hr_jobs").select("slug, title, title_km").eq("open", true).order("sort").limit(8);
-      if (!jobs?.length) return send(chatId, km ? "មិនទាន់មានការងារទំនេរផ្សេងទៀតទេ។" : "No other open jobs right now.", menu(a));
-      return send(chatId, km ? "💼 <b>ការងារទំនេរ</b>" : "💼 <b>Open jobs</b>", { inline_keyboard: jobs.map((j: any) => [{ text: (km && j.title_km) || j.title, url: `${site()}/careers/${j.slug}` }]) });
-    }
+    case "jobs":
+      return jobsList(chatId, km);
     case "contact": {
       const s = await hrSettings();
       return send(chatId, `📞 <b>${km ? "ទំនាក់ទំនង HR" : "Contact HR"}</b>\n${esc(s.contact || (km ? "សូមចុច «💬 សួរ HR» ដើម្បីផ្ញើសារ។" : 'Tap "💬 Ask HR" to send a message.'))}\n\n🌐 ${site()}`, menu(a));

@@ -69,6 +69,8 @@ export const BOT_ACTIONS = {
   jobs: { km: "💼 ការងារទំនេរ", en: "💼 Open jobs", style: "primary" },
   contact: { km: "📞 ទំនាក់ទំនង", en: "📞 Contact", style: "primary" },
   account: { km: "🔐 គណនីបុគ្គលិករបស់ខ្ញុំ", en: "🔐 My staff account", style: "success" },
+  apply: { km: "📝 ដាក់ពាក្យធ្វើការ", en: "📝 Apply for a job", style: "success" },
+  link: { km: "🔗 ភ្ជាប់ពាក្យដែលបានដាក់", en: "🔗 Link my application", style: "danger" },
   "lang:en": { km: "🌐 English", en: "🌐 English", style: undefined },
   "lang:km": { km: "🌐 ភាសាខ្មែរ", en: "🌐 ភាសាខ្មែរ", style: undefined },
 } as const;
@@ -80,6 +82,33 @@ export function botAction(text: string): BotAction | null {
   for (const [k, v] of Object.entries(BOT_ACTIONS)) if (t === v.km || t === v.en) return k as BotAction;
   return null;
 }
+
+/** The menu for someone who hasn't linked an application yet. */
+export function guestMenu(km: boolean) {
+  const b = (k: BotAction) => {
+    const v = BOT_ACTIONS[k];
+    return { text: km ? v.km : v.en, ...(v.style ? { style: v.style } : {}) };
+  };
+  return {
+    keyboard: [[b("jobs"), b("apply")], [b("link")], [b("contact")]],
+    resize_keyboard: true,
+    is_persistent: true,
+    input_field_placeholder: km ? "ចុចម៉ឺនុយខាងក្រោម…" : "Tap a button below…",
+  };
+}
+
+/** The commands in Telegram's blue "Menu" button (private chats). */
+export const BOT_COMMANDS = [
+  { command: "start", description: "ម៉ឺនុយ · Menu" },
+  { command: "status", description: "ស្ថានភាពពាក្យ · My application" },
+  { command: "interview", description: "ការសម្ភាសន៍ · Interview" },
+  { command: "result", description: "លទ្ធផល · Result" },
+  { command: "ask", description: "សួរ HR · Ask HR" },
+  { command: "jobs", description: "ការងារទំនេរ · Open jobs" },
+  { command: "link", description: "ភ្ជាប់ពាក្យ · Link my application" },
+  { command: "contact", description: "ទំនាក់ទំនង · Contact" },
+  { command: "lang", description: "ប្តូរភាសា · Language" },
+];
 
 export function menu(a: Pick<App, "status" | "tg_lang">) {
   const km = a.tg_lang !== "en";

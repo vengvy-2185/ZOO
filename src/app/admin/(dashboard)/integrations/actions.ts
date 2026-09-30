@@ -163,7 +163,7 @@ export async function saveHr(formData: FormData) {
 /** Tells Telegram to send the bot's messages to this website (with a secret only we know). */
 export async function connectHrBot() {
   await requireAdmin();
-  const { hrSettings, bot, site } = await import("@/lib/server/hr");
+  const { hrSettings, bot, site, BOT_COMMANDS } = await import("@/lib/server/hr");
   const cur = await hrSettings();
   if (!cur.bot_token) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent(T("Add the bot token first.", "សូមបញ្ចូល Bot token ជាមុនសិន។"))}#hr`);
   const me = await bot("getMe", {}, cur.bot_token);
@@ -171,7 +171,8 @@ export async function connectHrBot() {
   const secret = crypto.randomUUID().replace(/-/g, "");
   const r = await bot("setWebhook", { url: `${site()}/api/telegram/hr`, secret_token: secret, allowed_updates: ["message", "callback_query"], drop_pending_updates: true }, cur.bot_token);
   if (!r?.ok) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent(T(`Could not connect: ${r?.description ?? "error"}`, `ភ្ជាប់មិនបាន៖ ${r?.description ?? "error"}`))}#hr`);
-  await bot("setMyCommands", { commands: [{ command: "start", description: "ម៉ឺនុយ · Menu" }] }, cur.bot_token);
+  await bot("setMyCommands", { commands: BOT_COMMANDS, scope: { type: "all_private_chats" } }, cur.bot_token);
+  await bot("setChatMenuButton", { menu_button: { type: "commands" } }, cur.bot_token);
   // a one-time code to link the HR team's own group (send "/link <code>" there)
   const linkCode = String(Math.floor(100000 + Math.random() * 900000));
   await save("hr", { ...cur, bot_username: me.result.username, webhook_secret: secret, telegram_on: true, link_code: cur.hr_chat_id ? cur.link_code : linkCode });
