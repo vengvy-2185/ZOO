@@ -64,6 +64,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Decides before the first paint whether to play the opening animation. */}
         <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: TEXT_SIZE_SCRIPT }} />
+        {/* Chrome says "this can be installed" very early, often before the page is ready: keep it for the Install button */}
+        <script dangerouslySetInnerHTML={{ __html: `addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__gwzInstall=e;dispatchEvent(new Event("gwz-install-ready"))});addEventListener("appinstalled",function(){window.__gwzInstall=null;window.__gwzInstalled=1})` }} />
       </head>
       <body>
         <Suspense fallback={null}>

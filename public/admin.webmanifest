@@ -30,5 +30,11 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://zoo-seven-rho.vercel.app/admin.webmanifest"
+    }
   ]
 }

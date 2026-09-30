@@ -20,15 +20,35 @@ export function ScrollReveal() {
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            (e.target as HTMLElement).dataset.shown = "1";
-            io.unobserve(e.target);
+            const el = e.target as HTMLElement;
+            el.dataset.shown = "1";
+            io.unobserve(el);
+            // done: give the element its own hover / press effects back
+            if (el.dataset.auto) setTimeout(() => (delete el.dataset.reveal, el.style.removeProperty("--reveal-delay")), 1400);
           }
         }
       },
       { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
     );
 
+    // Everywhere, without marking anything: cards and the items of grids
+    // rise in one after another. (Not in the chat or a call, not in pop-ups.)
+    const AUTO = "main .card, main .grid > *, main [data-auto-reveal]";
+    function autoTag() {
+      if (/^\/staff\/(chat|call)/.test(location.pathname)) return;
+      document.querySelectorAll<HTMLElement>(AUTO).forEach((el) => {
+        if (el.dataset.reveal || el.dataset.autoSeen || el.closest("[data-no-reveal],[role=dialog],.fixed")) return;
+        el.dataset.autoSeen = "1";
+        if (el.offsetHeight > window.innerHeight * 1.5) return; // very tall blocks just appear
+        el.dataset.reveal = "up";
+        el.dataset.auto = "1";
+        const i = el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0;
+        el.style.setProperty("--reveal-delay", `${Math.min(Math.max(i, 0), 8) * 55}ms`);
+      });
+    }
+
     function scan() {
+      autoTag();
       document.querySelectorAll<HTMLElement>("[data-reveal-stagger]:not([data-stagger-done])").forEach((parent) => {
         parent.dataset.staggerDone = "1";
         const kind = parent.dataset.revealStagger || "up";

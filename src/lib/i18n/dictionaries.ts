@@ -551,7 +551,7 @@ const en = {
   map: {
     eyebrow: "Find your way",
     title: "Zoo Map",
-    subtitle: "Explore every zone, find your favourite animals, and meet up with friends.",
+    subtitle: "Explore every zone, find your favourite animals and the places you need.",
     all: "All",
     animals: "Animals",
     facilities: "Facilities",
@@ -1622,7 +1622,7 @@ const km: Dictionary = {
   map: {
     eyebrow: "រកផ្លូវរបស់អ្នក",
     title: "ផែនទីសួនសត្វ",
-    subtitle: "រុករកគ្រប់តំបន់ ស្វែងរកសត្វដែលអ្នកចូលចិត្ត និងជួបជុំជាមួយមិត្តភក្តិ។",
+    subtitle: "រុករកគ្រប់តំបន់ ស្វែងរកសត្វដែលអ្នកចូលចិត្ត និងកន្លែងដែលអ្នកត្រូវការ។",
     all: "ទាំងអស់",
     animals: "សត្វ",
     facilities: "សេវាកម្ម",

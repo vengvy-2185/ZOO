@@ -164,6 +164,28 @@ html.reveal-on [data-reveal][data-shown]:hover {
   transition-delay: 0ms;
 }
 
+/* ── Motion everywhere ─────────────────────────────────────────────
+   Pages fade in on every navigation (app/template.tsx gives each page a
+   fresh <main>), buttons press in when tapped, and link cards lift a
+   little under the mouse. Uses the separate `scale` / `translate`
+   properties so it never fights an element's own transform. */
+@keyframes gwzPageIn { from { opacity: 0; } to { opacity: 1; } }
+main { animation: gwzPageIn 0.45s ease-out both; }
+/* :where() = no weight: an element's own transition classes still win */
+:where(button, a[class*="rounded"], [role="button"]) {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform, scale, translate;
+  transition-duration: 0.18s;
+}
+button:not(:disabled):active, a[class*="rounded"]:active, [role="button"]:active { scale: 0.96; }
+@media (hover: hover) {
+  main a[class*="rounded"][class*="shadow"]:hover, main a.card:hover { translate: 0 -3px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  main { animation: none; }
+  button:active, a:active { scale: none !important; }
+  main a:hover { translate: none !important; }
+}
+
 /* ── Ambient wildlife (components/visitor/JungleAmbience.tsx) ───────── */
 @keyframes gwzClimb {
   0%, 100% { transform: translate(-50%, 0); }

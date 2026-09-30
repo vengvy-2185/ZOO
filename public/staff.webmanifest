@@ -48,5 +48,11 @@
       "name": "SOS",
       "url": "/staff/sos"
     }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://zoo-seven-rho.vercel.app/staff.webmanifest"
+    }
   ]
 }

@@ -57,6 +57,16 @@ const LOOK: Record<Variant, { name: string; icon: string; hero: string; button: 
  * on notifications, in one tap. For staff, admins and visitors alike.
  * `compact`: hides itself once everything is set up (and can be closed).
  */
+/** Chrome / Edge can tell whether this website's app is already installed. */
+async function alreadyInstalled() {
+  try {
+    const apps = await (navigator as any).getInstalledRelatedApps?.();
+    return Boolean(apps?.length) || Boolean((window as any).__gwzInstalled);
+  } catch {
+    return false;
+  }
+}
+
 export function AppSetup({ km, compact = false, variant = "staff", signedIn = true }: { km: boolean; compact?: boolean; variant?: Variant; signedIn?: boolean }) {
   const look = LOOK[variant];
   const [installed, setInstalled] = useState(true);
@@ -118,7 +128,14 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
     setMsg("");
     try {
       let didInstall = installed;
-      const offer = (window as any).__gwzInstall;
+      let offer = (window as any).__gwzInstall;
+      // the browser hasn't said "installable" yet: give it a moment (the tap still counts)
+      if (!installed && !offer && !ios) {
+        offer = await new Promise((done) => {
+          const t = setTimeout(() => done((window as any).__gwzInstall ?? null), 2500);
+          addEventListener("gwz-install-ready", () => (clearTimeout(t), done((window as any).__gwzInstall)), { once: true });
+        });
+      }
       if (!installed && offer) {
         offer.prompt();
         const r = await offer.userChoice.catch(() => null);
@@ -128,8 +145,9 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
         if (didInstall) setInstalled(true);
       }
       const on = await notificationsOn().catch(() => false);
-      // this browser can't install from a button (every iPhone, some Android browsers): show how
-      if (!installed && !offer) setGuide(guideKind());
+      // only iPhones / iPads can't install from a button at all: show where to tap there
+      if (!installed && !offer && ios) setGuide(guideKind());
+      const already = !installed && !offer && !ios && (await alreadyInstalled());
       setMsg(
         didInstall && on
           ? km ? "រួចរាល់! កម្មវិធីនៅលើអេក្រង់ដើម ហើយការជូនដំណឹងបានបើក។" : "Done! The app is on your home screen and notifications are on."
@@ -137,7 +155,11 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
             ? km ? "ការជូនដំណឹងបានបើក ✓" : "Notifications are on ✓"
             : didInstall
               ? km ? "បានដំឡើងកម្មវិធី ✓" : "App installed ✓"
-              : ""
+              : already
+                ? km ? "កម្មវិធីបានដំឡើងនៅលើឧបករណ៍នេះរួចហើយ ✓" : "The app is already installed on this device ✓"
+                : !installed && !offer && !ios
+                  ? km ? "Browser នេះមិនទាន់អនុញ្ញាតឲ្យដំឡើងទេ — សូមបើកក្នុង Chrome ឬ Edge" : "This browser can't install it yet — open it in Chrome or Edge"
+                  : ""
       );
     } finally {
       setBusy(false);
@@ -240,9 +262,7 @@ export function AppSetup({ km, compact = false, variant = "staff", signedIn = tr
                 ? km ? "ចូលគណនីជាមុនសិន ដើម្បីទទួលការជូនដំណឹងអំពីសំបុត្ររបស់អ្នក។" : "Sign in first to get notifications about your tickets."
                 : ios && !installed
                   ? km ? "ចុចប៊ូតុង យើងនឹងបង្ហាញកន្លែងត្រូវចុចនៅលើ iPhone របស់អ្នក។" : "Tap the button and we show you exactly where to tap on your iPhone."
-                  : !installed && !canPrompt
-                    ? km ? "បើមិនឃើញផ្ទាំងដំឡើង៖ ក្នុង Chrome ចុច ⋮ → «Install app»។" : "If no install window appears: in Chrome tap ⋮ → “Install app”."
-                    : km ? "ទូរស័ព្ទនឹងសួរ៖ «Install» និង «Allow notifications» — សូមចុចយល់ព្រមទាំងពីរ។" : "Your phone asks: “Install” and “Allow notifications” — accept both."}
+                  : km ? "ទូរស័ព្ទនឹងសួរ៖ «Install» និង «Allow notifications» — សូមចុចយល់ព្រមទាំងពីរ។" : "Your phone asks: “Install” and “Allow notifications” — accept both."}
           </p>
         )}
 
