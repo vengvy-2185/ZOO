@@ -7,7 +7,6 @@ import { Stars } from "@/components/visitor/Reviews";
 import { ReviewCard } from "@/components/visitor/ReviewCard";
 import { getBranding } from "@/lib/branding";
 import { Navbar } from "@/components/visitor/Navbar";
-import { LiveHomeHero } from "@/components/live/LiveHomeHero";
 import { BottomNav } from "@/components/visitor/BottomNav";
 import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { AnimalCard } from "@/components/visitor/AnimalCard";
@@ -158,8 +157,6 @@ export default async function HomePage() {
       {/* tells search engines the site's name and logo (shown above results instead of the host) */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSONLD) }} />
       <Navbar />
-      {/* while the zoo is live: the live video, big, first on the page */}
-      <LiveHomeHero />
 
       {/* ───────────── HERO ───────────── */}
       <section className="relative overflow-hidden rounded-b-[2.5rem] bg-forest md:rounded-b-[3.5rem]">

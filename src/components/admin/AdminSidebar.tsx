@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart3, PawPrint, Tags, Dna, BookOpen, Headphones, Cake, QrCode, Map, MapPinned, Trees, Fence, Ticket, ClipboardList, Users, Settings, Menu, X, ExternalLink, ScanLine, Store, HeartHandshake, UserRoundPlus, PlugZap, Sticker, Star, Newspaper, TicketPercent, type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote, FileSpreadsheet, History, ShieldCheck , ShoppingBag, Radio } from "lucide-react";
+import { LayoutDashboard, BarChart3, PawPrint, Tags, Dna, BookOpen, Headphones, Cake, QrCode, Map, MapPinned, Trees, Fence, Ticket, ClipboardList, Users, Settings, Menu, X, ExternalLink, ScanLine, Store, HeartHandshake, UserRoundPlus, PlugZap, Sticker, Star, Newspaper, TicketPercent, type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote, FileSpreadsheet, History, ShieldCheck  } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
@@ -59,8 +59,6 @@ const GROUPS: { title: GroupKey; items: { key: ItemKey; href: string; icon: Luci
       { key: "chat", href: "/staff/chat", icon: MessagesSquare },
       { key: "discounts", href: "/admin/discounts", icon: TicketPercent },
       { key: "adoptions", href: "/admin/adoptions", icon: HeartHandshake },
-      { key: "shop", href: "/admin/shop", icon: ShoppingBag },
-      { key: "live", href: "/staff/live", icon: Radio },
       { key: "reviews", href: "/admin/manage/reviews", icon: Star },
       { key: "messages", href: "/admin/manage/messages", icon: MessageCircle },
     ],

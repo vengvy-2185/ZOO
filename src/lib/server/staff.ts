@@ -12,16 +12,14 @@ export const staffEmail = (staffNo: string) => `${staffNo.toLowerCase()}@${STAFF
 /** A Staff ID: the automatic GWZ-S-0001 style, or one typed by the admin (letters, numbers, dashes). */
 export const isStaffNo = (s: string) => /^[A-Z0-9][A-Z0-9-]{2,19}$/i.test(s.trim());
 
-export type Permission = "tickets" | "animals" | "reports" | "guide" | "cleaning" | "roster" | "shop" | "media";
-export const ALL_PERMISSIONS: Permission[] = ["tickets", "animals", "reports", "guide", "cleaning", "roster", "shop", "media"];
+export type Permission = "tickets" | "animals" | "reports" | "guide" | "cleaning" | "roster";
+export const ALL_PERMISSIONS: Permission[] = ["tickets", "animals", "reports", "guide", "cleaning", "roster"];
 export const PERMISSIONS: { key: Permission; en: string; km: string }[] = [
   { key: "tickets", en: "Tickets & gate (scanner, counter, check-in)", km: "សំបុត្រ និងច្រកចូល (ស្កេន បញ្ជរ ចូល)" },
   { key: "animals", en: "Animal care log", km: "កំណត់ត្រាថែសត្វ" },
   { key: "reports", en: "Reports", km: "របាយការណ៍" },
   { key: "guide", en: "Tour guide (today's programme)", km: "មគ្គុទ្ទេសក៍ (កម្មវិធីថ្ងៃនេះ)" },
   { key: "cleaning", en: "Cleaning checklist", km: "បញ្ជីសម្អាត" },
-  { key: "shop", en: "Souvenir shop (sell, cash & KHQR)", km: "ហាងវត្ថុអនុស្សាវរីយ៍ (លក់ សាច់ប្រាក់ និង KHQR)" },
-  { key: "media", en: "Media (go live with the camera)", km: "មេឌៀ (ផ្សាយផ្ទាល់តាមកាមេរ៉ា)" },
   // only the people the admin trusts may change the schedule (a new staff member can't)
   { key: "roster", en: "Change the work schedule (edit, re-plan, approve covers & swaps)", km: "កែកាលវិភាគការងារ (កែ រៀបឡើងវិញ អនុម័តការជំនួស និងដូរវេន)" },
 ];

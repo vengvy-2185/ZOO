@@ -1,9 +1,9 @@
 import "server-only";
 import { getPrivateSetting, type TurnSettings } from "./private-settings";
 
-// The addresses calls and live video use to find each other. STUN is free and
+// The addresses calls use to find each other. STUN is free and
 // enough on most Wi-Fi; a TURN server (Admin → Integrations → Calls) passes
-// the video along when two phones can't reach each other (often on 4G).
+// the call along when two phones can't reach each other (often on 4G).
 // Metered / Cloudflare give short-lived passwords, fetched here and kept for
 // a while so each call doesn't ask again.
 

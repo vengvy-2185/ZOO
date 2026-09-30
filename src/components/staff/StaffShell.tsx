@@ -38,8 +38,8 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
   const senderOf = new Map((senders ?? []).map((x: any) => [x.user_id, x]));
 
   const T = km
-    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "វត្តមានខ្ញុំ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", cash: "បិទបញ្ជីប្រាក់", shop: "ហាងអនុស្សាវរីយ៍", live: "ផ្សាយផ្ទាល់", roster: "កាលវិភាគ", calendar: "ប្រតិទិនខ្មែរ", chat: "ជជែកក្រុម", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
-    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "My attendance", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", cash: "Cash close", shop: "Souvenir shop", live: "Go live", roster: "Schedule", calendar: "Khmer calendar", chat: "Team chat", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
+    ? { checkin: "ស្កេនវត្តមាន", team: "វត្តមានក្រុម", issues: "រាយការណ៍បញ្ហា", home: "ទំព័រដើម", scanner: "ស្កេន", gate: "រាប់ភ្ញៀវ", bookings: "ការកក់", animals: "ថែសត្វ", schedule: "កម្មវិធីថ្ងៃនេះ", cleaning: "សម្អាត", reports: "របាយការណ៍", attendance: "វត្តមានខ្ញុំ", leave: "សុំច្បាប់", pay: "ប្រាក់ខែ", profile: "ខ្ញុំ", supplies: "សុំសម្ភារៈ", cash: "បិទបញ្ជីប្រាក់", roster: "កាលវិភាគ", calendar: "ប្រតិទិនខ្មែរ", chat: "ជជែកក្រុម", tasks: "ការងារ", lost: "របស់បាត់", handover: "ប្រគល់វេន", signOut: "ចាកចេញ", admin: "ផ្ទាំងគ្រប់គ្រង", staff: "បុគ្គលិក" }
+    : { checkin: "Check in", team: "Team attendance", issues: "Report a problem", home: "Home", scanner: "Scanner", gate: "Gate", bookings: "Bookings", animals: "Animal care", schedule: "Today's programme", cleaning: "Cleaning", reports: "Reports", attendance: "My attendance", leave: "Leave", pay: "Pay", profile: "Me", supplies: "Supplies", cash: "Cash close", roster: "Schedule", calendar: "Khmer calendar", chat: "Team chat", tasks: "Tasks", lost: "Lost & found", handover: "Handover", signOut: "Sign out", admin: "Admin panel", staff: "Staff" };
 
   const items: StaffNavItem[] = (
     [
@@ -50,8 +50,6 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
       ["gate", "/staff/gate", "tools", can("tickets")],
       ["cash", "/staff/cash", "tools", can("tickets") || manager],
       ["bookings", "/staff/bookings", "tools", can("tickets")],
-      ["shop", "/staff/shop", "tools", access.admin || can("shop")],
-      ["live", "/staff/live", "tools", access.admin || can("media")],
       ["animals", "/staff/animals", "tools", can("animals")],
       ["schedule", "/staff/schedule", "tools", can("guide")],
       ["cleaning", "/staff/cleaning", "tools", can("cleaning")],

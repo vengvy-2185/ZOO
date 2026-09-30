@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
-import { getPrivateSetting, serviceClient, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type ShopPaymentSettings, type TurnSettings } from "@/lib/server/private-settings";
+import { getPrivateSetting, serviceClient, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings } from "@/lib/server/private-settings";
 import { iceServers, forgetIce } from "@/lib/server/ice";
 import { recentChats, sendTelegram } from "@/lib/server/telegram";
 import { checkAccount } from "@/lib/server/bakong";
@@ -19,7 +19,7 @@ async function requireAdmin() {
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
-async function save(key: "payment" | "tts" | "telegram" | "shop_payment" | "turn", value: object) {
+async function save(key: "payment" | "tts" | "telegram" | "turn", value: object) {
   const { error } = await serviceClient().from("private_settings").upsert({ key, value, updated_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
 }
@@ -109,28 +109,6 @@ export async function findTelegramChats() {
   redirect(`/admin/integrations?tg=chats&detail=${encodeURIComponent(list || "No chats yet: add the bot to your group and send any message there, then try again.")}#telegram`);
 }
 
-export async function saveShopPayment(formData: FormData) {
-  await requireAdmin();
-  await audit("settings.shop_payment", "private_settings");
-  const current = await getPrivateSetting<ShopPaymentSettings>("shop_payment");
-  const account = str(formData, "bakong_account_id");
-  if (account && !/^[a-z0-9._-]+@[a-z0-9]+$/i.test(account)) redirect("/admin/integrations?msg=bad-account#shop");
-  const bankAccount = str(formData, "bank_account").replace(/[\s-]/g, "");
-  if (bankAccount && !/^\d{6,24}$/.test(bankAccount)) redirect("/admin/integrations?msg=bad-bank-account#shop");
-  const next: ShopPaymentSettings = {
-    enabled: formData.get("enabled") === "on",
-    bakong_account_id: account || undefined,
-    merchant_name: str(formData, "merchant_name") || undefined,
-    merchant_city: str(formData, "merchant_city") || undefined,
-    bank_account: bankAccount || undefined,
-    bank_name: str(formData, "bank_name") || undefined,
-    currency: str(formData, "currency") === "KHR" ? "KHR" : "USD",
-    api_token: str(formData, "api_token") === "-" ? undefined : str(formData, "api_token") || current.api_token,
-  };
-  await save("shop_payment", next);
-  redirect("/admin/integrations?msg=saved#shop");
-}
-
 export async function saveTurn(formData: FormData) {
   await requireAdmin();
   await audit("settings.turn", "private_settings");
@@ -156,5 +134,5 @@ export async function testTurn() {
   forgetIce();
   const list = await iceServers();
   const turn = list.filter((x) => [x.urls].flat().some((u) => String(u).startsWith("turn")));
-  redirect(`/admin/integrations?test=${turn.length ? "ok" : "fail"}&detail=${encodeURIComponent(turn.length ? `TURN server answered ✓ (${[turn[0].urls].flat().length} addresses). Calls and live video can now pass through it.` : "No TURN server: check the provider, app name and key.")}#turn`);
+  redirect(`/admin/integrations?test=${turn.length ? "ok" : "fail"}&detail=${encodeURIComponent(turn.length ? `TURN server answered ✓ (${[turn[0].urls].flat().length} addresses). Calls can now pass through it.` : "No TURN server: check the provider, app name and key.")}#turn`);
 }

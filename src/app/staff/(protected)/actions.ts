@@ -10,6 +10,7 @@ import { planWeek, mondayOf, ROSTER_SECTIONS, type RosterSection } from "@/lib/s
 import { notify, tg } from "@/lib/server/telegram";
 import { announce, announceChanges, snapshot } from "@/lib/server/roster-notice";
 import { sendPush, staffIds, managerIds } from "@/lib/server/push";
+import { waitUntil } from "@vercel/functions";
 
 import { audit } from "@/lib/server/audit";
 // Staff actions run with the service role, so each one first checks who is
@@ -388,7 +389,7 @@ function canUseChannel(access: Awaited<ReturnType<typeof staffAccess>>, ch: stri
   if (ch === "managers") return access.perms.has("reports");
   return access.perms.has(ch as any);
 }
-export type ChatState = { ok?: boolean; error?: string; at?: number };
+export type ChatState = { ok?: boolean; error?: string; at?: number; msg?: any };
 export async function sendChat(_prev: ChatState, formData: FormData): Promise<ChatState> {
   const { id, access } = await me();
   const channel = String(formData.get("channel") ?? "all");
@@ -446,15 +447,45 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
   const { data: sent, error } = await db
     .from("staff_messages")
     .insert({ channel, body: body || null, user_id: id, audio_url, audio_secs, files, reply_to, kind: isLocation ? "location" : "text", meta: isLocation ? { lat, lng, acc: Math.round(Number(formData.get("acc")) || 0) } : null })
-    .select("created_at")
+    .select("*")
     .single();
   if (error) return { error: error.message };
   await db.from("staff_chat_reads").upsert({ user_id: id, channel, last_read_at: sent.created_at });
   const images = (files ?? []).filter((f) => f.type.startsWith("image/")).length;
   const what = body || (isLocation ? "📍 ចែករំលែកទីតាំង" : hasAudio ? "🎤 សារសំឡេង" : images ? `📷 រូបភាព ${images > 1 ? images : ""}`.trim() : `📎 ${files?.[0]?.name ?? "ឯកសារ"}`);
-  await pushChat(channel, id, access, what);
-  revalidatePath("/staff/chat");
-  return { ok: true, at: Date.now() };
+  // the message is back on the sender's screen at once; phones are told in the background
+  waitUntil(pushChat(channel, id, access, what).catch(() => {}));
+  return { ok: true, at: Date.now(), msg: sent };
+}
+
+/** I read this room up to here ("seen" for the others). Only moves forward. */
+export async function markChatRead(channel: string, upTo: string) {
+  const { id, access } = await me();
+  if (!canUseChannel(access, channel) || !Number.isFinite(Date.parse(upTo))) return;
+  const db = createServiceRoleClient();
+  const { data: cur } = await db.from("staff_chat_reads").select("last_read_at").eq("user_id", id).eq("channel", channel).maybeSingle();
+  if (cur && Date.parse(cur.last_read_at) >= Date.parse(upTo)) return;
+  await db.from("staff_chat_reads").upsert({ user_id: id, channel, last_read_at: upTo });
+}
+
+/** Older messages of a room (scrolling up), with their reactions and the messages they answer. */
+export async function olderChat(channel: string, before: string) {
+  const { access } = await me();
+  if (!canUseChannel(access, channel) || !Number.isFinite(Date.parse(before))) return { msgs: [], reactions: {}, replies: {} };
+  const db = createServiceRoleClient();
+  const { data: rows } = await db.from("staff_messages").select("*").eq("channel", channel).lt("created_at", before).order("created_at", { ascending: false }).limit(50);
+  const msgs = (rows ?? []).reverse();
+  const ids = msgs.map((m: any) => m.id);
+  const replyIds = [...new Set(msgs.map((m: any) => m.reply_to).filter(Boolean))] as string[];
+  const [{ data: reacts }, { data: replyRows }] = await Promise.all([
+    ids.length ? db.from("staff_message_reactions").select("message_id, user_id, emoji").in("message_id", ids) : Promise.resolve({ data: [] as any[] }),
+    replyIds.length ? db.from("staff_messages").select("id, user_id, body, kind, files, audio_url, meta").in("id", replyIds) : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const reactions: Record<string, { user_id: string; emoji: string }[]> = {};
+  for (const r of reacts ?? []) (reactions[r.message_id] ??= []).push({ user_id: r.user_id, emoji: r.emoji });
+  const replies: Record<string, any> = {};
+  for (const r of replyRows ?? []) replies[r.id] = r;
+  return { msgs, reactions, replies, more: msgs.length === 50 };
 }
 
 export type ChatFile = { url: string; name: string; type: string; size: number; w?: number; h?: number };
@@ -482,7 +513,6 @@ export async function reactChat(messageId: string, emoji: string) {
   const { data: cur } = await db.from("staff_message_reactions").select("emoji").eq("message_id", messageId).eq("user_id", id).maybeSingle();
   if (cur?.emoji === emoji) await db.from("staff_message_reactions").delete().eq("message_id", messageId).eq("user_id", id);
   else await db.from("staff_message_reactions").upsert({ message_id: messageId, user_id: id, emoji, created_at: new Date().toISOString() });
-  revalidatePath("/staff/chat");
 }
 
 // ── Calls (voice / video) in a chat room ──────────────────────────────
@@ -536,7 +566,6 @@ export async function deleteChat(messageId: string) {
   let q = db.from("staff_messages").delete().eq("id", messageId);
   if (!access.admin && !access.perms.has("reports")) q = q.eq("user_id", id);
   await q;
-  revalidatePath("/staff/chat");
 }
 
 // ── Work schedule (roster), shift swaps and cover ─────────────────────

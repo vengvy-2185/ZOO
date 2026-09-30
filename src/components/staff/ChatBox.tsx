@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { SendHorizonal, Loader2, Mic, Trash2, Play, Pause, Plus, Image as ImageIcon, Camera, Paperclip, MapPin, X, Reply, FileText, AlertCircle } from "lucide-react";
 import { sendChat, chatUploadSlot } from "@/app/staff/(protected)/actions";
 import { enqueue, pendingOps, onQueueChange } from "@/lib/offline/queue";
@@ -118,6 +117,7 @@ export function ChatComposer({
   dropped = [],
   onDropTaken,
   onPending,
+  onMessage,
 }: {
   channel: string;
   km: boolean;
@@ -129,8 +129,9 @@ export function ChatComposer({
   onDropTaken?: () => void;
   /** show my message at once while it is on its way (done = it failed, take it away) */
   onPending?: (p: { key: string; body: string; images: string[]; files: string[] } | { key: string; done: true }) => void;
+  /** the saved message, straight back from the server (shown at once) */
+  onMessage?: (m: unknown) => void;
 }) {
-  const router = useRouter();
   const box = useRef<HTMLTextAreaElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -207,12 +208,12 @@ export function ChatComposer({
     fd.set("channel", channel);
     if (reply) fd.set("reply_to", reply.id);
     setSending(true);
-    const r: { ok?: boolean; error?: string } = await sendChat({}, fd).catch(() => ({ error: km ? "មិនអាចផ្ញើបាន — សូមសាកម្តងទៀត" : "Could not send — try again" }));
+    const r: { ok?: boolean; error?: string; msg?: unknown } = await sendChat({}, fd).catch(() => ({ error: km ? "មិនអាចផ្ញើបាន — សូមសាកម្តងទៀត" : "Could not send — try again" }));
     setSending(false);
     if (r.error) setErr(r.error === "too-long" ? (km ? "សំឡេងវែងពេក" : "Too long") : r.error === "invalid" ? (km ? "មិនអាចផ្ញើបាន" : "Could not send") : r.error);
     else {
+      if (r.msg) onMessage?.(r.msg);
       onSent?.();
-      router.refresh(); // show my message now, not at the next live update
     }
     return !r.error;
   };
@@ -243,8 +244,8 @@ export function ChatComposer({
     const keep = atts;
     setAtts([]);
     const sentOk = await send(fd);
+    onPending?.({ key, done: true }); // the real message is on screen now (or it failed)
     if (!sentOk) {
-      onPending?.({ key, done: true });
       setAtts(keep);
       if (box.current && body) {
         box.current.value = body; // give the text back so nothing is lost

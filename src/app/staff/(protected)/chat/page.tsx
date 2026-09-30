@@ -9,6 +9,7 @@ import { StaffShell } from "@/components/staff/StaffShell";
 import { ChatRoom, type Msg } from "@/components/staff/ChatRoom";
 import { msgText } from "@/lib/chat-text";
 import { CallButtons, CallPerson } from "@/components/staff/CallButtons";
+import { ChatList } from "@/components/staff/ChatList";
 import { staffIds, managerIds } from "@/lib/server/push";
 import { cn } from "@/lib/utils/cn";
 
@@ -71,9 +72,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     await db.from("staff_chat_reads").upsert({ user_id: userId, channel: ch.key, last_read_at: newest });
     readAt.set(ch.key, newest);
   } else if (!newest) readAt.set(ch.key, now);
-  const fmtTime = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" });
-  const fmtDay = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" });
-  const msgs = ((rows ?? []) as any[]).reverse().map((m) => ({ ...m, t: fmtTime.format(new Date(m.created_at)), day: fmtDay.format(new Date(m.created_at)) })) as Msg[];
+  const msgs = ((rows ?? []) as any[]).reverse() as Msg[];
   const ids = msgs.map((m) => m.id);
   const replyIds = [...new Set(msgs.map((m) => m.reply_to).filter(Boolean))] as string[];
   const callIds = msgs.filter((m) => m.kind === "call" && m.meta?.call_id).map((m) => m.meta.call_id as string);
@@ -119,17 +118,6 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     .filter((x) => x.p)
     .sort((a, b) => (a.id === userId ? -1 : b.id === userId ? 1 : a.p!.name.localeCompare(b.p!.name)));
 
-  const shortTime = (iso: string) => {
-    const d = new Date(iso);
-    const today = new Date().toDateString() === d.toDateString();
-    return new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", today ? { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" } : { day: "numeric", month: "short", timeZone: "Asia/Phnom_Penh", numberingSystem: "latn" }).format(d);
-  };
-  const preview = (r: any) => {
-    if (!r) return km ? "មិនទាន់មានសារ" : "No messages yet";
-    const who = r.user_id === userId ? (km ? "អ្នក" : "You") : people.get(r.user_id)?.name ?? "";
-    return `${who}: ${msgText(r, km)}`;
-  };
-
   return (
     <StaffShell bare hideBottomNav={inConversation} title={km ? "ជជែកក្រុម" : "Team chat"}>
       <div className="flex min-h-0 flex-1 md:gap-4 md:px-8 md:py-4">
@@ -150,30 +138,15 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
               </span>
             ))}
           </div>
-          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
-            {mine.map((c) => {
-              const on = c.key === ch.key && (inConversation || true);
-              const n = c.key === ch.key ? 0 : unread.get(c.key) ?? 0;
-              const last = lastOf.get(c.key);
-              return (
-                <Link key={c.key} href={`/staff/chat?c=${c.key}`} className={cn("flex items-center gap-3 rounded-2xl p-2.5 transition", on ? "md:bg-[#EEF2FF]" : "hover:bg-slate-50", "active:bg-[#EEF2FF]")}>
-                  <span className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm" style={{ background: c.color }}>
-                    <c.Icon size={21} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className={cn("min-w-0 flex-1 truncate text-[15px]", n ? "font-extrabold text-forest" : "font-bold text-forest")}>{km ? c.km : c.en}</span>
-                      {last && <span className={cn("flex-shrink-0 text-[11px]", n ? "font-bold text-[#1D4ED8]" : "text-ink/40")}>{shortTime(last.created_at)}</span>}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className={cn("min-w-0 flex-1 truncate text-[13px]", n ? "font-bold text-ink/85" : "text-ink/50")}>{preview(last)}</span>
-                      {n > 0 && <span className="flex h-5 min-w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#1D4ED8] px-1.5 text-[11px] font-bold text-white">{n > 99 ? "99+" : n}</span>}
-                    </span>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          <ChatList
+            rooms={mine.map((c) => ({ key: c.key, label: km ? c.km : c.en, color: c.color }))}
+            current={ch.key}
+            last={Object.fromEntries(mine.map((c) => [c.key, lastOf.get(c.key) ?? null]))}
+            unread={Object.fromEntries(mine.map((c) => [c.key, unread.get(c.key) ?? 0]))}
+            me={userId}
+            names={Object.fromEntries([...people].map(([id, p]) => [id, p.name]))}
+            km={km}
+          />
         </aside>
 
         {/* ── conversation ── */}
@@ -195,6 +168,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
             <CallButtons channel={ch.key} km={km} />
           </div>
           <ChatRoom
+            key={ch.key}
             me={userId}
             channel={ch.key}
             km={km}

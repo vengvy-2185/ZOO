@@ -33,12 +33,7 @@ const WHAT: Record<string, { km: string; en: string }> = {
   "settings.payment": { km: "ប្តូរការកំណត់ Bakong", en: "Changed Bakong settings" },
   "settings.telegram": { km: "ប្តូរការកំណត់ Telegram", en: "Changed Telegram settings" },
   "settings.tts": { km: "ប្តូរការកំណត់សំឡេង", en: "Changed voice settings" },
-  "settings.shop_payment": { km: "ប្តូរ KHQR ហាងអនុស្សាវរីយ៍", en: "Changed the shop KHQR" },
   "settings.turn": { km: "ប្តូរការកំណត់ការហៅ (TURN)", en: "Changed call settings (TURN)" },
-  "shop.product": { km: "កែទំនិញក្នុងហាង", en: "Edited a shop product" },
-  "shop.stock": { km: "កែស្តុកទំនិញ", en: "Changed shop stock" },
-  "shop.cancel": { km: "បោះបង់ការលក់", en: "Cancelled a sale" },
-  "live.remove": { km: "លុបការផ្សាយផ្ទាល់", en: "Removed a live video" },
 };
 const GROUPS = [
   { key: "roster", km: "កាលវិភាគ", en: "Schedule", Icon: CalendarRange },

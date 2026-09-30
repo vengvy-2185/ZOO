@@ -51,24 +51,18 @@ async function sweep(settings: PaymentSettings, due: Due, force: boolean): Promi
   if (!Number(callNo)) return { blocked: "limit" };
   // Everything still waiting from the last 30 minutes (2 days on the day's first call).
   const from = new Date(now - (Number(callNo) === 1 ? 48 * 3600e3 : 30 * 60e3)).toISOString();
-  const [{ data: pays }, { data: ads }, { data: shops }] = await Promise.all([
-    db.from("payments").select("id, booking_id, md5, amount_usd, currency").eq("provider", "bakong").eq("status", "pending").not("md5", "is", null).gte("created_at", from).order("created_at", { ascending: false }).limit(32),
+  const [{ data: pays }, { data: ads }] = await Promise.all([
+    db.from("payments").select("id, booking_id, md5, amount_usd, currency").eq("provider", "bakong").eq("status", "pending").not("md5", "is", null).gte("created_at", from).order("created_at", { ascending: false }).limit(40),
     db.from("adoptions").select("id, md5, amount_usd").eq("status", "pending").not("md5", "is", null).gte("expires_at", from).limit(9),
-    // souvenir shop sales waiting for KHQR (they share the same daily Bakong budget)
-    db.from("shop_sales").select("id, md5, amount, code, total_usd").eq("status", "pending").eq("method", "khqr").not("md5", "is", null).gte("created_at", from).order("created_at", { ascending: false }).limit(9),
   ]);
-  const md5s = [...new Set([due.md5, ...(shops ?? []).map((x: any) => x.md5), ...(pays ?? []).map((p: any) => p.md5), ...(ads ?? []).map((a: any) => a.md5)])].slice(0, 50);
+  const md5s = [...new Set([due.md5, ...(pays ?? []).map((p: any) => p.md5), ...(ads ?? []).map((a: any) => a.md5)])].slice(0, 50);
   // the day's first check also catches up QRs from the last two days (one call each if the list endpoint isn't allowed)
   const res = await checkMany(settings, md5s, {
     singles: Number(callNo) === 1 ? 10 : 1,
     takeCall: async () => Number((await db.rpc("bakong_take_call", { p_cap: DAILY_CAP })).data) > 0,
   });
   const stamp = new Date().toISOString();
-  await Promise.all([
-    db.from("payments").update({ last_checked_at: stamp }).in("md5", md5s),
-    db.from("adoptions").update({ last_checked_at: stamp }).in("md5", md5s),
-    db.from("shop_sales").update({ last_checked_at: stamp }).in("md5", md5s),
-  ]);
+  await Promise.all([db.from("payments").update({ last_checked_at: stamp }).in("md5", md5s), db.from("adoptions").update({ last_checked_at: stamp }).in("md5", md5s)]);
   if (res.error === "limit") {
     await db.rpc("bakong_mark_limited");
     return { blocked: "limit" };
@@ -82,14 +76,7 @@ async function sweep(settings: PaymentSettings, due: Due, force: boolean): Promi
     if (pay && amountOk(Number(pay.amount_usd), pay.currency, hit.amount)) await markPaid("booking", pay.booking_id, pay.id, hit.hash, hit.fromAccountId);
     const ad: any = (ads ?? []).find((a: any) => a.md5 === md5);
     if (ad && amountOk(Number(ad.amount_usd), settings.currency ?? "USD", hit.amount)) await markPaid("adoption", ad.id, undefined, hit.hash, hit.fromAccountId);
-    const sale: any = (shops ?? []).find((x: any) => x.md5 === md5) ?? (md5 === due.md5 && !pay && !ad ? (await db.from("shop_sales").select("id, md5, amount, code, total_usd").eq("md5", md5).eq("status", "pending").maybeSingle()).data : null);
-    // the amount in the QR's own currency must match what was paid
-    if (sale && (hit.amount == null || Math.abs(Number(hit.amount) - Number(sale.amount)) < 0.01 * Math.max(1, Number(sale.amount)))) {
-      const { data: done } = await db.rpc("shop_finish_sale", { p_sale: sale.id, p_ref: hit.hash ?? null, p_from: hit.fromAccountId ?? null });
-      if (done) await notify("shop", `🛍 <b>លក់វត្ថុអនុស្សាវរីយ៍ · KHQR</b>
-${tg(sale.code)} · $${Number(sale.total_usd).toFixed(2)}`);
-    }
-    if (!pay && !ad && !sale && md5 === due.md5) {
+    if (!pay && !ad && md5 === due.md5) {
       // the QR asked about wasn't in the recent list (e.g. older): look it up
       const { data: p2 } = await db.from("payments").select("id, booking_id, amount_usd, currency").eq("md5", md5).maybeSingle();
       if (p2 && amountOk(Number(p2.amount_usd), p2.currency, hit.amount)) await markPaid("booking", p2.booking_id, p2.id, hit.hash, hit.fromAccountId);
@@ -234,20 +221,4 @@ export async function catchUpPayments() {
     .limit(1)
     .maybeSingle();
   if (last?.md5) await sweep(settings, { md5: last.md5, createdAt: last.created_at, lastChecked: null }, true);
-}
-
-/** The shop's till asks: has this souvenir sale been paid yet? (Only Bakong can say yes.) */
-export async function pollShopSale(saleId: string, force = false): Promise<{ status: "paid" | "pending" | "cancelled" | "unavailable"; blocked?: "limit" | "token" }> {
-  const db = serviceClient();
-  const { data: sale } = await db.from("shop_sales").select("status, md5, created_at, last_checked_at").eq("id", saleId).maybeSingle();
-  if (!sale) return { status: "unavailable" };
-  if (sale.status !== "pending") return { status: sale.status as "paid" | "cancelled" };
-  if (!sale.md5) return { status: "pending" };
-  const { getPrivateSetting } = await import("./private-settings");
-  const [pay, shop] = await Promise.all([getPrivateSetting<PaymentSettings>("payment"), getPrivateSetting<import("./private-settings").ShopPaymentSettings>("shop_payment")]);
-  const token = shop.api_token || pay.api_token;
-  if (!token) return { status: "unavailable" };
-  const r = await sweep({ ...pay, api_token: token }, { md5: sale.md5, createdAt: sale.created_at, lastChecked: sale.last_checked_at }, force);
-  const { data: again } = await db.from("shop_sales").select("status").eq("id", saleId).maybeSingle();
-  return { status: (again?.status as "paid" | "pending") ?? "pending", blocked: r.blocked };
 }

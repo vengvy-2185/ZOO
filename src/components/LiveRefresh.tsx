@@ -51,7 +51,8 @@ export function LiveRefresh() {
         // during a call nothing on screen needs the server; "seen" and
         // reactions only matter to someone looking at the chat
         if (location.pathname.startsWith("/staff/call")) return;
-        if ((topic === "staff_chat_reads" || topic === "staff_message_reactions") && location.pathname !== "/staff/chat") return;
+        if (topic === "staff_chat_reads" || topic === "staff_message_reactions") return;
+        if (topic === "staff_messages" && location.pathname === "/staff/chat") return; // the chat adds new messages by itself
         schedule();
       })
       .subscribe();
