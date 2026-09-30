@@ -211,7 +211,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 {L("HR team chat:", "ក្រុម HR៖")} {hr.hr_chat_id ? <b>{L("linked ✓", "បានភ្ជាប់ ✓")}</b> : <b>{L("not linked", "មិនទាន់ភ្ជាប់")}</b>} — {L("new applications and applicants' questions go there (never to the staff group).", "ពាក្យសុំថ្មី និងសំណួរបេក្ខជនចូលទីនោះ (មិនចូលក្រុមបុគ្គលិកទេ)។")}
                 {hr.link_code && !hr.hr_chat_id && (
                   <>
-                    {" "}{L("To link it: add", "ដើម្បីភ្ជាប់៖ បន្ថែម")} @{hr.bot_username} {L("to your HR group and send", "ចូលក្រុម HR ហើយផ្ញើ")} <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold">/link {hr.link_code}</code>
+                    {" "}{L("To link it: add", "ដើម្បីភ្ជាប់៖ បន្ថែម")} @{hr.bot_username} {L("to your HR group and send", "ចូលក្រុម HR ហើយផ្ញើ")} <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold">/link@{hr.bot_username} {hr.link_code}</code>
                   </>
                 )}
               </p>
