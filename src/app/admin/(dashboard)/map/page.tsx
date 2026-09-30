@@ -47,7 +47,7 @@ export default async function AdminMapPage() {
       <AdminPageHeader
         icon={MapIcon}
         title={getI18n().t.admin.mapEditor}
-        subtitle="Drag any marker to reposition it, then Save Location. To use a real map image, set it in Settings → Branding → Map Image URL."
+        subtitle={getI18n().locale === "km" ? "អូសចំណុចណាមួយទៅទីតាំងថ្មី រួចចុច រក្សាទីតាំង។ ដើម្បីប្រើរូបផែនទីពិត សូមកំណត់ក្នុង ការកំណត់ → រូបភាព → URL រូបផែនទី។" : "Drag any marker to reposition it, then Save Location. To use a real map image, set it in Settings → Branding → Map Image URL."}
       />
       <MapEditorCanvas markers={markers} backgroundImageUrl={mapImageUrl} />
     </div>

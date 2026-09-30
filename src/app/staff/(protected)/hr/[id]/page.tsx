@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { HrStatusIcon } from "@/components/hr/HrStatusIcon";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Phone, Mail, MapPin, Calendar, GraduationCap, Briefcase, Languages, Wrench, Wallet, Send } from "lucide-react";
+import { ChevronLeft, Phone, Mail, MapPin, Calendar, GraduationCap, Briefcase, Languages, Wrench, Wallet, Send, CalendarClock } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle, getPositions } from "@/lib/server/staff";
@@ -40,7 +41,7 @@ export default async function Applicant({ params }: { params: { id: string } }) 
     ) : null;
   const L = (en: string, k: string) => (km ? k : en);
   return (
-    <StaffShell title={a.full_name} subtitle={`${a.code} · ${(km && a.job?.title_km) || a.job?.title || "—"}`} hero={<span className={cn("mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold", st.tone)}>{st.emoji} {km ? st.km : st.en}</span>}>
+    <StaffShell title={a.full_name} subtitle={`${a.code} · ${(km && a.job?.title_km) || a.job?.title || "—"}`} hero={<span className={cn("mt-3 inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-xs font-bold", st.tone)}><HrStatusIcon status={a.status} size={20} />{km ? st.km : st.en}</span>}>
       <Link href="/staff/hr" className="inline-flex items-center gap-1 text-sm font-bold text-white md:text-primary"><ChevronLeft size={16} /> {L("All applications", "ពាក្យសុំទាំងអស់")}</Link>
       <div className="grid gap-4 lg:grid-cols-[1fr_24rem]">
         <section className="card p-5">
@@ -60,7 +61,7 @@ export default async function Applicant({ params }: { params: { id: string } }) 
           {row(Briefcase, L("Why here", "ហេតុអ្វីចង់ធ្វើការ"), a.about)}
           <p className="mt-3 flex items-center gap-2 text-xs text-ink/50">
             <Send size={13} className={a.tg_chat_id ? "text-[#229ED9]" : ""} /> {a.tg_chat_id ? `Telegram ✓${a.tg_username ? ` @${a.tg_username}` : ""}` : L("Telegram not linked yet", "មិនទាន់ភ្ជាប់ Telegram")}
-            {a.interview_at && <span>· 📅 {dt(a.interview_at, km)}</span>}
+            {a.interview_at && <span className="inline-flex items-center gap-1">· <CalendarClock size={13} /> {dt(a.interview_at, km)}</span>}
           </p>
           <h3 className="mt-5 text-xs font-extrabold uppercase tracking-wider text-ink/40">{L("Timeline", "ប្រវត្តិ")}</h3>
           <ul className="mt-2 space-y-1 text-xs text-ink/60">

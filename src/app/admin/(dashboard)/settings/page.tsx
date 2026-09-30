@@ -30,16 +30,16 @@ export default async function AdminSettingsPage() {
     <div className="mx-auto max-w-3xl p-8">
       <AdminPageHeader icon={Settings} title={t.admin.settingsPage.title} subtitle={t.admin.settingsPage.subtitle} />
       <form action={updateZooProfile} className="card space-y-4 p-6">
-        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest"><Building2 size={18} className="text-primary" /> Zoo Profile</h2>
-        <Field label="Zoo Name" name="name" defaultValue={profile.name} />
-        <Field label="Tagline" name="tagline" defaultValue={profile.tagline} />
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest"><Building2 size={18} className="text-primary" /> {km ? "ព័ត៌មានសួនសត្វ" : "Zoo Profile"}</h2>
+        <Field label={km ? "ឈ្មោះសួនសត្វ" : "Zoo Name"} name="name" defaultValue={profile.name} />
+        <Field label={km ? "ពាក្យស្លោក" : "Tagline"} name="tagline" defaultValue={profile.tagline} />
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Opening Time" name="opening_time" defaultValue={profile.opening_time} type="time" />
-          <Field label="Closing Time" name="closing_time" defaultValue={profile.closing_time} type="time" />
+          <Field label={km ? "ម៉ោងបើក" : "Opening Time"} name="opening_time" defaultValue={profile.opening_time} type="time" />
+          <Field label={km ? "ម៉ោងបិទ" : "Closing Time"} name="closing_time" defaultValue={profile.closing_time} type="time" />
         </div>
-        <Field label="Address (English)" name="address" defaultValue={profile.address} />
-        <Field label="Address (ខ្មែរ)" name="address_km" defaultValue={profile.address_km} />
-        <Field label="Phone" name="phone" defaultValue={profile.phone} />
+        <Field label={km ? "អាសយដ្ឋាន (អង់គ្លេស)" : "Address (English)"} name="address" defaultValue={profile.address} />
+        <Field label={km ? "អាសយដ្ឋាន (ខ្មែរ)" : "Address (Khmer)"} name="address_km" defaultValue={profile.address_km} />
+        <Field label={km ? "លេខទូរស័ព្ទ" : "Phone"} name="phone" defaultValue={profile.phone} />
         <button className="btn-primary">{t.admin.save}</button>
       </form>
 
@@ -83,16 +83,15 @@ export default async function AdminSettingsPage() {
       </form>
 
       <div className="card mt-6 p-6">
-        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest"><Palette size={18} className="text-primary" /> Branding — Photo / Video / Map</h2>
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest"><Palette size={18} className="text-primary" /> {km ? "រូបភាព វីដេអូ និងផែនទី" : "Branding — Photo / Video / Map"}</h2>
         <p className="mt-1 text-sm text-ink/60">
-          Shown on the visitor, staff, and admin login screens (desktop: full side panel; mobile: a
-          short banner). Paste public URLs — e.g. upload via any Supabase Storage bucket and paste
-          its public URL here. A video plays muted and loops forever; the photo is shown while it
-          loads. Leave both blank to keep the built-in animated scene.
+          {km
+            ? "បង្ហាញលើផ្ទាំងចូលប្រព័ន្ធរបស់ភ្ញៀវ បុគ្គលិក និង Admin (កុំព្យូទ័រ៖ ផ្ទាំងពេញម្ខាង · ទូរស័ព្ទ៖ បដាខ្លី)។ បិទភ្ជាប់ URL សាធារណៈ។ វីដេអូលេងដោយបិទសំឡេង និងវិលជុំ ហើយរូបភាពបង្ហាញពេលវីដេអូកំពុងផ្ទុក។ ទុកទទេទាំងពីរ ដើម្បីប្រើរូបភាពចលនាដែលមានស្រាប់។"
+            : "Shown on the visitor, staff, and admin login screens (desktop: full side panel; mobile: a short banner). Paste public URLs. A video plays muted and loops forever; the photo is shown while it loads. Leave both blank to keep the built-in animated scene."}
         </p>
         <form action={updateBranding} className="mt-4 space-y-3">
           <label className="block text-sm">
-            <span className="font-medium">Video URL (MP4 / WebM)</span>
+            <span className="font-medium">{km ? "URL វីដេអូ (MP4 / WebM)" : "Video URL (MP4 / WebM)"}</span>
             <input
               name="login_hero_video_url"
               defaultValue={branding.login_hero_video_url ?? ""}
@@ -101,7 +100,7 @@ export default async function AdminSettingsPage() {
             />
           </label>
           <label className="block text-sm">
-            <span className="font-medium">Photo URL</span>
+            <span className="font-medium">{km ? "URL រូបភាព" : "Photo URL"}</span>
             <input
               name="login_hero_image_url"
               defaultValue={branding.login_hero_image_url ?? ""}
@@ -110,9 +109,9 @@ export default async function AdminSettingsPage() {
             />
           </label>
           <label className="block text-sm">
-            <span className="font-medium">Map Image URL (optional)</span>
+            <span className="font-medium">{km ? "URL រូបផែនទី (ជម្រើស)" : "Map Image URL (optional)"}</span>
             <span className="block text-xs text-ink/50">
-              A real map of your zoo (4:3, e.g. uploaded to the zoo-maps bucket). Leave blank to use the built-in illustrated map.
+              {km ? "ផែនទីពិតរបស់សួនសត្វ (4:3)។ ទុកទទេ ដើម្បីប្រើផែនទីគំនូរដែលមានស្រាប់។" : "A real map of your zoo (4:3, e.g. uploaded to the zoo-maps bucket). Leave blank to use the built-in illustrated map."}
             </span>
             <input
               name="map_image_url"
@@ -125,43 +124,6 @@ export default async function AdminSettingsPage() {
         </form>
       </div>
 
-      <div className="card mt-6 p-6">
-        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest"><Satellite size={18} className="text-primary" /> Map GPS Calibration</h2>
-        <p className="mt-1 text-sm text-ink/60">
-          Lets visitors&apos; real GPS suggest their position on the Friends-on-the-Map feature (they
-          still tap to confirm/adjust the exact spot — see README). Only useful for outdoor or
-          open-sky venues; GPS is unreliable indoors. Record the real-world coordinates of your map
-          image&apos;s top-left and bottom-right corners — use a phone&apos;s Maps app standing at
-          each corner, or a satellite map, to read these off.
-        </p>
-        <form action={updateMapCalibration} className="mt-4 space-y-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink/40">
-              Top-left corner of the map (North-West)
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Latitude" name="nw_lat" defaultValue={cal.nwLat} type="number" step="any" />
-              <Field label="Longitude" name="nw_lng" defaultValue={cal.nwLng} type="number" step="any" />
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink/40">
-              Bottom-right corner of the map (South-East)
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Latitude" name="se_lat" defaultValue={cal.seLat} type="number" step="any" />
-              <Field label="Longitude" name="se_lng" defaultValue={cal.seLng} type="number" step="any" />
-            </div>
-          </div>
-          <button className="btn-primary">{t.admin.save}</button>
-          {(!cal.nwLat || !cal.seLat) && (
-            <p className="text-xs text-ink/40">
-              Not set yet — until this is filled in, visitors will only be able to tap their location
-              on the map manually (which always works, indoors or out).
-            </p>
-          )}
-        </form>
-      </div>
     </div>
   );
 }

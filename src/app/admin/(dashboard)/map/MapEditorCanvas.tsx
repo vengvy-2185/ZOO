@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { MousePointerClick, Save } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useI18n } from "@/lib/i18n/client";
 import { ZooMapArtwork } from "@/components/visitor/ZooMapArtwork";
 import { saveMarkerPosition } from "./actions";
 
@@ -25,6 +26,7 @@ export function MapEditorCanvas({
   const [markers, setMarkers] = useState(initial);
   const [selected, setSelected] = useState<EditableMarker | null>(null);
   const [isPending, startTransition] = useTransition();
+  const km = useI18n().locale === "km";
 
   // Pointer events (not mouse events) so markers can be dragged by touch too.
   function onDrag(e: React.PointerEvent<HTMLDivElement>, marker: EditableMarker) {
@@ -88,7 +90,7 @@ export function MapEditorCanvas({
       <div className="card h-fit w-full flex-shrink-0 p-5 lg:w-72">
         <h3 className="flex items-center gap-2 font-display text-lg font-bold text-forest">
           <MousePointerClick size={18} className="text-primary" />
-          Selected {selected ? (selected.kind === "animal" ? "Animal" : "Facility") : "Marker"}
+          {km ? (selected ? (selected.kind === "animal" ? "សត្វដែលបានជ្រើស" : "កន្លែងដែលបានជ្រើស") : "ចំណុចដែលបានជ្រើស") : `Selected ${selected ? (selected.kind === "animal" ? "Animal" : "Facility") : "Marker"}`}
         </h3>
         {selected ? (
           <div className="mt-3 space-y-3 text-sm">
@@ -107,18 +109,18 @@ export function MapEditorCanvas({
               </div>
             </div>
             <button onClick={save} disabled={isPending} className="btn-primary w-full hover:translate-y-0">
-              <Save size={16} /> {isPending ? "Saving…" : "Save Location"}
+              <Save size={16} /> {isPending ? (km ? "កំពុងរក្សា…" : "Saving…") : km ? "រក្សាទីតាំង" : "Save Location"}
             </button>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-ink/50">Tap a marker to select it, then drag it to its new position.</p>
+          <p className="mt-2 text-sm text-ink/50">{km ? "ចុចលើចំណុចណាមួយដើម្បីជ្រើស រួចអូសវាទៅទីតាំងថ្មី។" : "Tap a marker to select it, then drag it to its new position."}</p>
         )}
         <div className="mt-4 space-y-1.5 border-t border-black/5 pt-4 text-xs text-ink/55">
           <div className="flex items-center gap-2">
-            <span className="h-4 w-4 rounded-full border-2 border-white bg-accent shadow" /> Animal
+            <span className="h-4 w-4 rounded-full border-2 border-white bg-accent shadow" /> {km ? "សត្វ" : "Animal"}
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-4 w-4 rounded-full border-2 border-white bg-white shadow ring-1 ring-black/10" /> Facility
+            <span className="h-4 w-4 rounded-full border-2 border-white bg-white shadow ring-1 ring-black/10" /> {km ? "កន្លែងសេវា" : "Facility"}
           </div>
         </div>
       </div>

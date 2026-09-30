@@ -1,5 +1,6 @@
 "use client";
 
+import { playSound } from "@/lib/client-sound";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import jsQR from "jsqr";
@@ -84,25 +85,10 @@ const STYLE: Record<Verdict, { bg: string; Icon: typeof CheckCircle2 }> = {
   unknown: { bg: "bg-amber-600", Icon: HelpCircle },
 };
 
-/** Short beep: happy two-tone for OK, low buzz otherwise. */
+/** Short sound: a happy bell for OK, two soft falling notes otherwise. */
 function beep(good: boolean) {
-  try {
-    const ctx = new AudioContext();
-    const tones = good ? [880, 1320] : [220];
-    tones.forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = good ? "sine" : "square";
-      o.frequency.value = f;
-      g.gain.value = 0.15;
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + i * 0.13);
-      o.stop(ctx.currentTime + i * 0.13 + (good ? 0.12 : 0.35));
-    });
-    navigator.vibrate?.(good ? 80 : [120, 60, 120]);
-  } catch {
-    /* sound is optional */
-  }
+  playSound(good ? "ok" : "no", 0.6);
+  navigator.vibrate?.(good ? 80 : [120, 60, 120]);
 }
 
 

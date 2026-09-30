@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Check, FileText, Loader2, CalendarPlus, ThumbsUp, ThumbsDown, UserPlus, Send, Trash2, Star, Save, ChevronDown } from "lucide-react";
+import { Copy, Check, FileText, Loader2, CalendarPlus, ThumbsUp, ThumbsDown, UserPlus, Send, Trash2, Star, Save, ChevronDown, ScanSearch, Undo2, Trophy, BadgeCheck, NotebookPen } from "lucide-react";
 import { setHrStatus, scheduleInterview, setResult, saveHrNote, messageApplicant, cvLink, hireApplicant, deleteApplicant, saveJob } from "@/app/staff/(protected)/hr/actions";
 import { cn } from "@/lib/utils/cn";
 
@@ -103,8 +103,8 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
           <FileText size={18} /> {L("Open CV", "បើក CV")} {a.cv_name ? <span className="max-w-[10rem] truncate text-xs font-semibold opacity-80">({a.cv_name})</span> : null}
         </button>
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={pending} onClick={() => run(() => setHrStatus(a.id, "screening"), L("Marked as reviewing", "កំពុងពិនិត្យ") + tgNote)} className="rounded-xl bg-amber-50 py-2 text-sm font-bold text-amber-800">🔎 {L("Reviewing", "ពិនិត្យ")}</button>
-          <button type="button" disabled={pending} onClick={() => run(() => setHrStatus(a.id, "withdrawn"))} className="rounded-xl bg-slate-100 py-2 text-sm font-bold text-slate-600">↩️ {L("Withdrawn", "ដកពាក្យ")}</button>
+          <button type="button" disabled={pending} onClick={() => run(() => setHrStatus(a.id, "screening"), L("Marked as reviewing", "កំពុងពិនិត្យ") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 py-2 text-sm font-bold text-amber-800"><ScanSearch size={16} /> {L("Reviewing", "ពិនិត្យ")}</button>
+          <button type="button" disabled={pending} onClick={() => run(() => setHrStatus(a.id, "withdrawn"))} className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 py-2 text-sm font-bold text-slate-600"><Undo2 size={16} /> {L("Withdrawn", "ដកពាក្យ")}</button>
         </div>
       </div>
 
@@ -117,7 +117,7 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
       </form>
 
       <div className={card}>
-        <p className="font-display font-extrabold text-forest">🏆 {L("Result", "លទ្ធផល")}</p>
+        <p className="flex items-center gap-2 font-display font-extrabold text-forest"><Trophy size={18} className="text-amber-500" /> {L("Result", "លទ្ធផល")}</p>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={L("Message with the result (optional)", "សារជាមួយលទ្ធផល (ជម្រើស)")} className={field} />
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={pending} onClick={() => run(() => setResult(a.id, true, note), L("Passed", "ជាប់") + tgNote)} className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-bold text-white"><ThumbsUp size={16} /> {L("Passed", "ជាប់")}</button>
@@ -151,7 +151,7 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
       )}
       {creds && (
         <div role="status" className="card space-y-1 bg-emerald-50 p-4 text-emerald-900">
-          <p className="font-extrabold">✅ {L("Staff account created", "បានបង្កើតគណនីបុគ្គលិក")}</p>
+          <p className="flex items-center gap-2 font-extrabold"><BadgeCheck size={18} /> {L("Staff account created", "បានបង្កើតគណនីបុគ្គលិក")}</p>
           <p>{L("Staff ID", "លេខសម្គាល់")}: <b className="font-mono">{creds.staffNo}</b></p>
           <p>{L("Password", "ពាក្យសម្ងាត់")}: <b className="font-mono">{creds.password}</b></p>
           <p className="text-xs">{creds.told ? L("Also sent to them on Telegram.", "បានផ្ញើទៅគាត់តាម Telegram ផងដែរ។") : L("Give these to them (Telegram not linked).", "សូមប្រគល់ព័ត៌មាននេះទៅគាត់ (មិនទាន់ភ្ជាប់ Telegram)។")}</p>
@@ -174,7 +174,7 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
       </div>
 
       <form className={card} action={(fd) => run(() => saveHrNote(a.id, fd), L("Note saved", "បានរក្សាទុក"))}>
-        <p className="font-display font-extrabold text-forest">📝 {L("HR note (only HR sees it)", "កំណត់ចំណាំ HR (មានតែ HR ឃើញ)")}</p>
+        <p className="flex items-center gap-2 font-display font-extrabold text-forest"><NotebookPen size={18} /> {L("HR note (only HR sees it)", "កំណត់ចំណាំ HR (មានតែ HR ឃើញ)")}</p>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <label key={n} className="cursor-pointer">

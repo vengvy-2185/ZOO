@@ -53,6 +53,15 @@ export type EntityDef = {
 
 const MARKER_TYPES = ["entrance", "exit", "restaurant", "restroom", "parking", "first_aid", "gift_shop", "rest_area", "photo_spot"];
 const IUCN = ["Least Concern", "Near Threatened", "Vulnerable", "Endangered", "Critically Endangered", "Extinct in the Wild", "Data Deficient"];
+const IUCN_LABELS: Record<string, { en: string; km: string }> = {
+  "Least Concern": { en: "Least Concern", km: "មិនសូវគួរឱ្យព្រួយបារម្ភ" },
+  "Near Threatened": { en: "Near Threatened", km: "ជិតរងគ្រោះ" },
+  Vulnerable: { en: "Vulnerable", km: "ងាយរងគ្រោះ" },
+  Endangered: { en: "Endangered", km: "ជិតផុតពូជ" },
+  "Critically Endangered": { en: "Critically Endangered", km: "ជិតផុតពូជបំផុត" },
+  "Extinct in the Wild": { en: "Extinct in the Wild", km: "ផុតពូជក្នុងធម្មជាតិ" },
+  "Data Deficient": { en: "Data Deficient", km: "ខ្វះទិន្នន័យ" },
+};
 
 const name: FieldDef = { name: "name", km: "khmer_name", label: { en: "Name", km: "ឈ្មោះ" }, type: "text", required: true };
 const desc: FieldDef = { name: "description", km: "description_km", label: { en: "Description", km: "ការពិពណ៌នា" }, type: "textarea", wide: true };
@@ -79,7 +88,7 @@ export const ENTITIES = {
       { name: "common_name", km: "khmer_name", label: { en: "Common name", km: "ឈ្មោះទូទៅ" }, type: "text", required: true },
       { name: "scientific_name", label: { en: "Scientific name", km: "ឈ្មោះវិទ្យាសាស្ត្រ" }, type: "text" },
       { name: "category_id", label: { en: "Category", km: "ប្រភេទ" }, type: "ref", required: true, ref: { table: "animal_categories", label: "name", labelKm: "khmer_name", order: "sort_order" } },
-      { name: "conservation_status", label: { en: "Conservation status", km: "ស្ថានភាពអភិរក្ស" }, type: "select", options: IUCN },
+      { name: "conservation_status", label: { en: "Conservation status", km: "ស្ថានភាពអភិរក្ស" }, type: "select", options: IUCN, optionLabels: IUCN_LABELS },
       { name: "conservation_status_km", label: { en: "Conservation status (Khmer)", km: "ស្ថានភាពអភិរក្ស (ខ្មែរ)" }, type: "text" },
       { ...desc },
       { name: "habitat_description", km: "habitat_description_km", label: { en: "Natural habitat", km: "ទីជម្រកធម្មជាតិ" }, type: "textarea", wide: true },

@@ -137,7 +137,7 @@ export function GlobalStaffSound() {
     const fresh = d.chime.filter((c) => !seen.includes(c));
     if (fresh.length) put(SEEN, [...seen, ...fresh]);
     else if (first) put(SEEN, []);
-    if (!first && fresh.length && enabled && ready && !ringing) playSound("chime", vol);
+    if (!first && fresh.length && enabled && ready && !ringing) playSound("chime", vol * 0.7);
     // pop-ups on screen (also on a computer, where Windows may hide notifications)
     if (!first && fresh.length) {
       const looking = (ch: string | null) => location.pathname === "/staff/chat" && new URLSearchParams(location.search).get("c") === ch && document.visibilityState === "visible";

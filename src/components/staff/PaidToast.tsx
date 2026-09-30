@@ -1,5 +1,6 @@
 "use client";
 
+import { playSound } from "@/lib/client-sound";
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 
@@ -21,21 +22,8 @@ export function PaidToast({ paid, km }: { paid: { code: string; name: string | n
     if (!fresh.length) return;
     fresh.forEach((p) => seen.current!.add(p.code));
     setToasts((t) => [...fresh, ...t].slice(0, 3));
-    try {
-      const ctx = new AudioContext();
-      [880, 1320].forEach((f, i) => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.frequency.value = f;
-        g.gain.value = 0.12;
-        o.connect(g).connect(ctx.destination);
-        o.start(ctx.currentTime + i * 0.14);
-        o.stop(ctx.currentTime + i * 0.14 + 0.12);
-      });
-      navigator.vibrate?.(80);
-    } catch {
-      /* sound is optional */
-    }
+    playSound("ok", 0.6);
+    navigator.vibrate?.(80);
     const id = setTimeout(() => setToasts((t) => t.slice(0, -fresh.length)), 9000);
     return () => clearTimeout(id);
   }, [paid]);

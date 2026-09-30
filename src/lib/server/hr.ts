@@ -60,25 +60,42 @@ export async function bot(method: string, body: Record<string, unknown>, token?:
 type App = { id: string; code: string; full_name: string; status: HrStatus; tg_chat_id: number | null; tg_lang: string; staff_user_id: string | null };
 
 /** The applicant's menu of buttons in the bot. */
+/** The bot's menu buttons: always shown under the chat box (like a keypad), each in its own colour. */
+export const BOT_ACTIONS = {
+  status: { km: "📄 ស្ថានភាពពាក្យ", en: "📄 My application", style: "primary" },
+  interview: { km: "📅 ការសម្ភាសន៍", en: "📅 Interview", style: "success" },
+  result: { km: "🏆 លទ្ធផល", en: "🏆 Result", style: "success" },
+  ask: { km: "💬 សួរ HR", en: "💬 Ask HR", style: "danger" },
+  jobs: { km: "💼 ការងារទំនេរ", en: "💼 Open jobs", style: "primary" },
+  contact: { km: "📞 ទំនាក់ទំនង", en: "📞 Contact", style: "primary" },
+  account: { km: "🔐 គណនីបុគ្គលិករបស់ខ្ញុំ", en: "🔐 My staff account", style: "success" },
+  "lang:en": { km: "🌐 English", en: "🌐 English", style: undefined },
+  "lang:km": { km: "🌐 ភាសាខ្មែរ", en: "🌐 ភាសាខ្មែរ", style: undefined },
+} as const;
+export type BotAction = keyof typeof BOT_ACTIONS;
+
+/** Which button was pressed (a menu button arrives as its text, in either language). */
+export function botAction(text: string): BotAction | null {
+  const t = text.trim();
+  for (const [k, v] of Object.entries(BOT_ACTIONS)) if (t === v.km || t === v.en) return k as BotAction;
+  return null;
+}
+
 export function menu(a: Pick<App, "status" | "tg_lang">) {
   const km = a.tg_lang !== "en";
-  const rows: { text: string; callback_data: string }[][] = [
-    [
-      { text: km ? "📄 ស្ថានភាពពាក្យ" : "📄 My application", callback_data: "status" },
-      { text: km ? "📅 ការសម្ភាសន៍" : "📅 Interview", callback_data: "interview" },
-    ],
-    [
-      { text: km ? "🏆 លទ្ធផល" : "🏆 Result", callback_data: "result" },
-      { text: km ? "❓ សួរ HR" : "❓ Ask HR", callback_data: "ask" },
-    ],
-    [
-      { text: km ? "💼 ការងារទំនេរ" : "💼 Open jobs", callback_data: "jobs" },
-      { text: km ? "📞 ទំនាក់ទំនង" : "📞 Contact", callback_data: "contact" },
-    ],
-  ];
-  if (a.status === "hired") rows.unshift([{ text: km ? "🔐 គណនីបុគ្គលិករបស់ខ្ញុំ" : "🔐 My staff account", callback_data: "account" }]);
-  rows.push([{ text: km ? "🌐 English" : "🌐 ភាសាខ្មែរ", callback_data: km ? "lang:en" : "lang:km" }]);
-  return { inline_keyboard: rows };
+  const b = (k: BotAction) => {
+    const v = BOT_ACTIONS[k];
+    return { text: km ? v.km : v.en, ...(v.style ? { style: v.style } : {}) };
+  };
+  const rows = [[b("status"), b("interview")], [b("result"), b("ask")], [b("jobs"), b("contact")]];
+  if (a.status === "hired") rows.unshift([b("account")]);
+  rows.push([b(km ? "lang:en" : "lang:km")]);
+  return {
+    keyboard: rows,
+    resize_keyboard: true,
+    is_persistent: true,
+    input_field_placeholder: km ? "ចុចម៉ឺនុយ ឬសរសេរសំណួរ…" : "Tap a button or type a question…",
+  };
 }
 
 /** A message to one applicant in Telegram (if they linked the bot and it is on). */
@@ -121,8 +138,8 @@ export async function announce(applicantId: string, kind: "status" | "interview"
   let text = "";
   if (kind === "interview")
     text = km
-      ? `📅 <b>អញ្ជើញមកសម្ភាសន៍</b>\n\nសួស្តី ${esc(a.full_name)}!\nពេលវេលា៖ <b>${esc(dt(a.interview_at, true))}</b>${a.interview_place ? `\nទីកន្លែង៖ <b>${esc(a.interview_place)}</b>` : ""}${a.interview_note ? `\n\n📝 ${esc(a.interview_note)}` : ""}\n\nសូមយកអត្តសញ្ញាណប័ណ្ណមកជាមួយ។ ប្រសិនបើមិនអាចមកបាន សូមចុច «❓ សួរ HR»។`
-      : `📅 <b>Interview invitation</b>\n\nHello ${esc(a.full_name)}!\nWhen: <b>${esc(dt(a.interview_at, false))}</b>${a.interview_place ? `\nWhere: <b>${esc(a.interview_place)}</b>` : ""}${a.interview_note ? `\n\n📝 ${esc(a.interview_note)}` : ""}\n\nPlease bring your ID card. If you can't come, tap "❓ Ask HR".`;
+      ? `📅 <b>អញ្ជើញមកសម្ភាសន៍</b>\n\nសួស្តី ${esc(a.full_name)}!\nពេលវេលា៖ <b>${esc(dt(a.interview_at, true))}</b>${a.interview_place ? `\nទីកន្លែង៖ <b>${esc(a.interview_place)}</b>` : ""}${a.interview_note ? `\n\n📝 ${esc(a.interview_note)}` : ""}\n\nសូមយកអត្តសញ្ញាណប័ណ្ណមកជាមួយ។ ប្រសិនបើមិនអាចមកបាន សូមចុច «💬 សួរ HR»។`
+      : `📅 <b>Interview invitation</b>\n\nHello ${esc(a.full_name)}!\nWhen: <b>${esc(dt(a.interview_at, false))}</b>${a.interview_place ? `\nWhere: <b>${esc(a.interview_place)}</b>` : ""}${a.interview_note ? `\n\n📝 ${esc(a.interview_note)}` : ""}\n\nPlease bring your ID card. If you can't come, tap "💬 Ask HR".`;
   else if (kind === "offer")
     text = km
       ? `🎉 <b>អបអរសាទរ!</b>\n\n${esc(a.full_name)} អ្នកបានជាប់ការជ្រើសរើស។${a.result_note ? `\n\n📝 ${esc(a.result_note)}` : ""}\n\nHR នឹងទាក់ទងអ្នកអំពីថ្ងៃចូលធ្វើការ។`

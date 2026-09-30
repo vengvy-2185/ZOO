@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { bot, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
+import { bot, botAction, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
 import { sendPush } from "@/lib/server/push";
 import { getPrivateSetting } from "@/lib/server/private-settings";
 
@@ -80,6 +80,9 @@ async function onMessage(m: any) {
   if (!a) return welcomeStranger(chatId, m.from?.language_code);
   const km = a.tg_lang !== "en";
   if (!text) return send(chatId, km ? "សូមសរសេរជាអក្សរ 🙏" : "Please send text 🙏", menu(a));
+  // a menu button (it arrives as its own text), not a question
+  const act = botAction(text);
+  if (act) return doAction(chatId, a, act);
   // anything they write is a question for HR
   await db().from("hr_messages").insert({ applicant_id: a.id, body: text.slice(0, 2000) });
   await db().from("hr_applicants").update({ tg_state: null, updated_at: new Date().toISOString() }).eq("id", a.id);
@@ -93,13 +96,18 @@ async function onButton(q: any) {
   const data = String(q.data ?? "");
   await bot("answerCallbackQuery", { callback_query_id: q.id });
   if (!chatId) return;
-  let a = await byChat(chatId);
+  const a = await byChat(chatId);
   if (!a) return welcomeStranger(chatId, q.from?.language_code);
+  return doAction(chatId, a, data);
+}
+
+async function doAction(chatId: number, a: any, data: string) {
   if (data.startsWith("lang:")) {
     const lang = data === "lang:en" ? "en" : "km";
     await db().from("hr_applicants").update({ tg_lang: lang }).eq("id", a.id);
     a = { ...a, tg_lang: lang };
-    return send(chatId, await statusText(a.id), menu(a));
+    await send(chatId, lang === "en" ? "🌐 Language: English" : "🌐 ភាសា៖ ខ្មែរ", menu(a));
+    return send(chatId, await statusText(a.id));
   }
   const km = a.tg_lang !== "en";
   const { data: job } = a.job_id ? await db().from("hr_jobs").select("title, title_km").eq("id", a.job_id).maybeSingle() : { data: null };
@@ -133,7 +141,7 @@ async function onButton(q: any) {
     }
     case "ask":
       await db().from("hr_applicants").update({ tg_state: "ask" }).eq("id", a.id);
-      return send(chatId, km ? "❓ សូមសរសេរសំណួររបស់អ្នក ហើយផ្ញើមក។ HR នឹងឆ្លើយតបនៅទីនេះ។" : "❓ Type your question and send it. HR will answer here.");
+      return send(chatId, km ? "💬 សូមសរសេរសំណួររបស់អ្នក ហើយផ្ញើមក។ HR នឹងឆ្លើយតបនៅទីនេះ។" : "💬 Type your question and send it. HR will answer here.");
     case "jobs": {
       const { data: jobs } = await db().from("hr_jobs").select("slug, title, title_km").eq("open", true).order("sort").limit(8);
       if (!jobs?.length) return send(chatId, km ? "មិនទាន់មានការងារទំនេរផ្សេងទៀតទេ។" : "No other open jobs right now.", menu(a));
@@ -141,12 +149,12 @@ async function onButton(q: any) {
     }
     case "contact": {
       const s = await hrSettings();
-      return send(chatId, `📞 <b>${km ? "ទំនាក់ទំនង HR" : "Contact HR"}</b>\n${esc(s.contact || (km ? "សូមចុច «❓ សួរ HR» ដើម្បីផ្ញើសារ។" : 'Tap "❓ Ask HR" to send a message.'))}\n\n🌐 ${site()}`, menu(a));
+      return send(chatId, `📞 <b>${km ? "ទំនាក់ទំនង HR" : "Contact HR"}</b>\n${esc(s.contact || (km ? "សូមចុច «💬 សួរ HR» ដើម្បីផ្ញើសារ។" : 'Tap "💬 Ask HR" to send a message.'))}\n\n🌐 ${site()}`, menu(a));
     }
     case "account": {
       if (a.status !== "hired" || !a.staff_user_id) return send(chatId, km ? "គណនីបុគ្គលិកនឹងមាន ក្រោយពេលអ្នកចូលធ្វើការ។" : "Your staff account comes once you are hired.", menu(a));
       const { data: st } = await db().from("staff_members").select("staff_no").eq("user_id", a.staff_user_id).maybeSingle();
-      return send(chatId, km ? `🔐 <b>គណនីបុគ្គលិក</b>\nលេខសម្គាល់៖ <b>${esc(st?.staff_no)}</b>\nចូល៖ ${site()}/staff/login\n\nភ្លេចពាក្យសម្ងាត់? សូមចុច «❓ សួរ HR»។` : `🔐 <b>Staff account</b>\nStaff ID: <b>${esc(st?.staff_no)}</b>\nSign in: ${site()}/staff/login\n\nForgot the password? Tap "❓ Ask HR".`, menu(a));
+      return send(chatId, km ? `🔐 <b>គណនីបុគ្គលិក</b>\nលេខសម្គាល់៖ <b>${esc(st?.staff_no)}</b>\nចូល៖ ${site()}/staff/login\n\nភ្លេចពាក្យសម្ងាត់? សូមចុច «💬 សួរ HR»។` : `🔐 <b>Staff account</b>\nStaff ID: <b>${esc(st?.staff_no)}</b>\nSign in: ${site()}/staff/login\n\nForgot the password? Tap "💬 Ask HR".`, menu(a));
     }
     default:
       return send(chatId, await statusText(a.id), menu(a));

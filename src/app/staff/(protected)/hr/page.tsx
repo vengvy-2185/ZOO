@@ -7,6 +7,7 @@ import { canHr, HR_STATUS, hrSettings, site, type HrStatus } from "@/lib/server/
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { JobEditor, CopyLink } from "@/components/hr/HrBits";
+import { HrStatusChip, HrStatusIcon } from "@/components/hr/HrStatusIcon";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -69,8 +70,8 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
             <div className="no-scrollbar flex gap-2 overflow-x-auto">
               <Link href={link({ s: undefined })} className={cn("flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold", !searchParams.s ? "bg-primary text-white" : "bg-cream text-forest")}>{km ? "ទាំងអស់" : "All"}</Link>
               {(Object.keys(HR_STATUS) as HrStatus[]).map((st) => (
-                <Link key={st} href={link({ s: st })} className={cn("flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold", searchParams.s === st ? "bg-primary text-white" : "bg-cream text-forest")}>
-                  {HR_STATUS[st].emoji} {km ? HR_STATUS[st].km : HR_STATUS[st].en} {n(st) ? `(${n(st)})` : ""}
+                <Link key={st} href={link({ s: st })} className={cn("flex-shrink-0 rounded-full py-1 pl-1 pr-3 text-xs font-bold transition hover:-translate-y-0.5", searchParams.s === st ? "bg-primary text-white shadow" : "bg-cream text-forest")}>
+                  <HrStatusChip status={st} label={km ? HR_STATUS[st].km : HR_STATUS[st].en} count={n(st)} active={searchParams.s === st} />
                 </Link>
               ))}
             </div>
@@ -92,7 +93,7 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
                       {a.rating && <span className="text-xs text-amber-500">{"★".repeat(a.rating)}</span>}
                       {a.tg_chat_id && <Send size={15} className="text-[#229ED9]" aria-label="Telegram" />}
                       {unread > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white"><MessageCircle size={11} /> {unread}</span>}
-                      <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-bold", st.tone)}>{km ? st.km : st.en}</span>
+                      <span className={cn("inline-flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2.5 text-[11px] font-bold", st.tone)}><HrStatusIcon status={a.status} size={18} />{km ? st.km : st.en}</span>
                     </Link>
                   </li>
                 );

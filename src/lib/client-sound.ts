@@ -5,26 +5,64 @@
 // silent mode and after the page has been unlocked by one tap, which the
 // Web Audio API doesn't always do.)
 
-type Tone = { f0: number; f1?: number; dur: number; wave?: "sine" | "saw" | "square"; gap?: number };
+// Every sound is soft: sine waves with a few gentle overtones and a natural
+// fade (like a small bell or marimba) - no harsh square or saw waves.
+type Tone = {
+  /** pitch in Hz (with f1: glides f0 → f1 → f0) */
+  f0: number;
+  f1?: number;
+  dur: number;
+  gap?: number;
+  /** "bell" rings out and fades; "pad" holds steady (for alarms / ringback) */
+  kind?: "bell" | "pad";
+  /** loudness of this note, 0-1 */
+  gain?: number;
+};
 
-function wav(tones: Tone[], rate = 22050): string {
-  const total = tones.reduce((n, t) => n + t.dur + (t.gap ?? 0), 0);
+const BELL = [
+  [1, 1],
+  [2, 0.28],
+  [3, 0.08],
+  [4.2, 0.03],
+] as const;
+const PAD = [
+  [1, 1],
+  [2, 0.12],
+] as const;
+
+function wav(tones: Tone[], rate = 44100): string {
+  // notes may ring on into the next one (like a real bell)
+  const tail = 0.5;
+  const total = tones.reduce((n, t) => n + t.dur + (t.gap ?? 0), 0) + tail;
   const len = Math.ceil(total * rate);
-  const data = new Int16Array(len);
-  let i = 0;
+  const mix = new Float32Array(len);
+  let at = 0;
   for (const t of tones) {
-    const n = Math.floor(t.dur * rate);
-    let phase = 0;
-    for (let k = 0; k < n && i < len; k++, i++) {
-      const p = k / n;
-      const f = t.f1 ? t.f0 + (t.f1 - t.f0) * (p < 0.5 ? p * 2 : (1 - p) * 2) : t.f0;
-      phase += (2 * Math.PI * f) / rate;
-      const s = t.wave === "saw" ? ((phase / Math.PI) % 2) - 1 : t.wave === "square" ? (Math.sin(phase) > 0 ? 0.6 : -0.6) : Math.sin(phase);
-      const env = Math.min(1, k / (rate * 0.01), (n - k) / (rate * 0.03)); // soft start/end
-      data[i] = Math.max(-1, Math.min(1, s * env * 0.9)) * 32767;
+    const bell = (t.kind ?? "bell") === "bell";
+    const n = Math.floor((bell ? t.dur + tail : t.dur) * rate);
+    const parts = bell ? BELL : PAD;
+    const phases = parts.map(() => 0);
+    for (let k = 0; k < n && at + k < len; k++) {
+      const p = k / Math.floor(t.dur * rate);
+      const f = t.f1 ? t.f0 + (t.f1 - t.f0) * (p < 0.5 ? p * 2 : Math.max(0, (1 - p) * 2)) : t.f0;
+      let v = 0;
+      parts.forEach(([mul, amp], j) => {
+        phases[j] += (2 * Math.PI * f * mul) / rate;
+        // higher overtones die away sooner, which is what makes it sound warm
+        v += Math.sin(phases[j]) * amp * (bell ? Math.exp((-k / rate) * (3 + j * 4)) : 1);
+      });
+      const sec = k / rate;
+      const attack = Math.min(1, sec / 0.006);
+      const release = bell ? Math.min(1, (n - k) / (rate * 0.05)) : Math.min(1, (n - k) / (rate * 0.08), sec / 0.04);
+      mix[at + k] += v * attack * release * (t.gain ?? 1);
     }
-    i += Math.floor((t.gap ?? 0) * rate);
+    at += Math.floor((t.dur + (t.gap ?? 0)) * rate);
   }
+  let peak = 0;
+  for (const v of mix) peak = Math.max(peak, Math.abs(v));
+  const scale = peak ? 0.7 / peak : 0;
+  const data = new Int16Array(len);
+  for (let k = 0; k < len; k++) data[k] = Math.round(mix[k] * scale * 32767);
   const buf = new ArrayBuffer(44 + len * 2);
   const v = new DataView(buf);
   const str = (o: number, s: string) => [...s].forEach((c, j) => v.setUint8(o + j, c.charCodeAt(0)));
@@ -45,12 +83,17 @@ function wav(tones: Tone[], rate = 22050): string {
 }
 
 const SOUNDS = {
-  siren: () => wav([{ f0: 650, f1: 1300, dur: 0.9, wave: "saw" }, { f0: 650, f1: 1300, dur: 0.9, wave: "saw" }]),
-  chime: () => wav([{ f0: 880, dur: 0.22 }, { f0: 1320, dur: 0.45 }]),
-  alert: () => wav([{ f0: 1000, dur: 0.12, wave: "square", gap: 0.06 }, { f0: 1000, dur: 0.12, wave: "square", gap: 0.06 }, { f0: 1400, dur: 0.25, wave: "square" }]),
-  ok: () => wav([{ f0: 660, dur: 0.12 }, { f0: 990, dur: 0.25 }]),
-  ringback: () => wav([{ f0: 425, dur: 1.0 }]),
-  ring: () => wav([{ f0: 784, dur: 0.18, gap: 0.05 }, { f0: 988, dur: 0.18, gap: 0.05 }, { f0: 784, dur: 0.18, gap: 0.05 }, { f0: 988, dur: 0.3 }]),
+  // SOS: still clear and urgent, but a smooth two-tone (not a buzzing siren)
+  siren: () => wav([{ f0: 740, dur: 0.42, kind: "pad", gap: 0.04 }, { f0: 587, dur: 0.42, kind: "pad", gap: 0.04 }, { f0: 740, dur: 0.42, kind: "pad", gap: 0.04 }, { f0: 587, dur: 0.42, kind: "pad" }]),
+  // a new message: a soft two-note "ding-dong"
+  chime: () => wav([{ f0: 1175, dur: 0.14, gain: 0.8 }, { f0: 880, dur: 0.3, gain: 0.7 }]),
+  alert: () => wav([{ f0: 988, dur: 0.14 }, { f0: 1175, dur: 0.14 }, { f0: 1480, dur: 0.3 }]),
+  ok: () => wav([{ f0: 784, dur: 0.1, gain: 0.8 }, { f0: 1175, dur: 0.25 }]),
+  ringback: () => wav([{ f0: 440, dur: 0.9, kind: "pad", gain: 0.6 }]),
+  // an incoming call: a short marimba tune
+  ring: () => wav([{ f0: 659, dur: 0.16 }, { f0: 784, dur: 0.16 }, { f0: 988, dur: 0.16 }, { f0: 784, dur: 0.16 }, { f0: 988, dur: 0.16 }, { f0: 1319, dur: 0.4 }]),
+  // a scan that didn't work: two soft falling notes (not a buzz)
+  no: () => wav([{ f0: 494, dur: 0.14, gain: 0.8 }, { f0: 392, dur: 0.3, gain: 0.8 }]),
 };
 export type SoundName = keyof typeof SOUNDS;
 

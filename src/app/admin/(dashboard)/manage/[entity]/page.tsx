@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Plus, Pencil, CheckCircle2, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { AdminPageHeader, AdminTable, StatusBadge, Thumb } from "@/components/admin/ui";
+import { AdminPageHeader, AdminTable, ConservationBadge, StatusBadge, Thumb } from "@/components/admin/ui";
+import { IUCN } from "@/lib/data/iucn";
 import { getEntity, REF_LABELS } from "@/lib/admin/entities";
 import { getI18n } from "@/lib/i18n/server";
 import { toggleEntityField } from "../actions";
@@ -55,6 +56,7 @@ export default async function ManageListPage({
       );
     }
     if (c.name === "color" && v) return <span className="inline-flex items-center gap-2"><span className="h-4 w-4 rounded-full ring-1 ring-black/10" style={{ background: v }} />{v}</span>;
+    if (c.name === "conservation_status") return <ConservationBadge status={v} label={(km && (row.conservation_status_km || IUCN.find((l) => l.key === v)?.km)) || v} />;
     if (c.name === "price_usd") return `$${Number(v).toFixed(2)}`;
     if (typeof v === "string" && v.length > 90) return <span title={v}>{v.slice(0, 90)}…</span>;
     return v ?? "—";
