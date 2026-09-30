@@ -3,7 +3,7 @@
 import { useState } from "react";
 import QRCode from "qrcode";
 import { Download, Loader2 } from "lucide-react";
-import { LOGO_SVG } from "@/components/visitor/logo-svg";
+import { LOGO_URL } from "@/components/visitor/logo-svg";
 
 const W = 1240; // ~A6 at 300 dpi (10.5 x 14.8 cm)
 const H = 1748;
@@ -101,7 +101,7 @@ export function QrSignDownload({
       ctx.setLineDash([]);
 
       // header: logo + zoo name
-      const logo = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(LOGO_SVG));
+      const logo = await loadImage(LOGO_URL);
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.font = `800 64px "Baloo 2", system-ui, sans-serif`;

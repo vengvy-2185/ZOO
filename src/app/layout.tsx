@@ -44,8 +44,8 @@ export const metadata: Metadata = {
   // Browsers still request /favicon.ico directly — point it at the SVG icon;
   // search engines prefer a square PNG in sizes of 48px steps
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }],
-    shortcut: "/icon.svg",
+    icon: [{ url: "/icon.png", sizes: "96x96", type: "image/png" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }],
+    shortcut: "/icon.png",
     apple: "/icons/apple-touch-icon.png",
   },
   // can be installed on a phone's home screen like an app

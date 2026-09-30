@@ -7,7 +7,7 @@
    Pages from the signed-in areas (/staff, /admin, /account…) are kept apart
    and removed on sign-out or when someone else signs in on the device. */
 
-const VERSION = "v4"; // a new version removes the pages saved by the old one
+const VERSION = "v5"; // a new version removes the pages saved by the old one
 const STATIC = `gwz-static-${VERSION}`;
 const PAGES = `gwz-pages-${VERSION}`;
 const PRIVATE = `gwz-private-${VERSION}`;
@@ -257,12 +257,7 @@ p{margin:0;font-size:14px;opacity:.8}
 <span class="leaf" style="left:12%;animation-duration:5s"></span><span class="leaf" style="left:38%;animation-duration:6.5s;animation-delay:1s"></span><span class="leaf" style="left:66%;animation-duration:5.5s;animation-delay:.5s"></span><span class="leaf" style="left:88%;animation-duration:7s;animation-delay:1.6s"></span>
 <div class="w">
   <div class="logo"><span class="pulse"></span><span class="ring"></span>
-    <svg viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E8B57"/><stop offset="1" stop-color="#0E3F24"/></linearGradient></defs>
-      <circle cx="24" cy="24" r="22" fill="url(#g)"/><path d="M33 6c7 1 10 6 9 13-6 0-10-4-9-13z" fill="#9BD13B"/>
-      <ellipse cx="24" cy="30" rx="7.2" ry="6" fill="#fff"/>
-      <ellipse class="toe" cx="15.2" cy="22" rx="2.7" ry="3.4" fill="#fff"/><ellipse class="toe t2" cx="20.6" cy="16.8" rx="2.7" ry="3.5" fill="#fff"/>
-      <ellipse class="toe t3" cx="27.6" cy="16.8" rx="2.7" ry="3.5" fill="#fff"/><ellipse class="toe t4" cx="32.8" cy="22" rx="2.7" ry="3.4" fill="#fff"/>
-    </svg>
+    <img src="/logo-sm.png" alt="" style="position:relative;width:128px;height:128px;border-radius:50%;background:#fff;object-fit:contain;padding:6px;box-shadow:0 12px 30px -10px rgba(0,0,0,.5)">
   </div>
   <h1>${name}</h1>
   <p>កំពុងបើក… · Opening…</p>

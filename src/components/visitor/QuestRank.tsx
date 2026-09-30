@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Sprout, PawPrint, Compass, Binoculars, Crown, Trophy, Share2, Loader2, Lock, type LucideIcon } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
-import { LOGO_SVG } from "./logo-svg";
+import { LOGO_URL } from "./logo-svg";
 
 type Rank = { key: string; en: string; km: string; at: number; Icon: LucideIcon; from: string; to: string };
 
@@ -136,7 +136,7 @@ export function QuestRank({ found, total, images }: { found: number; total: numb
         const i = new Image();
         i.onload = () => res(i);
         i.onerror = () => res(null);
-        i.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(LOGO_SVG);
+        i.src = LOGO_URL;
       });
       if (logo) ctx.drawImage(logo, 70, 60, 90, 90);
       ctx.fillStyle = "#fff";

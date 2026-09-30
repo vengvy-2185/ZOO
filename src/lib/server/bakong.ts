@@ -19,7 +19,7 @@ export const QR_MINUTES = 5;
 export function khqrLogo(s: PaymentSettings): string {
   if (s.qr_logo_mode === "khqr") return "khqr";
   if (s.qr_logo_mode === "custom" && s.qr_logo_url) return s.qr_logo_url;
-  return "/icon.svg";
+  return "/logo.png";
 }
 
 export async function getPaymentConfig() {

@@ -78,7 +78,7 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
               return (
                 <div key={a.id} className={cn("card flex items-center gap-3 p-2.5", at && "bg-[#F8FAFF]")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.main_image_url ?? "/icon.svg"} alt="" className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover" />
+                  <img src={a.main_image_url ?? "/logo-sm.png"} alt="" className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold text-forest">{(km && a.khmer_name) || a.name}</p>
                     {health.has(a.id) && <p className="truncate text-[11px] font-bold text-red-600" title={health.get(a.id)}>🩺 {km ? "តាមដានសុខភាព" : "Health watch"}: {health.get(a.id)}</p>}
@@ -142,7 +142,7 @@ export default async function AnimalCarePage({ searchParams }: { searchParams: {
               return (
                 <li key={l.id} className="card flex gap-3 p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={l.animal?.main_image_url ?? "/icon.svg"} alt="" className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover" />
+                  <img src={l.animal?.main_image_url ?? "/logo-sm.png"} alt="" className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 text-sm">
                       <span className="font-display font-extrabold text-forest">{(km && l.animal?.khmer_name) || l.animal?.name}</span>

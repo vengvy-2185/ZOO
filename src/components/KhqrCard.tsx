@@ -20,7 +20,7 @@ function loadImage(src: string) {
  * (so "Save QR" keeps the logo). Error correction H lets every banking app
  * read the code even with the centre covered.
  */
-export async function drawKhqr(qr: string, logo: KhqrLogo = "/icon.svg", currency = "USD"): Promise<string> {
+export async function drawKhqr(qr: string, logo: KhqrLogo = "/logo.png", currency = "USD"): Promise<string> {
   const size = 640;
   const c = document.createElement("canvas");
   c.width = c.height = size;

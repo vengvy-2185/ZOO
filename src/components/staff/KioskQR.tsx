@@ -55,7 +55,7 @@ export function KioskQR({ km, windows, dayOff, overlayOnly = false }: { km: bool
     if (!r?.token) return setErr(true);
     setErr(false);
     setExpires(r.expiresAt);
-    setImg(await drawKhqr(`${location.origin}/staff/checkin?t=${encodeURIComponent(r.token)}`, "/icon.svg"));
+    setImg(await drawKhqr(`${location.origin}/staff/checkin?t=${encodeURIComponent(r.token)}`, "/logo.png"));
   }, []);
 
   // a session opens: fetch the QR, go full screen if the browser allows, keep the screen awake

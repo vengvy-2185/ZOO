@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Download, Printer, Loader2, RotateCw } from "lucide-react";
 import { CARD_STYLE, type CardType } from "@/lib/members";
-import { LOGO_SVG } from "@/components/visitor/logo-svg";
+import { LOGO_URL } from "@/components/visitor/logo-svg";
 
 // Real card size: CR80, 54 x 85.6 mm, drawn at about 300 dpi.
 const W = 640;
@@ -93,7 +93,7 @@ async function drawCard(d: IdCardData): Promise<string> {
   ctx.stroke();
 
   // logo + zoo name
-  const logo = await loadImg("data:image/svg+xml;charset=utf-8," + encodeURIComponent(LOGO_SVG));
+  const logo = await loadImg(LOGO_URL);
   ctx.textBaseline = "middle";
   ctx.font = `800 ${x(17)}px "Baloo 2", system-ui, sans-serif`;
   const title = "GREEN WILD ZOO";
@@ -280,7 +280,7 @@ async function drawBack(d: IdCardData): Promise<string> {
   ctx.stroke();
 
   // logo + name + card type
-  const logo = await loadImg("data:image/svg+xml;charset=utf-8," + encodeURIComponent(LOGO_SVG));
+  const logo = await loadImg(LOGO_URL);
   ctx.fillStyle = "#FFFFFF";
   ctx.beginPath();
   ctx.arc(W / 2, x(52), x(19), 0, Math.PI * 2);
