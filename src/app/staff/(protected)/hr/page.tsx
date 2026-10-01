@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Send, MessageCircle, Briefcase, Users, ShieldAlert, ExternalLink } from "lucide-react";
+import { Search, Send, MessageCircle, Briefcase, Users, ShieldAlert, ExternalLink, Wallet } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
@@ -9,6 +9,9 @@ import { StaffShell } from "@/components/staff/StaffShell";
 import { JobEditor, CopyLink } from "@/components/hr/HrBits";
 import { HrStatusChip, HrStatusIcon } from "@/components/hr/HrStatusIcon";
 import { cn } from "@/lib/utils/cn";
+import { getStaff, PAY_TYPE } from "@/lib/server/staff";
+import { salarySteps } from "@/lib/server/salary";
+import { SalaryPanel } from "@/components/staff/SalaryPanel";
 
 export const dynamic = "force-dynamic";
 export const generateMetadata = () => staffTitle("HR · new staff", "HR · បុគ្គលិកថ្មី");
@@ -26,7 +29,7 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
       </StaffShell>
     );
   const db = createServiceRoleClient();
-  const tab = searchParams.tab === "jobs" ? "jobs" : "apps";
+  const tab = searchParams.tab === "jobs" ? "jobs" : searchParams.tab === "salary" ? "salary" : "apps";
   const [s, { data: jobs }, { data: counts }] = await Promise.all([hrSettings(), db.from("hr_jobs").select("*").order("sort").order("created_at", { ascending: false }), db.from("hr_applicants").select("status")]);
   let q = db.from("hr_applicants").select("id, code, full_name, full_name_km, phone, status, created_at, tg_chat_id, rating, job:hr_jobs(title, title_km), hr_messages(id, from_hr, read_at)").order("created_at", { ascending: false }).limit(200);
   if (searchParams.s && searchParams.s in HR_STATUS) q = q.eq("status", searchParams.s);
@@ -53,9 +56,27 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
       <div className="card flex gap-1 p-1.5">
         <Link href="/staff/hr" className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold", tab === "apps" ? "bg-primary text-white" : "text-forest hover:bg-cream")}><Users size={16} /> {km ? "ពាក្យសុំ" : "Applications"} ({(counts ?? []).length})</Link>
         <Link href="/staff/hr?tab=jobs" className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold", tab === "jobs" ? "bg-primary text-white" : "text-forest hover:bg-cream")}><Briefcase size={16} /> {km ? "ការងារ" : "Jobs"} ({(jobs ?? []).length})</Link>
+        <Link href="/staff/hr?tab=salary" className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold", tab === "salary" ? "bg-primary text-white" : "text-forest hover:bg-cream")}><Wallet size={16} /> {km ? "ប្រាក់ខែ" : "Salaries"}</Link>
       </div>
 
-      {tab === "jobs" ? (
+      {tab === "salary" && (await (async () => {
+        // each active staff member's salary: starting pay, raises, probation
+        const people = (await getStaff()).filter((x) => x.status === "active");
+        const st = await salarySteps(people.map((x) => x.user_id));
+        const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+        return (
+          <section className="space-y-3">
+            {people.map((x) => (
+              <div key={x.user_id} className="card space-y-2 p-3">
+                <p className="px-1 font-bold text-forest">{(km && x.full_name_km) || x.full_name} <span className="text-xs font-semibold text-ink/45">· {x.staff_no} · {x.position ? (km && x.position.name_km) || x.position.name : "—"}</span></p>
+                <SalaryPanel km={km} userId={x.user_id} positionRate={Number(x.position?.rate ?? 0)} unit={x.position ? (km ? PAY_TYPE[x.position.pay_type].km : PAY_TYPE[x.position.pay_type].en) : ""} steps={(st.get(x.user_id) ?? []).map((v) => ({ id: v.id, effective_from: v.effective_from, amount: v.amount, note: v.note }))} today={todayStr} canResetPin={access.admin} />
+              </div>
+            ))}
+          </section>
+        );
+      })())}
+
+      {tab === "salary" ? null : tab === "jobs" ? (
         <section className="space-y-3">
           <JobEditor km={km} />
           {(jobs ?? []).map((j: any) => <JobEditor key={j.id} km={km} job={j} />)}

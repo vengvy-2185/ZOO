@@ -9,6 +9,8 @@ import { IdCard } from "@/components/IdCard";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { PasswordForm, ProfileForm } from "@/components/staff/StaffForms";
 import { AppSetup } from "@/components/staff/AppSetup";
+import { PinSettings } from "@/components/staff/PinSettings";
+import { pinRow } from "@/lib/server/pin";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,13 @@ export default async function StaffProfilePage() {
               <p className="mb-4 text-xs text-ink/55">{L.pwHint}</p>
               <PasswordForm km={km} />
             </section>
+            {access.staff && (
+              <section className="card p-5 md:col-span-2 md:p-6">
+                <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-extrabold text-forest"><Lock size={20} className="text-[#1D4ED8]" /> {km ? "លេខកូដសម្ងាត់" : "Secret code"}</h2>
+                <p className="mb-4 text-xs text-ink/55">{km ? "លេខកូដ ៤–៦ ខ្ទង់ ប្រើពេលបើកកម្មវិធី មើលប្រាក់ខែ និងទទួលប្រាក់ខែ។" : "A 4–6 digit code for opening the app, seeing your pay and collecting it."}</p>
+                <PinSettings km={km} lockOnOpen={(await pinRow(userId))?.lock_on_open ?? true} />
+              </section>
+            )}
           </div>
         </div>
         {s && member?.card && (

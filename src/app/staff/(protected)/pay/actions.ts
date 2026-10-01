@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess } from "@/lib/server/staff";
 import { ensurePaydays, monthLabel, paydayById, qrValid, requestDeadline, today } from "@/lib/server/payday";
 import { managerIds, sendPush } from "@/lib/server/push";
+import { checkPin, grantPay } from "@/lib/server/pin";
 
 // The staff side of payday: ask in advance when you can't come, and collect
 // your pay by scanning your department's QR code.
@@ -56,11 +57,15 @@ export async function cancelPayRequest(paydayId: string) {
   done();
 }
 
-export type ClaimResult = { ok?: boolean; amount?: number; error?: "invalid" | "not_open" | "not_today" | "closed" | "dept" | "no_slip" | "already"; at?: string };
+export type ClaimResult = { ok?: boolean; amount?: number; error?: "invalid" | "not_open" | "not_today" | "closed" | "dept" | "no_slip" | "already" | "pin_wrong" | "pin_locked"; left?: number; at?: string };
 
 /** Scanned the department QR: the pay is marked as collected (only once, only your own). */
-export async function claimPay(paydayId: string, dept: string, sig: string): Promise<ClaimResult> {
+export async function claimPay(paydayId: string, dept: string, sig: string, pin: string): Promise<ClaimResult> {
   const { id, staff } = await me();
+  // the person's own secret code: someone else holding the phone can't collect
+  const c = await checkPin(id, pin);
+  if (!c.ok) return c.error === "locked" ? { error: "pin_locked" } : { error: "pin_wrong", left: c.left };
+  grantPay(id);
   await ensurePaydays(); // on the pay date it opens by itself
   const p = await paydayById(paydayId);
   if (!p || !qrValid(p, dept, sig)) return { error: "invalid" };

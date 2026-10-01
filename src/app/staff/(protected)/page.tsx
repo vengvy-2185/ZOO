@@ -4,6 +4,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, payroll, thisMonth, openShift, staffTitle, leaveUsage } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
+import { payRevealed } from "@/lib/server/pin";
 import { zooToday } from "@/lib/data/gate";
 import { ClockButton } from "@/components/staff/StaffForms";
 import { ensureHolidays } from "@/lib/server/holidays";
@@ -147,7 +148,7 @@ export default async function StaffHome({ searchParams }: { searchParams: { deni
               <span className="flex items-center gap-2"><Wallet size={16} className="text-[#1D4ED8]" /> {L.month}</span>
               <span className="inline-flex items-center gap-0.5 text-xs text-[#1D4ED8]">{L.details} <ChevronRight size={14} className="transition group-hover:translate-x-0.5" /></span>
             </p>
-            <p className="mt-1 font-display text-4xl font-extrabold text-forest">{usd(pay.payslip?.gross ?? pay.gross)}</p>
+            <p className="mt-1 font-display text-4xl font-extrabold text-forest">{payRevealed(userId) ? usd(pay.payslip?.gross ?? pay.gross) : "$ ••••"}</p>
             <p className="text-xs font-bold text-ink/50">{pay.payslip ? <span className="text-emerald-700"><CheckCircle2 size={12} className="-mt-0.5 inline" /> {L.paid}</span> : L.est}</p>
             <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
               <div className="rounded-2xl bg-[#EEF2FF] p-2.5"><p className="font-display text-xl font-extrabold text-[#1E3A8A]">{pay.days}</p>{L.days}</div>

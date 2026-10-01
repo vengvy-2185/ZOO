@@ -5,6 +5,8 @@ import { AdminPageHeader } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/ui-client";
 import { getI18n } from "@/lib/i18n/server";
 import { getPositions, payroll, thisMonth, PERMISSIONS, PAY_TYPE, type PayLine, type Position } from "@/lib/server/staff";
+import { salarySteps } from "@/lib/server/salary";
+import { SalaryPanel } from "@/components/staff/SalaryPanel";
 import { cn } from "@/lib/utils/cn";
 import { AttendanceManager, type AttTab } from "@/components/staff/AttendanceManager";
 import { ClipboardCheck } from "lucide-react";
@@ -34,6 +36,8 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
     db.from("staff_announcements").select("*").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(30),
   ]);
   const settings = tab === "settings" ? await getStaffSettings() : null;
+  const steps = tab === "people" ? await salarySteps(lines.map((l) => l.staff.user_id)) : new Map();
+  const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
   const pendingLeaves = (leaves ?? []).filter((r: any) => r.status === "pending");
   // leave used this year vs the allowance, per person (shown on each request)
   const leaveUse = tab === "leave" ? new Map(await Promise.all([...new Set((leaves ?? []).map((r: any) => r.user_id as string))].map(async (id) => [id, await leaveUsage(id, lines.find((l) => l.staff.user_id === id)?.staff.leave_quota)] as const))) : new Map();
@@ -160,6 +164,9 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                           <SubmitButton label={L.save} pendingLabel={L.saving} />
                         </div>
                       </form>
+                      <div className="px-4 pb-4">
+                        <SalaryPanel km={km} userId={s.user_id} positionRate={Number(s.position?.rate ?? 0)} unit={s.position ? (km ? PAY_TYPE[s.position.pay_type].km : PAY_TYPE[s.position.pay_type].en) : ""} steps={(steps.get(s.user_id) ?? []).map((x: any) => ({ id: x.id, effective_from: x.effective_from, amount: x.amount, note: x.note }))} today={todayStr} canResetPin />
+                      </div>
                     </details>
                   </div>
                 );
@@ -209,7 +216,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                         <span className="font-mono font-bold text-primary">{l.staff.staff_no}</span> · {pn(p)}
                       </p>
                       <p className="mt-0.5 text-xs text-ink/50">
-                        {p ? `${km ? PAY_TYPE[p.pay_type].km : PAY_TYPE[p.pay_type].en} ${usd(p.rate)}` : "—"} · {units(l)}
+                        {p ? `${km ? PAY_TYPE[p.pay_type].km : PAY_TYPE[p.pay_type].en} ${usd(l.rate)}${l.segments.length ? (km ? " (ប្រាក់ខែផ្លាស់ប្តូរក្នុងខែ)" : " (changed this month)") : ""}` : "—"} · {units(l)}
                       </p>
                     </div>
                     <div className="flex-shrink-0 text-right">

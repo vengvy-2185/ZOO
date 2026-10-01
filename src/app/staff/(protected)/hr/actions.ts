@@ -123,7 +123,7 @@ export async function cvLink(applicantId: string) {
 }
 
 /** Hired: the applicant becomes a staff member (Staff ID + password), and is told in Telegram. */
-export async function hireApplicant(applicantId: string, positionId: string): Promise<{ error?: string; staffNo?: string; password?: string; told?: boolean }> {
+export async function hireApplicant(applicantId: string, positionId: string, pay?: { start?: number | null; months?: number | null; after?: number | null }): Promise<{ error?: string; staffNo?: string; password?: string; told?: boolean }> {
   const { id, access } = await hr();
   if (!access.admin) return { error: "Only an admin can create the staff account." };
   const db = createServiceRoleClient();
@@ -136,6 +136,19 @@ export async function hireApplicant(applicantId: string, positionId: string): Pr
   if (!r.ok) return { error: r.error };
   await db.from("hr_applicants").update({ status: "hired", staff_user_id: r.userId, updated_at: new Date().toISOString() }).eq("id", applicantId);
   await logEvent(applicantId, "hired", r.staffNo, id);
+  // the starting pay (and a raise after the probation months), when HR set one
+  const ok = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 100000;
+  if (pay && ok(pay.start)) {
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+    const rows: Record<string, unknown>[] = [{ user_id: r.userId, effective_from: day, amount: Math.round(pay.start! * 100) / 100, note: pay.months ? `សាកល្បង ${pay.months} ខែ · Probation` : "ប្រាក់ខែចាប់ផ្តើម · Starting pay", created_by: id }];
+    if (ok(pay.after) && Number.isInteger(pay.months) && pay.months! >= 1 && pay.months! <= 24) {
+      const [y, m, d] = day.split("-").map(Number);
+      const t = new Date(Date.UTC(y, m - 1 + pay.months!, 1));
+      const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+      rows.push({ user_id: r.userId, effective_from: `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`, amount: Math.round(pay.after! * 100) / 100, note: "ដំឡើងក្រោយសាកល្បង · After probation", created_by: id });
+    }
+    await db.from("staff_salary_steps").insert(rows);
+  }
   const told = await tellApplicant(
     { ...a, status: "hired", staff_user_id: r.userId },
     a.tg_lang === "en"

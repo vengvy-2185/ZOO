@@ -96,6 +96,10 @@ export type PayLine = {
   days: number;
   hours: number;
   units: number;
+  /** the pay rate used this month (own salary, day-weighted; else the position's rate) */
+  rate: number;
+  /** the month in parts when the salary changed during it */
+  segments: { from: string; to: string; days: number; amount: number }[];
   base: number;
   allowance: number;
   adjustments: { id: string; amount: number; note: string }[];
@@ -118,6 +122,8 @@ export async function payroll(month: string, userId?: string): Promise<PayLine[]
   const sessions = await attendanceMonth(month, userId).catch(() => null);
   if (!staff.length) return [];
   const ids = staff.map((s) => s.user_id);
+  const { salarySteps, monthRate } = await import("./salary");
+  const steps = await salarySteps(ids);
   const [{ data: att }, { data: adj }, { data: slips }] = await Promise.all([
     db.from("staff_attendance").select("user_id, clock_in, clock_out").in("user_id", ids).gte("clock_in", start.toISOString()).lt("clock_in", end.toISOString()),
     db.from("staff_pay_adjustments").select("id, user_id, amount, note").in("user_id", ids).eq("month", first),
@@ -141,7 +147,9 @@ export async function payroll(month: string, userId?: string): Promise<PayLine[]
     const p = s.position;
     const hiredInTime = s.hired_on <= localDate(new Date(end.getTime() - 1));
     const units = !p || !hiredInTime ? 0 : p.pay_type === "monthly" ? 1 : p.pay_type === "daily" ? days : hours;
-    const base = r2((p?.rate ?? 0) * units);
+    // own salary (starting pay, raises) day by day; else the position's rate
+    const mr = monthRate(steps.get(s.user_id), Number(p?.rate ?? 0), month);
+    const base = r2(mr.rate * units);
     const adjustments = (adj ?? []).filter((a: any) => a.user_id === s.user_id).map((a: any) => ({ id: a.id, amount: Number(a.amount), note: a.note }));
     const adjTotal = r2(adjustments.reduce((t, a) => t + a.amount, 0));
     const allowance = hiredInTime ? s.allowance : 0;
@@ -152,6 +160,8 @@ export async function payroll(month: string, userId?: string): Promise<PayLine[]
       days,
       hours,
       units,
+      rate: mr.rate,
+      segments: mr.segments.length > 1 ? mr.segments.map(({ from, to, days, amount }) => ({ from, to, days, amount })) : [],
       base,
       allowance,
       adjustments,

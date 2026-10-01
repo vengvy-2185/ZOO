@@ -85,6 +85,9 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
   const [info, setInfo] = useState("");
   const [creds, setCreds] = useState<{ staffNo: string; password: string; told?: boolean } | null>(null);
   const [pos, setPos] = useState(a.position_id ?? positions[0]?.id ?? "");
+  const [payStart, setPayStart] = useState("");
+  const [payMonths, setPayMonths] = useState("3");
+  const [payAfter, setPayAfter] = useState("");
   const L = (en: string, k: string) => (km ? k : en);
   const run = (fn: () => Promise<unknown>, done?: string) =>
     start(async () => {
@@ -160,13 +163,20 @@ export function ApplicantPanel({ km, admin, a, msgs, positions }: { km: boolean;
           <select value={pos} onChange={(e) => setPos(e.target.value)} className={field}>
             {positions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="block"><span className="mb-0.5 block text-[11px] font-bold text-ink/50">{L("Starting pay $", "ប្រាក់ខែពេលចូល $")}</span><input value={payStart} onChange={(e) => setPayStart(e.target.value)} type="number" min="0" step="0.01" placeholder={L("position", "តាមតួនាទី")} className={field} /></label>
+            <label className="block"><span className="mb-0.5 block text-[11px] font-bold text-ink/50">{L("Probation (months)", "សាកល្បង (ខែ)")}</span><input value={payMonths} onChange={(e) => setPayMonths(e.target.value)} type="number" min="1" max="24" className={field} /></label>
+            <label className="block"><span className="mb-0.5 block text-[11px] font-bold text-ink/50">{L("Then $", "បន្ទាប់មក $")}</span><input value={payAfter} onChange={(e) => setPayAfter(e.target.value)} type="number" min="0" step="0.01" placeholder={L("optional", "ជម្រើស")} className={field} /></label>
+          </div>
+          <p className="text-[11px] text-ink/50">{L("Leave blank to pay the position's rate. The raise starts by itself after the probation; you can raise again later.", "ទុកទទេ = ប្រាក់ខែតាមតួនាទី។ ការដំឡើងចាប់ផ្តើមដោយខ្លួនឯងក្រោយសាកល្បង ហើយអាចដំឡើងទៀតពេលក្រោយ។")}</p>
           <button
             type="button"
             disabled={pending || !pos}
             onClick={() =>
               start(async () => {
                 if (!confirm(L("Create the staff account now?", "បង្កើតគណនីបុគ្គលិកឥឡូវ?"))) return;
-                const r = await hireApplicant(a.id, pos);
+                const num = (v: string) => (v.trim() === "" ? null : Number(v));
+                const r = await hireApplicant(a.id, pos, { start: num(payStart), months: payAfter.trim() ? num(payMonths) : null, after: num(payAfter) });
                 if (r.error) setInfo(r.error);
                 else setCreds({ staffNo: r.staffNo!, password: r.password!, told: r.told });
                 router.refresh();

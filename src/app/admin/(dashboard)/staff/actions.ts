@@ -157,7 +157,7 @@ export async function markPaid(userId: string, month: string) {
       user_id: userId,
       month: monthRange(month).first,
       pay_type: line.staff.position?.pay_type ?? "monthly",
-      rate: line.staff.position?.rate ?? 0,
+      rate: line.rate,
       units: line.units,
       base: line.base,
       allowance: line.allowance,

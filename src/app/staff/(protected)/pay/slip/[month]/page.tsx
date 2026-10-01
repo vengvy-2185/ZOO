@@ -9,6 +9,8 @@ import { getI18n } from "@/lib/i18n/server";
 import type { SlipDetail } from "@/lib/server/payday";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { PrintButton } from "@/components/staff/PrintButton";
+import { RevealPay } from "@/components/staff/PinPad";
+import { payRevealed } from "@/lib/server/pin";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +28,8 @@ export default async function SlipPage({ params }: { params: { month: string } }
   const { data: s } = await createServiceRoleClient().from("staff_payslips").select("*").eq("user_id", userId).eq("month", `${params.month}-01`).maybeSingle();
   if (!s) notFound();
   const me = access.staff;
+  const shown = payRevealed(userId);
+  const money = (n: number) => (shown ? usd(n) : "$ ••••");
   const d: SlipDetail = s.detail ?? {
     position: me.position?.name ?? null,
     position_km: me.position?.name_km ?? null,
@@ -55,7 +59,7 @@ export default async function SlipPage({ params }: { params: { month: string } }
   const Line = ({ label, sub, amount, minus }: { label: string; sub?: string; amount: number; minus?: boolean }) => (
     <div className="flex items-start justify-between gap-3 py-2.5">
       <span className="text-ink/75">{label}{sub && <span className="block text-xs text-ink/45">{sub}</span>}</span>
-      <span className={cn("font-display font-extrabold tabular-nums", minus ? "text-red-600" : "text-forest")}>{minus ? "−" : ""}{usd(amount)}</span>
+      <span className={cn("font-display font-extrabold tabular-nums", minus ? "text-red-600" : "text-forest")}>{minus ? "−" : ""}{money(amount)}</span>
     </div>
   );
 
@@ -64,7 +68,10 @@ export default async function SlipPage({ params }: { params: { month: string } }
       <div className="mx-auto w-full max-w-2xl">
         <div className="mb-3 flex items-center justify-between print:hidden">
           <Link href="/staff/pay" className="inline-flex items-center gap-1 text-sm font-bold text-primary"><ChevronLeft size={16} /> {L("Pay", "ប្រាក់ខែ")}</Link>
-          <PrintButton label={L("Print / save PDF", "បោះពុម្ព / រក្សាជា PDF")} />
+          <span className="flex items-center gap-2">
+            <RevealPay km={km} shown={shown} />
+            {shown && <PrintButton label={L("Print / save PDF", "បោះពុម្ព / រក្សាជា PDF")} />}
+          </span>
         </div>
 
         <article className="overflow-hidden rounded-[1.75rem] bg-white shadow-lift ring-1 ring-black/5 print:shadow-none">
@@ -87,7 +94,7 @@ export default async function SlipPage({ params }: { params: { month: string } }
             <div className="relative mt-6 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-sm text-white/75">{L("Net pay", "ប្រាក់ទទួលបានសុទ្ធ")} · {monthName}</p>
-                <p className="font-display text-5xl font-extrabold tabular-nums">{usd(Number(s.gross))}</p>
+                <p className="font-display text-5xl font-extrabold tabular-nums">{money(Number(s.gross))}</p>
               </div>
               <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold", received ? "bg-white text-emerald-700" : "bg-amber-300 text-amber-950")}>
                 {received ? <CheckCircle2 size={14} /> : <Clock3 size={14} />} {received ? L("Collected", "បានទទួល") : L("Not collected yet", "មិនទាន់ទទួល")}
@@ -115,11 +122,11 @@ export default async function SlipPage({ params }: { params: { month: string } }
             <section>
               <h3 className="mb-1 text-xs font-extrabold uppercase tracking-wider text-emerald-700">{L("Earnings", "ប្រាក់ចំណូល")}</h3>
               <div className="divide-y divide-black/5 text-sm">
-                <Line label={L("Base pay", "ប្រាក់គោល")} sub={`${km ? pt.km : pt.en} · ${usd(d.rate)} × ${d.units} ${unit}`} amount={d.base} />
+                <Line label={L("Base pay", "ប្រាក់គោល")} sub={`${km ? pt.km : pt.en} · ${money(d.rate)} × ${d.units} ${unit}${d.segments?.length ? ` · ${d.segments.map((g) => `${money(g.amount)} (${Number(g.from.slice(8))}–${Number(g.to.slice(8))})`).join(" · ")}` : ""}`} amount={d.base} />
                 {d.allowance > 0 && <Line label={L("Allowance", "ប្រាក់ឧបត្ថម្ភ")} amount={d.allowance} />}
                 {bonuses.map((a, i) => <Line key={i} label={L("Bonus", "ប្រាក់រង្វាន់")} sub={a.note} amount={a.amount} />)}
               </div>
-              <div className="mt-1 flex justify-between rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><span>{L("Total earned", "ចំណូលសរុប")}</span><span className="tabular-nums">{usd(earned)}</span></div>
+              <div className="mt-1 flex justify-between rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><span>{L("Total earned", "ចំណូលសរុប")}</span><span className="tabular-nums">{money(earned)}</span></div>
             </section>
 
             {/* taken off */}
@@ -133,16 +140,16 @@ export default async function SlipPage({ params }: { params: { month: string } }
                   <span className="font-bold text-ink/60">{d.leave_days} {L("days", "ថ្ងៃ")}</span>
                 </div>
               </div>
-              <div className="mt-1 flex justify-between rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700"><span>{L("Total deducted", "កាត់សរុប")}</span><span className="tabular-nums">−{usd(taken)}</span></div>
+              <div className="mt-1 flex justify-between rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700"><span>{L("Total deducted", "កាត់សរុប")}</span><span className="tabular-nums">−{money(taken)}</span></div>
             </section>
           </div>
 
           {/* net */}
           <div className="mx-6 flex items-center justify-between rounded-2xl bg-forest px-5 py-4 text-white">
             <span className="font-display text-lg font-extrabold">{L("Net pay", "ប្រាក់ទទួលបានសុទ្ធ")}</span>
-            <span className="font-display text-3xl font-extrabold tabular-nums">{usd(Number(s.gross))}</span>
+            <span className="font-display text-3xl font-extrabold tabular-nums">{money(Number(s.gross))}</span>
           </div>
-          <p className="mx-6 mt-2 text-right text-xs text-ink/45">{usd(earned)} − {usd(taken)} = {usd(Number(s.gross))}</p>
+          <p className="mx-6 mt-2 text-right text-xs text-ink/45">{money(earned)} − {money(taken)} = {money(Number(s.gross))}</p>
 
           {/* collected */}
           <div className="m-6 mt-4 rounded-2xl border border-dashed border-black/10 p-4 text-sm">

@@ -41,6 +41,7 @@ export type SlipDetail = {
   position_km: string | null;
   pay_type: string;
   rate: number;
+  segments?: { from: string; to: string; days: number; amount: number }[];
   units: number;
   days: number;
   hours: number;
@@ -147,7 +148,8 @@ function detailOf(l: PayLine, leave: number): SlipDetail {
     position: p?.name ?? null,
     position_km: p?.name_km ?? null,
     pay_type: p?.pay_type ?? "monthly",
-    rate: Number(p?.rate ?? 0),
+    rate: l.rate,
+    segments: l.segments,
     units: l.units,
     days: l.days,
     hours: l.hours,
@@ -176,7 +178,7 @@ export async function issuePayslips(p: Payday, adminId: string | null) {
       month: monthRange(month).first,
       payday_id: p.id,
       pay_type: l.staff.position?.pay_type ?? "monthly",
-      rate: l.staff.position?.rate ?? 0,
+      rate: l.rate,
       units: l.units,
       base: l.base,
       allowance: l.allowance,

@@ -8,6 +8,7 @@ import jsQR from "jsqr";
 import { Loader2, Send, CheckCircle2, AlertCircle, ScanLine, CameraOff, HandCoins, Clock3, UserRoundCheck, Landmark, Trash2, FileText } from "lucide-react";
 import { requestPayday, cancelPayRequest, claimPay, type ClaimResult, type PayReqState } from "@/app/staff/(protected)/pay/actions";
 import { playSound } from "@/lib/client-sound";
+import { PinPad } from "@/components/staff/PinPad";
 import { cn } from "@/lib/utils/cn";
 
 const field = "w-full rounded-2xl border border-black/10 bg-cream/40 px-4 py-3 text-base outline-none transition focus:border-primary focus:bg-white";
@@ -90,23 +91,26 @@ const CLAIM_ERR: Record<string, [string, string]> = {
   dept: ["This QR code is for another department. Please scan your own department's code.", "QR នេះសម្រាប់ផ្នែកផ្សេង។ សូមស្កេន QR នៃផ្នែករបស់អ្នក។"],
   no_slip: ["You have no payslip for this month. Please see the admin.", "អ្នកមិនមានវិក្កយបត្រប្រាក់ខែខែនេះទេ។ សូមទាក់ទង Admin។"],
   already: ["You already collected this pay.", "អ្នកបានទទួលប្រាក់ខែនេះរួចហើយ។"],
+  pin_wrong: ["Wrong code.", "លេខកូដមិនត្រឹមត្រូវ"],
+  pin_locked: ["Too many wrong tries. Please wait 5 minutes.", "ខុសច្រើនដងពេក។ សូមរង់ចាំ ៥ នាទី"],
 };
 
 /** The confirm step after scanning (so a link preview can never collect for you). */
 export function ClaimPay({ km, p, d, s, month, monthName }: { km: boolean; p: string; d: string; s: string; month: string; monthName: string }) {
-  const [pending, start] = useTransition();
   const [res, setRes] = useState<ClaimResult | null>(null);
   const L = (en: string, k: string) => (km ? k : en);
   const usd = (n?: number) => `$${(n ?? 0).toFixed(2)}`;
-  const go = () =>
-    start(async () => {
-      const r = await claimPay(p, d, s);
-      setRes(r);
-      if (r.ok) {
-        playSound("ok", 0.7);
-        navigator.vibrate?.([60, 40, 120]);
-      }
-    });
+  // the code confirms it's really them; returns the message to show under the pad
+  const go = async (pin: string) => {
+    const r = await claimPay(p, d, s, pin);
+    if (r.error === "pin_wrong" || r.error === "pin_locked") return `${CLAIM_ERR[r.error][km ? 1 : 0]}${r.left ? (km ? ` · នៅសល់ ${r.left} ដង` : ` · ${r.left} tries left`) : ""}`;
+    setRes(r);
+    if (r.ok) {
+      playSound("ok", 0.7);
+      navigator.vibrate?.([60, 40, 120]);
+    }
+    return null;
+  };
   if (res?.ok || res?.error === "already")
     return (
       <div className="text-center">
@@ -124,9 +128,9 @@ export function ClaimPay({ km, p, d, s, month, monthName }: { km: boolean; p: st
       <p className="mt-4 font-display text-2xl font-extrabold text-forest">{L("Collect your pay", "ទទួលប្រាក់ខែរបស់អ្នក")}</p>
       <p className="mt-1 inline-block rounded-full bg-light-green px-3 py-1 text-sm font-extrabold text-primary">{L("Pay for", "ប្រាក់ខែ")} {monthName}</p>
       {res?.error && <p role="alert" className="mx-auto mt-3 max-w-sm rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{CLAIM_ERR[res.error][km ? 1 : 0]}</p>}
-      <button disabled={pending} onClick={go} className="mt-5 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-lg font-extrabold text-white shadow-lift disabled:opacity-60">
-        {pending ? <Loader2 size={20} className="animate-spin" /> : <HandCoins size={20} />} {L("Yes, I'm collecting it now", "បាទ/ចាស ខ្ញុំទទួលឥឡូវ")}
-      </button>
+      <div className="mt-5">
+        <PinPad km={km} title={L("Enter your code to collect", "បញ្ចូលលេខកូដរបស់អ្នក ដើម្បីទទួលប្រាក់")} submitLabel={L("Collect", "ទទួល")} onSubmit={go} autoFocus={false} />
+      </div>
     </div>
   );
 }
