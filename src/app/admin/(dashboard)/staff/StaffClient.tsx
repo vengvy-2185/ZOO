@@ -145,7 +145,10 @@ export function AddStaffForm({ positions, km, today }: { positions: Pos[]; km: b
             <input name="full_name_km" className={field} placeholder="សុខ ដារា" autoComplete="off" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-ink/50">{L.pos} *</span>
+            <span className="mb-1 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink/50">
+              <span>{L.pos} *</span>
+              <Link href="/admin/staff?tab=positions" className="normal-case tracking-normal text-primary underline">{km ? "＋ តួនាទីថ្មី (ឧ. HR)" : "＋ New position (e.g. HR)"}</Link>
+            </span>
             <select name="position_id" required className={field} defaultValue={positions[1]?.id ?? positions[0]?.id}>
               {positions.map((p) => (
                 <option key={p.id} value={p.id}>

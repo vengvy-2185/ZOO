@@ -20,7 +20,7 @@ export const PERMISSIONS: { key: Permission; en: string; km: string }[] = [
   { key: "reports", en: "Reports", km: "របាយការណ៍" },
   { key: "guide", en: "Tour guide (today's programme)", km: "មគ្គុទ្ទេសក៍ (កម្មវិធីថ្ងៃនេះ)" },
   { key: "cleaning", en: "Cleaning checklist", km: "បញ្ជីសម្អាត" },
-  { key: "hr", en: "HR · hiring new staff (applications, interviews)", km: "HR · ជ្រើសរើសបុគ្គលិកថ្មី (ពាក្យសុំ សម្ភាសន៍)" },
+  { key: "hr", en: "HR · hiring (applications, CVs, interviews, inviting back) and staff salaries", km: "HR · ជ្រើសរើសបុគ្គលិក (ពាក្យសុំ CV សម្ភាសន៍ អញ្ជើញម្តងទៀត) និងប្រាក់ខែបុគ្គលិក" },
   // only the people the admin trusts may change the schedule (a new staff member can't)
   { key: "roster", en: "Change the work schedule (edit, re-plan, approve covers & swaps)", km: "កែកាលវិភាគការងារ (កែ រៀបឡើងវិញ អនុម័តការជំនួស និងដូរវេន)" },
 ];

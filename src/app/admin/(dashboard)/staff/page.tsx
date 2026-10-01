@@ -370,7 +370,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
 
       {tab === "positions" && (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {[...positions, null].map((p) => (
+          {[null, ...positions].map((p) => (
             <details key={p?.id ?? "new"} className={cn("group card overflow-hidden", !p && "border-2 border-dashed border-primary/25 bg-light-green/30")}>
               <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
                 <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-white" style={{ background: p?.color ?? "#94A3B8" }}>
@@ -378,9 +378,10 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display font-extrabold text-forest">{p ? pn(p) : L.newPos}</span>
+                  {!p && <span className="block text-xs text-ink/55">{km ? "ឧ. HR · ជ្រើសរើសបុគ្គលិក និងប្រាក់ខែ — ធីកសិទ្ធិ «HR» ខាងក្រោម" : "e.g. HR · hiring and salaries — tick “HR” below"}</span>}
                   {p && (
                     <span className="block text-xs text-ink/55">
-                      {usd(p.rate)} · {km ? PAY_TYPE[p.pay_type].km : PAY_TYPE[p.pay_type].en}
+                      {usd(p.rate)} / {km ? "ខែ" : "month"}{p.rate === 0 && <b className="ml-1 text-amber-600">· {km ? "សូមកំណត់ប្រាក់ខែ" : "set the salary"}</b>}
                     </span>
                   )}
                   {p && (
@@ -405,23 +406,15 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
               <form action={savePosition.bind(null, p?.id ?? null)} className="space-y-3 border-t border-black/5 bg-cream/50 p-4">
                 <div className="flex items-center gap-2">
                   <input type="color" name="color" defaultValue={p?.color ?? "#2563EB"} className="h-10 w-10 flex-shrink-0 cursor-pointer rounded-xl border-0 bg-transparent p-0" aria-label="colour" />
-                  <input name="name" defaultValue={p?.name ?? ""} placeholder="Name" required className={cn(input, "font-bold")} />
+                  <input name="name" defaultValue={p?.name ?? ""} placeholder={km ? "ឈ្មោះ (អង់គ្លេស) ឧ. HR" : "Name, e.g. HR"} required className={cn(input, "font-bold")} />
                 </div>
                 <input name="name_km" defaultValue={p?.name_km ?? ""} placeholder="ឈ្មោះជាខ្មែរ" className={input} />
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs font-bold text-ink/50">
-                    {L.payType}
-                    <select name="pay_type" defaultValue={p?.pay_type ?? "monthly"} className={cn(input, "mt-1")}>
-                      {(Object.keys(PAY_TYPE) as (keyof typeof PAY_TYPE)[]).map((k) => (
-                        <option key={k} value={k}>{km ? PAY_TYPE[k].km : PAY_TYPE[k].en}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs font-bold text-ink/50">
-                    {L.rate} ($)
-                    <input name="rate" type="number" step="0.5" min="0" defaultValue={p?.rate ?? 0} className={cn(input, "mt-1")} />
-                  </label>
-                </div>
+                {/* everyone is paid by the month */}
+                <input type="hidden" name="pay_type" value="monthly" />
+                <label className="block text-xs font-bold text-ink/50">
+                  {km ? "ប្រាក់ខែ ($ / ខែ)" : "Salary ($ / month)"}
+                  <input name="rate" type="number" step="0.5" min="0" required defaultValue={p?.rate || ""} placeholder="350" className={cn(input, "mt-1")} />
+                </label>
                 <fieldset>
                   <legend className="mb-1.5 text-xs font-bold text-ink/50">{L.perms}</legend>
                   <div className="space-y-1.5">
