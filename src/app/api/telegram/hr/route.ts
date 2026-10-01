@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { bot, botAction, guestMenu, interviewMapUrl, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
+import { applyAgain, bot, botAction, guestMenu, interviewMapUrl, logEvent, dt, esc, hrSettings, hrTeam, menu, notifyHr, site, statusText, HR_STATUS, type HrStatus } from "@/lib/server/hr";
 import { sendPush } from "@/lib/server/push";
 import { getPrivateSetting } from "@/lib/server/private-settings";
 import { allow } from "@/lib/server/rate-limit";
@@ -163,6 +163,7 @@ async function onButton(q: any) {
   const data = String(q.data ?? "");
   await bot("answerCallbackQuery", { callback_query_id: q.id });
   if (!chatId) return;
+  if (data.startsWith("inv:")) return onInvite(chatId, data);
   const a = await byChat(chatId);
   if (!a) return welcomeStranger(chatId, q.from?.language_code);
   return doAction(chatId, a, data);
@@ -236,4 +237,33 @@ async function doAction(chatId: number, a: any, data: string) {
     default:
       return send(chatId, await statusText(a.id), menu(a));
   }
+}
+
+/** A past applicant answers "come back for a new job?" (only from their own chat). */
+async function onInvite(chatId: number, data: string) {
+  const [, id, ans] = data.split(":");
+  if (!/^[0-9a-f-]{36}$/.test(id ?? "")) return;
+  const { data: inv } = await db().from("hr_invites").select("*, applicant:hr_applicants!hr_invites_applicant_id_fkey(id, code, full_name, tg_chat_id, tg_lang), job:hr_jobs(id, title, title_km, open)").eq("id", id).maybeSingle();
+  const a = inv?.applicant as any;
+  if (!inv || !a || Number(a.tg_chat_id) !== chatId) return;
+  const km = a.tg_lang !== "en";
+  if (inv.status !== "sent") return send(chatId, km ? "អ្នកបានឆ្លើយរួចហើយ។ អរគុណ!" : "You already answered. Thank you!");
+  const job = inv.job as any;
+  const title = (km && job?.title_km) || job?.title || "";
+  if (ans !== "y") {
+    await db().from("hr_invites").update({ status: "declined", answered_at: new Date().toISOString() }).eq("id", id).eq("status", "sent");
+    await logEvent(a.id, "invite-declined", title);
+    await notifyHr(`❌ <b>មិនមកវិញ</b> ${esc(a.code)} · ${esc(a.full_name)}\n💼 ${esc(title)}`);
+    return send(chatId, km ? "អរគុណសម្រាប់ការឆ្លើយតប។ សូមជូនពរឲ្យអ្នកជោគជ័យ! 🙏" : "Thank you for answering. We wish you all the best! 🙏");
+  }
+  if (!job?.open) return send(chatId, km ? "សូមអភ័យទោស ការងារនេះបានបិទហើយ។" : "Sorry, this job has just closed.");
+  // claim the invite first, so a double tap makes only one application
+  const { data: won } = await db().from("hr_invites").update({ status: "accepted", answered_at: new Date().toISOString() }).eq("id", id).eq("status", "sent").select("id");
+  if (!won?.length) return;
+  const n = await applyAgain(a.id, job.id, null);
+  if (!n) return;
+  await db().from("hr_invites").update({ new_applicant_id: n.id }).eq("id", id);
+  await sendPush(await hrTeam(), { title: `✅ មកវិញ · ${a.full_name}`, body: `ចង់ធ្វើការ ${title} · ពាក្យថ្មី ${n.code}`, url: `/staff/hr/${n.id}`, tag: `hr-${n.id}` }).catch(() => {});
+  await notifyHr(`✅ <b>ចង់មកធ្វើការវិញ</b> ${esc(n.code)}\n👤 ${esc(a.full_name)}\n💼 ${esc(title)}\n\n${site()}/staff/hr/${n.id}`);
+  await send(chatId, km ? `🎉 អរគុណ! បានបង្កើតពាក្យថ្មី <b>${esc(n.code)}</b> សម្រាប់ការងារ <b>${esc(title)}</b> ដោយប្រើ CV ពីមុន។ HR នឹងទាក់ទងអ្នកនៅទីនេះ។` : `🎉 Thank you! New application <b>${esc(n.code)}</b> for <b>${esc(title)}</b>, using your earlier CV. HR will contact you here.`, menu(n));
 }

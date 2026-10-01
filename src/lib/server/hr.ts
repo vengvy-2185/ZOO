@@ -289,3 +289,21 @@ export async function closeJobIfFull(jobId: string | null | undefined) {
   await notifyHr(`✅ <b>រើសគ្រប់ចំនួនហើយ</b>\n💼 ${esc(name)} · ${count}/${job.openings} នាក់\nការងារនេះបិទ ហើយលែងបង្ហាញក្នុងទំព័រដាក់ពាក្យ។`);
   return true;
 }
+
+/**
+ * A past applicant comes back for another job: a new application with the
+ * same details and CV (the old one stays as it was, and is linked).
+ */
+export async function applyAgain(oldId: string, jobId: string, by: string | null) {
+  const db = createServiceRoleClient();
+  const { data: o } = await db.from("hr_applicants").select("*").eq("id", oldId).maybeSingle();
+  if (!o) return null;
+  const { data: code } = await db.rpc("next_hr_code");
+  const keep = ["full_name", "full_name_km", "gender", "birth_date", "phone", "email", "address", "education", "experience", "languages", "skills", "expected_salary", "available_from", "about", "cv_path", "cv_name", "photo_path", "tg_chat_id", "tg_username", "tg_lang"] as const;
+  const row: Record<string, unknown> = Object.fromEntries(keep.map((k) => [k, o[k]]));
+  const { data: n } = await db.from("hr_applicants").insert({ ...row, code, job_id: jobId, status: "screening", previous_id: o.id }).select("*").single();
+  if (!n) return null;
+  await logEvent(n.id, "applied-again", o.code, by);
+  await logEvent(o.id, "invited-back", n.code, by);
+  return n as any;
+}

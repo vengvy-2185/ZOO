@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Send, MessageCircle, Briefcase, Users, ShieldAlert, ExternalLink, Wallet } from "lucide-react";
+import { Search, Send, MessageCircle, Briefcase, Users, ShieldAlert, ExternalLink, Wallet, RefreshCcw } from "lucide-react";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
@@ -33,6 +33,8 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
   const [s, { data: jobs }, { data: counts }] = await Promise.all([hrSettings(), db.from("hr_jobs").select("*").order("sort").order("created_at", { ascending: false }), db.from("hr_applicants").select("status")]);
   let q = db.from("hr_applicants").select("id, code, full_name, full_name_km, phone, status, created_at, tg_chat_id, rating, job:hr_jobs(title, title_km), hr_messages(id, from_hr, read_at)").order("created_at", { ascending: false }).limit(200);
   if (searchParams.s && searchParams.s in HR_STATUS) q = q.eq("status", searchParams.s);
+  // past applicants HR can ask back for a new opening
+  if (searchParams.s === "past") q = q.in("status", ["rejected", "withdrawn"]);
   if (searchParams.job) q = q.eq("job_id", searchParams.job);
   if (searchParams.q) q = q.or(`full_name.ilike.%${searchParams.q.replace(/[%,()]/g, "")}%,phone.ilike.%${searchParams.q.replace(/[%,()]/g, "")}%,code.ilike.%${searchParams.q.replace(/[%,()]/g, "")}%`);
   const { data: apps } = tab === "apps" ? await q : { data: [] as any[] };
@@ -93,6 +95,9 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
             </form>
             <div className="no-scrollbar flex gap-2 overflow-x-auto">
               <Link href={link({ s: undefined })} className={cn("flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold", !searchParams.s ? "bg-primary text-white" : "bg-cream text-forest")}>{km ? "ទាំងអស់" : "All"}</Link>
+              <Link href={link({ s: "past" })} className={cn("inline-flex flex-shrink-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-xs font-bold transition hover:-translate-y-0.5", searchParams.s === "past" ? "bg-primary text-white shadow" : "bg-light-green text-primary")}>
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white"><RefreshCcw size={11} strokeWidth={2.6} /></span> {km ? "អាចអញ្ជើញម្តងទៀត" : "Can invite again"} {n("rejected") + n("withdrawn") ? <span className={cn("rounded-full px-1.5 text-[10px] leading-4", searchParams.s === "past" ? "bg-white/25" : "bg-white shadow-sm")}>{n("rejected") + n("withdrawn")}</span> : null}
+              </Link>
               {(Object.keys(HR_STATUS) as HrStatus[]).map((st) => (
                 <Link key={st} href={link({ s: st })} className={cn("flex-shrink-0 rounded-full py-1 pl-1 pr-3 text-xs font-bold transition hover:-translate-y-0.5", searchParams.s === st ? "bg-primary text-white shadow" : "bg-cream text-forest")}>
                   <HrStatusChip status={st} label={km ? HR_STATUS[st].km : HR_STATUS[st].en} count={n(st)} active={searchParams.s === st} />

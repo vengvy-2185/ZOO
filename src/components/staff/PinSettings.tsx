@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Lock, ShieldCheck, X } from "lucide-react";
+import { KeyRound, Lock, ShieldCheck } from "lucide-react";
 import { changePin, lockNow, setLockOnOpen } from "@/app/staff/(protected)/pin-actions";
-import { PinPad, pinMessage } from "@/components/staff/PinPad";
+import { PinModal, PinPad, pinMessage } from "@/components/staff/PinPad";
 import { cn } from "@/lib/utils/cn";
 
 /** Me → secret code: ask when the app opens (on/off), change the code, lock now. */
@@ -66,12 +66,9 @@ export function PinSettings({ km, lockOnOpen }: { km: boolean; lockOnOpen: boole
       </div>
       {msg && <p role="status" className="text-sm font-bold text-primary">{msg}</p>}
       {pad && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center" onClick={close}>
-          <div className="relative w-full max-w-sm rounded-[2rem] bg-white p-6 pb-8 shadow-lift" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={close} aria-label={L("Close", "បិទ")} className="absolute right-4 top-4 rounded-full p-1.5 text-ink/40 hover:bg-cream"><X size={18} /></button>
-            {pad}
-          </div>
-        </div>
+        <PinModal onClose={close} closeLabel={L("Close", "បិទ")}>
+          {pad}
+        </PinModal>
       )}
     </div>
   );

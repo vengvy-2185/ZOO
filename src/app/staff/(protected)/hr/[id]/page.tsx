@@ -10,6 +10,7 @@ import { canHr, HR_STATUS, dt, type HrStatus } from "@/lib/server/hr";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { ApplicantPanel } from "@/components/hr/HrBits";
+import { Reinvite } from "@/components/hr/Reinvite";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -27,10 +28,16 @@ export default async function Applicant({ params }: { params: { id: string } }) 
   // the map link used last time (most interviews are at the same place)
   const lastMap = ((await db.from("hr_applicants").select("interview_map").not("interview_map", "is", null).order("updated_at", { ascending: false }).limit(1).maybeSingle()).data?.interview_map as string | undefined) ?? null;
   if (!a) notFound();
-  const [{ data: msgs }, { data: events }, positions] = await Promise.all([
+  const past = ["rejected", "withdrawn"].includes(a.status);
+  const [{ data: msgs }, { data: events }, positions, { data: openJobs }, { data: invRows }, { data: prev }, { data: later }] = await Promise.all([
     db.from("hr_messages").select("id, from_hr, body, created_at").eq("applicant_id", a.id).order("created_at"),
+    // (asking a past applicant back: open jobs, earlier invites, the linked applications)
     db.from("hr_events").select("kind, note, created_at").eq("applicant_id", a.id).order("created_at", { ascending: false }).limit(30),
     getPositions(),
+    past ? db.from("hr_jobs").select("id, title, title_km, salary").eq("open", true).order("sort") : Promise.resolve({ data: [] as any[] }),
+    db.from("hr_invites").select("id, status, telegram, created_at, new_applicant_id, job:hr_jobs(title, title_km), new:hr_applicants!hr_invites_new_applicant_id_fkey(code)").eq("applicant_id", a.id).order("created_at", { ascending: false }),
+    a.previous_id ? db.from("hr_applicants").select("id, code, status").eq("id", a.previous_id).maybeSingle() : Promise.resolve({ data: null as any }),
+    db.from("hr_applicants").select("id, code, status").eq("previous_id", a.id).order("created_at"),
   ]);
   // opening the page = the questions have been seen
   await db.from("hr_messages").update({ read_at: new Date().toISOString() }).eq("applicant_id", a.id).eq("from_hr", false).is("read_at", null);
@@ -71,6 +78,22 @@ export default async function Applicant({ params }: { params: { id: string } }) 
               </a>
             )}
           </p>
+          {(prev || (later ?? []).length > 0) && (
+            <p className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-cream/70 px-3 py-2 text-xs text-ink/65">
+              {prev && <span>↩ {L("Applied before:", "ធ្លាប់ដាក់ពាក្យ៖")} <Link href={`/staff/hr/${prev.id}`} className="font-bold text-primary underline">{prev.code}</Link> ({(km ? HR_STATUS[prev.status as HrStatus]?.km : HR_STATUS[prev.status as HrStatus]?.en) ?? prev.status})</span>}
+              {(later ?? []).map((x: any) => <span key={x.id}>↪ {L("Came back:", "បានមកវិញ៖")} <Link href={`/staff/hr/${x.id}`} className="font-bold text-primary underline">{x.code}</Link></span>)}
+            </p>
+          )}
+          {(past || (invRows ?? []).length > 0) && (
+            <Reinvite
+              km={km}
+              applicantId={a.id}
+              telegram={Boolean(a.tg_chat_id)}
+              phone={a.phone}
+              jobs={past ? ((openJobs ?? []) as any) : []}
+              invites={((invRows ?? []) as any[]).map((v) => ({ id: v.id, status: v.status, telegram: v.telegram, created_at: v.created_at, job: (km && v.job?.title_km) || v.job?.title || "—", new_applicant_id: v.new_applicant_id, new_code: v.new?.code ?? null }))}
+            />
+          )}
           <h3 className="mt-5 text-xs font-extrabold uppercase tracking-wider text-ink/40">{L("Timeline", "ប្រវត្តិ")}</h3>
           <ul className="mt-2 space-y-1 text-xs text-ink/60">
             {(events ?? []).map((e: any, i: number) => (

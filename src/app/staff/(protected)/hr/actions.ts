@@ -5,7 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess } from "@/lib/server/staff";
 import { createStaffAccount } from "@/lib/server/staff-account";
-import { announce, canHr, closeJobIfFull, logEvent, mapPoint, tellApplicant, esc, type HrStatus } from "@/lib/server/hr";
+import { announce, applyAgain, bot, canHr, closeJobIfFull, hrSettings, logEvent, mapPoint, site, tellApplicant, esc, type HrStatus } from "@/lib/server/hr";
 
 // The HR team's work on applications. Every step is written in the
 // application's timeline and, when the applicant linked Telegram, they are
@@ -169,7 +169,12 @@ export async function deleteApplicant(applicantId: string) {
   if (!access.admin) return;
   const db = createServiceRoleClient();
   const { data: a } = await db.from("hr_applicants").select("cv_path, photo_path").eq("id", applicantId).maybeSingle();
-  const files = [a?.cv_path, a?.photo_path].filter(Boolean) as string[];
+  // a CV can be shared with a later application (invited again): keep it then
+  const files: string[] = [];
+  for (const f of [a?.cv_path, a?.photo_path].filter(Boolean) as string[]) {
+    const { count } = await db.from("hr_applicants").select("id", { count: "exact", head: true }).neq("id", applicantId).or(`cv_path.eq.${f},photo_path.eq.${f}`);
+    if (!count) files.push(f);
+  }
   if (files.length) await db.storage.from("hr-files").remove(files);
   await db.from("hr_applicants").delete().eq("id", applicantId);
   revalidatePath("/staff/hr");
@@ -207,4 +212,60 @@ export async function saveJob(fd: FormData) {
   revalidatePath("/staff/hr");
   revalidatePath("/careers");
   return { ok: true };
+}
+
+// ── asking a past applicant to come back ─────────────────────────────
+const PAST = ["rejected", "withdrawn"];
+
+/** "We have a new opening — are you interested?" in the bot, with Yes / No buttons. */
+export async function inviteAgain(applicantId: string, jobId: string, note: string): Promise<{ error?: string; ok?: boolean; telegram?: boolean; phone?: string }> {
+  const { id } = await hr();
+  const db = createServiceRoleClient();
+  const [{ data: a }, { data: job }] = await Promise.all([
+    db.from("hr_applicants").select("id, code, full_name, phone, status, tg_chat_id, tg_lang").eq("id", applicantId).maybeSingle(),
+    db.from("hr_jobs").select("id, slug, title, title_km, salary, open").eq("id", jobId).maybeSingle(),
+  ]);
+  if (!a || !PAST.includes(a.status)) return { error: "status" };
+  if (!job?.open) return { error: "job" };
+  const s = await hrSettings();
+  const tg = Boolean(s.telegram_on && s.bot_token && a.tg_chat_id);
+  const { data: inv } = await db.from("hr_invites").insert({ applicant_id: a.id, job_id: job.id, note: note.trim().slice(0, 500) || null, telegram: tg, created_by: id }).select("id").single();
+  let sent = false;
+  if (tg && inv) {
+    const km = a.tg_lang !== "en";
+    const title = (km && job.title_km) || job.title;
+    const text = km
+      ? `💼 <b>ឱកាសការងារថ្មី</b>\n\nសួស្តី ${esc(a.full_name)}! Green Wild Zoo កំពុងត្រូវការ <b>${esc(title)}</b>${job.salary ? ` (${esc(job.salary)})` : ""}។\nយើងនៅចាំពាក្យរបស់អ្នកពីមុន ហើយចង់សួរថា តើអ្នកចាប់អារម្មណ៍មកធ្វើការទេ?${note.trim() ? `\n\n📝 ${esc(note.trim())}` : ""}`
+      : `💼 <b>A new opening</b>\n\nHello ${esc(a.full_name)}! Green Wild Zoo needs a <b>${esc(title)}</b>${job.salary ? ` (${esc(job.salary)})` : ""}.\nWe remember your earlier application — would you like to come and work with us?${note.trim() ? `\n\n📝 ${esc(note.trim())}` : ""}`;
+    const r = await bot("sendMessage", {
+      chat_id: a.tg_chat_id,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      reply_markup: { inline_keyboard: [[{ text: km ? "✅ ចង់មកធ្វើការ" : "✅ Yes, I'm interested", callback_data: `inv:${inv.id}:y`, style: "success" }, { text: km ? "❌ មិនអាចទេ" : "❌ No, thanks", callback_data: `inv:${inv.id}:n`, style: "danger" }], [{ text: km ? "💼 មើលការងារ" : "💼 See the job", url: `${site()}/careers/${job.slug}` }]] },
+    }, s.bot_token);
+    sent = Boolean(r?.ok);
+  }
+  await logEvent(a.id, "invited", (job.title_km || job.title) + (sent ? " · Telegram" : ""), id);
+  touch(applicantId);
+  return { ok: true, telegram: sent, phone: a.phone };
+}
+
+/** They said yes on the phone (or HR decides): a new application for the job right away. */
+export async function addToJobAgain(applicantId: string, jobId: string): Promise<{ error?: string; id?: string; code?: string }> {
+  const { id } = await hr();
+  const db = createServiceRoleClient();
+  const [{ data: a }, { data: job }] = await Promise.all([
+    db.from("hr_applicants").select("id, status").eq("id", applicantId).maybeSingle(),
+    db.from("hr_jobs").select("id, title, title_km, open").eq("id", jobId).maybeSingle(),
+  ]);
+  if (!a || !PAST.includes(a.status)) return { error: "status" };
+  if (!job?.open) return { error: "job" };
+  const n = await applyAgain(a.id, job.id, id);
+  if (!n) return { error: "failed" };
+  await db.from("hr_invites").insert({ applicant_id: a.id, job_id: job.id, status: "added", new_applicant_id: n.id, created_by: id, answered_at: new Date().toISOString() });
+  await tellApplicant(n, n.tg_lang === "en" ? `💼 HR added you for <b>${esc(job.title)}</b> (application ${esc(n.code)}). We'll message you here.` : `💼 HR បានបញ្ចូលអ្នកសម្រាប់ការងារ <b>${esc(job.title_km || job.title)}</b> (ពាក្យ ${esc(n.code)})។ យើងនឹងផ្ញើដំណឹងមកទីនេះ។`);
+  touch(applicantId);
+  revalidatePath("/staff/hr");
+  return { id: n.id, code: n.code };
 }

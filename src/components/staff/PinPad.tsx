@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Delete, Eye, EyeOff, Loader2, Lock, ShieldCheck, X } from "lucide-react";
@@ -48,7 +49,7 @@ export function PinPad({ km, title, sub, submitLabel, onSubmit, dark = false, au
     setErr("");
     setPin((p) => (p.length < 6 ? p + d : p));
   };
-  const key = cn("flex h-16 items-center justify-center rounded-2xl font-display text-2xl font-extrabold transition active:scale-95", dark ? "bg-white/10 text-white hover:bg-white/20" : "bg-cream text-forest hover:bg-light-green");
+  const key = cn("flex h-14 items-center justify-center rounded-2xl font-display text-2xl font-extrabold transition active:scale-95", dark ? "bg-white/10 text-white hover:bg-white/20" : "bg-cream text-forest hover:bg-light-green");
   return (
     <div className="mx-auto w-full max-w-xs text-center">
       <p className={cn("font-display text-xl font-extrabold", dark ? "text-white" : "text-forest")}>{title}</p>
@@ -76,12 +77,44 @@ export function PinPad({ km, title, sub, submitLabel, onSubmit, dark = false, au
         ))}
         <button type="button" onClick={() => { setErr(""); setPin((p) => p.slice(0, -1)); }} aria-label={km ? "លុប" : "Delete"} className={cn(key, "text-base")}><Delete size={22} /></button>
         <button type="button" onClick={() => press("0")} className={key}>0</button>
-        <button type="button" disabled={pin.length < 4 || pending} onClick={() => go()} className={cn("flex h-16 items-center justify-center rounded-2xl text-sm font-extrabold transition active:scale-95 disabled:opacity-40", dark ? "bg-white text-forest" : "bg-primary text-white")}>
+        <button type="button" disabled={pin.length < 4 || pending} onClick={() => go()} className={cn("flex h-14 items-center justify-center rounded-2xl text-sm font-extrabold transition active:scale-95 disabled:opacity-40", dark ? "bg-white text-forest" : "bg-primary text-white")}>
           {pending ? <Loader2 size={20} className="animate-spin" /> : submitLabel ?? "OK"}
         </button>
       </div>
       <style>{`@keyframes pinshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}`}</style>
     </div>
+  );
+}
+
+/**
+ * A box that pops up in the middle of the screen, above everything (bottom
+ * menu included): drawn straight into <body> so no page layer can cover it.
+ */
+export function PinModal({ onClose, children, closeLabel }: { onClose: () => void; children: React.ReactNode; closeLabel: string }) {
+  const [ready, setReady] = useState(false);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    setReady(true);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && close.current();
+    addEventListener("keydown", esc);
+    return () => {
+      document.body.style.overflow = prev;
+      removeEventListener("keydown", esc);
+    };
+  }, []);
+  if (!ready) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-forest/60 p-4 backdrop-blur-md motion-safe:animate-[pinfade_.2s_ease-out]" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="relative my-auto w-full max-w-[22rem] rounded-[2rem] bg-white px-6 pb-6 pt-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,.45)] motion-safe:animate-[pinpop_.25s_cubic-bezier(.2,.9,.3,1.2)]" onClick={(e) => e.stopPropagation()}>
+        <button type="button" onClick={onClose} aria-label={closeLabel} className="absolute right-4 top-4 rounded-full p-1.5 text-ink/40 hover:bg-cream"><X size={18} /></button>
+        {children}
+      </div>
+      <style>{`@keyframes pinfade{from{opacity:0}to{opacity:1}}@keyframes pinpop{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}`}</style>
+    </div>,
+    document.body
   );
 }
 
@@ -166,9 +199,7 @@ export function RevealPay({ km, shown, compact = false }: { km: boolean; shown: 
         <Eye size={compact ? 14 : 16} /> {km ? "មើលប្រាក់ខែ" : "Show pay"}
       </button>
       {open && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center" onClick={() => setOpen(false)}>
-          <div className="relative w-full max-w-sm rounded-[2rem] bg-white p-6 pb-8 shadow-lift" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => setOpen(false)} aria-label={km ? "បិទ" : "Close"} className="absolute right-4 top-4 rounded-full p-1.5 text-ink/40 hover:bg-cream"><X size={18} /></button>
+        <PinModal onClose={() => setOpen(false)} closeLabel={km ? "បិទ" : "Close"}>
             <PinPad
               km={km}
               title={km ? "បញ្ចូលលេខកូដ ដើម្បីមើលប្រាក់ខែ" : "Enter your code to see your pay"}
@@ -182,8 +213,7 @@ export function RevealPay({ km, shown, compact = false }: { km: boolean; shown: 
                 return pinMessage(r, km);
               }}
             />
-          </div>
-        </div>
+        </PinModal>
       )}
     </>
   );
