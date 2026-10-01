@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Send, X, ArrowRight } from "lucide-react";
-import { LogoMark } from "@/components/visitor/Logo";
+import { LottiePlayer } from "@/components/LottiePlayer";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 
@@ -22,8 +22,10 @@ type Msg = {
 
 /**
  * "Ask the Zoo" chat: instant answers from the zoo's own data (see
- * lib/server/assistant). It waits tucked against the screen edge as a small
- * logo tab; tap it to slide the chat out, tap anywhere outside (or Esc) to close.
+ * lib/server/assistant). Our robot waits in the corner (a small animation);
+ * tap it to open the chat, tap anywhere outside (or Esc) to close. On a
+ * computer the robot stands beside the chat, shows the animal it talks about,
+ * and "thinks" while the answer is coming.
  */
 export function ZooAssistant() {
   const pathname = usePathname();
@@ -69,6 +71,8 @@ export function ZooAssistant() {
   }, [msgs, typing]);
 
   if (/^\/(admin|staff|auth)/.test(pathname)) return null;
+  const lastBot = [...msgs].reverse().find((m) => m.from === "bot");
+  const shown = lastBot?.animal?.image ? lastBot.animal : null;
 
   async function ask(q: string) {
     const text = q.trim();
@@ -106,9 +110,14 @@ export function ZooAssistant() {
             setHint(false);
           }}
           aria-label={a.open}
-          className="side-tab group fixed bottom-28 right-0 z-40 md:bottom-10"
+          className="group fixed bottom-24 right-1 z-40 h-[6.5rem] w-[5rem] transition-transform duration-300 hover:-translate-y-1 active:scale-95 md:bottom-5 md:right-4 md:h-[8.5rem] md:w-[6.5rem]"
         >
-          <LogoMark className="h-8 w-8" />
+          <span className="absolute inset-x-3 bottom-1 h-3 rounded-[50%] bg-forest/25 blur-[4px] transition group-hover:scale-90" />
+          <LottiePlayer src="/assistant/chatbot.json" className="relative h-full w-full drop-shadow-[0_8px_14px_rgba(14,63,36,.25)]" />
+          <span className="absolute -top-1 right-1 flex h-3.5 w-3.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-leaf opacity-60" />
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-leaf ring-2 ring-white" />
+          </span>
         </button>
       )}
       {hint && !open && (
@@ -117,7 +126,7 @@ export function ZooAssistant() {
             setOpen(true);
             setHint(false);
           }}
-          className="fixed bottom-[8.4rem] right-16 z-40 max-w-[14rem] rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-left text-sm font-semibold text-forest shadow-lift ring-1 ring-black/5 animate-[gwzDrop_.4s_ease] md:bottom-14"
+          className="fixed bottom-[11rem] right-[4.5rem] z-40 max-w-[14rem] rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-left text-sm font-semibold text-forest shadow-lift ring-1 ring-black/5 animate-[gwzDrop_.4s_ease] md:bottom-[8.5rem] md:right-[7rem]"
         >
           {a.hint}
         </button>
@@ -132,13 +141,50 @@ export function ZooAssistant() {
             onClick={() => setOpen(false)}
             aria-hidden
           />
+          <div className="pointer-events-none fixed bottom-6 right-[28rem] z-50 hidden w-[15rem] flex-col items-center md:flex" aria-hidden={!shown}>
+            {shown && (
+              <Link
+                key={shown.code}
+                href={`/animals/${shown.code}`}
+                className="pointer-events-auto mb-3 w-full overflow-hidden rounded-3xl bg-white shadow-lift ring-1 ring-black/5 animate-[gwzPop_.35s_ease] hover:ring-primary"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={shown.image!} alt="" className="aspect-[4/3] max-h-[24vh] w-full object-cover" />
+                <span className="block px-3.5 py-2.5">
+                  <span className="block truncate font-display font-extrabold text-forest">{shown.name}</span>
+                  <span className="flex items-center gap-1 truncate text-xs font-semibold text-primary">{shown.species} <ArrowRight size={12} /></span>
+                </span>
+              </Link>
+            )}
+            <div className="relative w-full">
+              {typing && (
+                <span className="absolute -top-2 left-1 z-10 flex gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-2 shadow-lift">
+                  {[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/70" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                </span>
+              )}
+              {/* a little hop each time a new answer arrives */}
+              <span key={msgs.length} className="block motion-safe:animate-[gwzRobotHop_.5s_ease]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assistant/robot.webp"
+                alt=""
+                className={cn("mx-auto h-auto max-h-[42vh] w-[13rem] object-contain drop-shadow-[0_18px_24px_rgba(14,63,36,.3)]", typing ? "motion-safe:animate-[gwzRobotThink_.7s_ease-in-out_infinite]" : "motion-safe:animate-[gwzRobotFloat_3.2s_ease-in-out_infinite]")}
+              />
+              </span>
+              <span className="mx-auto -mt-2 block h-4 w-32 rounded-[50%] bg-forest/20 blur-[5px]" />
+            </div>
+          </div>
+          <style>{`@keyframes gwzRobotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes gwzRobotHop{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-18px) scale(1.03)}100%{transform:translateY(0) scale(1)}}@keyframes gwzRobotThink{0%,100%{transform:rotate(-2deg) translateY(0)}50%{transform:rotate(2deg) translateY(-4px)}}`}</style>
           <div
             className="fixed inset-x-2 bottom-24 top-20 z-50 flex flex-col overflow-hidden rounded-3xl bg-white shadow-lift ring-1 ring-black/5 animate-[gwzSlideIn_.3s_ease] sm:inset-x-auto sm:right-4 sm:top-auto sm:h-[36rem] sm:max-h-[80vh] sm:w-[25rem] md:bottom-6 md:right-6"
             role="dialog"
             aria-label={a.title}
           >
             <div className="flex items-center gap-2.5 bg-gradient-to-r from-primary to-forest px-3.5 py-2.5 text-white">
-              <LogoMark className="h-9 w-9 flex-shrink-0" />
+              <span className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-full bg-white/95 ring-2 ring-white/40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assistant/robot-face.webp" alt="" className={cn("h-full w-full object-cover", typing && "motion-safe:animate-pulse")} />
+              </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-display text-[15px] font-bold leading-tight">
                   Green Wild Zoo
