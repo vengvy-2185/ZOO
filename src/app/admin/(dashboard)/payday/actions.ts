@@ -126,3 +126,17 @@ export async function decidePayRequest(id: string, approve: boolean, note: strin
   await sendPush([r.user_id], { title: approve ? "✅ សំណើបើកប្រាក់ខែត្រូវបានយល់ព្រម" : "❌ សំណើបើកប្រាក់ខែមិនត្រូវបានយល់ព្រម", body: note.trim() || (approve ? "សូមមើលព័ត៌មានក្នុងទំព័រប្រាក់ខែ។" : "សូមមកទទួលប្រាក់នៅថ្ងៃបើកប្រាក់ខែ។"), url: "/staff/pay", tag: `payreq-${id}` }).catch(() => {});
   done();
 }
+
+/** Remove a payday nobody has collected from yet (e.g. set for the wrong month). */
+export async function deletePayday(id: string): Promise<{ error?: string; ok?: boolean }> {
+  await requireAdmin();
+  const p = await paydayById(id);
+  if (!p) return { error: "missing" };
+  const { count } = await db().from("staff_payslips").select("id", { count: "exact", head: true }).eq("payday_id", id).not("received_at", "is", null);
+  if (count) return { error: "collected" };
+  await db().from("staff_payslips").delete().eq("payday_id", id);
+  await db().from("staff_paydays").delete().eq("id", id);
+  await audit("payday.delete", "staff_paydays", id, { month: p.month });
+  done();
+  return { ok: true };
+}

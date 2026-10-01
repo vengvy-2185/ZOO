@@ -30,6 +30,7 @@ const WHAT: Record<string, { km: string; en: string }> = {
   "payday.open": { km: "បើកថ្ងៃបើកប្រាក់ខែ", en: "Opened payday" },
   "payday.reissue": { km: "គិតវិក្កយបត្រប្រាក់ខែឡើងវិញ", en: "Re-worked payslips" },
   "payday.close": { km: "បិទថ្ងៃបើកប្រាក់ខែ", en: "Closed payday" },
+  "payday.delete": { km: "លុបថ្ងៃបើកប្រាក់ខែ", en: "Deleted a payday" },
   "payday.received": { km: "សម្គាល់ថាបានប្រគល់ប្រាក់ខែ", en: "Marked pay as handed over" },
   "payday.received_undo": { km: "ដកការសម្គាល់ប្រគល់ប្រាក់ខែ", en: "Undid a pay hand-over" },
   "pay.unpaid": { km: "ដកការបើកប្រាក់ខែវិញ", en: "Undid paid pay" },

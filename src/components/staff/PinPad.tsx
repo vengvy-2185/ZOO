@@ -24,8 +24,12 @@ export function PinPad({ km, title, sub, submitLabel, onSubmit, dark = false, au
   const [shake, setShake] = useState(false);
   const [pending, start] = useTransition();
   const box = useRef<HTMLInputElement>(null);
+  // a computer keyboard can type the code; on a phone the on-screen pad is
+  // used (focusing the hidden box there would open the phone's own keyboard
+  // and its "verification code" bar over the pad)
+  const desktop = () => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
   useEffect(() => {
-    if (autoFocus) box.current?.focus({ preventScroll: true });
+    if (autoFocus && desktop()) box.current?.focus({ preventScroll: true });
   }, [autoFocus]);
   const go = (p = pin) => {
     if (p.length < 4 || pending) return;
@@ -55,11 +59,12 @@ export function PinPad({ km, title, sub, submitLabel, onSubmit, dark = false, au
         onChange={(e) => { setErr(""); setPin(e.target.value.replace(/\D/g, "").slice(0, 6)); }}
         onKeyDown={(e) => e.key === "Enter" && go()}
         inputMode="numeric"
-        autoComplete="one-time-code"
+        autoComplete="off"
+        tabIndex={-1}
         aria-label={km ? "លេខកូដ" : "Code"}
         className="absolute h-px w-px opacity-0"
       />
-      <button type="button" onClick={() => box.current?.focus()} className={cn("mx-auto mt-5 flex h-8 items-center justify-center gap-3", shake && "motion-safe:animate-[pinshake_.4s]")} aria-hidden>
+      <button type="button" tabIndex={-1} onClick={() => desktop() && box.current?.focus()} className={cn("mx-auto mt-5 flex h-8 items-center justify-center gap-3", shake && "motion-safe:animate-[pinshake_.4s]")} aria-hidden>
         {Array.from({ length: 6 }, (_, i) => (
           <span key={i} className={cn("h-3.5 w-3.5 rounded-full transition", i < pin.length ? (dark ? "scale-110 bg-white" : "scale-110 bg-primary") : i < 4 ? (dark ? "bg-white/25" : "bg-black/15") : dark ? "bg-white/10" : "bg-black/5")} />
         ))}

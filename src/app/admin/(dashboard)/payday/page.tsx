@@ -5,7 +5,7 @@ import { AdminPageHeader } from "@/components/admin/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { getPositions, thisMonth } from "@/lib/server/staff";
 import { ensurePaydays, monthLabel, nextMonth, paydayFor, paydayTable, qrUrl, requestDeadline, sameDayNextMonth, today, type PaydayRow } from "@/lib/server/payday";
-import { PaydayForm, PaydayControls, RowActions, RequestActions, AutoRefresh } from "@/components/admin/PaydayBits";
+import { PaydayForm, PaydayControls, RowActions, RequestActions, AutoRefresh, QrDownload } from "@/components/admin/PaydayBits";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,7 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
             d,
             name: pos ? (km && pos.name_km) || pos.name : L("Everyone else", "ផ្សេងៗ"),
             color: pos?.color ?? "#64748B",
-            img: await QRCode.toDataURL(qrUrl(p, d), { margin: 1, width: 420, errorCorrectionLevel: "M", color: { dark: "#0E3F24", light: "#ffffff" } }),
+            img: await QRCode.toDataURL(qrUrl(p, d), { margin: 1, width: 900, errorCorrectionLevel: "H", color: { dark: "#0E3F24", light: "#ffffff" } }),
             count: rows.length,
             done: rows.filter((r) => r.received_at).length,
           };
@@ -95,7 +95,7 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="space-y-5 print:hidden">
-          <PaydayForm km={km} month={month} monthName={monthLabel(month, km)} p={p} />
+          <PaydayForm key={month} km={km} month={month} monthName={monthLabel(month, km)} p={p} />
           {p && (
             <div className="card space-y-3 p-5">
               <p className="flex items-center gap-2 text-sm text-ink/70"><CalendarClock size={16} className="text-primary" /> <b className="text-forest">{dateName(p.pay_date)}</b>{p.start_time ? ` · ${p.start_time.slice(0, 5)}–${p.end_time?.slice(0, 5) ?? ""}` : ""}</p>
@@ -186,7 +186,10 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
       {/* QR per department */}
       {qrs.length > 0 && (
         <section className="mt-6 break-before-page">
-          <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-forest"><QrCode size={20} className="text-primary" /> {L("QR code for each department", "QR សម្រាប់ផ្នែកនីមួយៗ")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-forest"><QrCode size={20} className="text-primary" /> {L("QR code for each department", "QR សម្រាប់ផ្នែកនីមួយៗ")}</h2>
+            <QrDownload km={km} month={monthName} qrs={qrs.map(({ d, img, name, color }) => ({ d, img, name, color }))} />
+          </div>
           <p className="mt-1 text-sm text-ink/55 print:hidden">{L("Print them or show them on a screen at the pay desk. Staff open the app → Pay → Scan; a code only works for its own department, on the pay date, once per person.", "បោះពុម្ព ឬបង្ហាញលើអេក្រង់នៅកន្លែងបើកប្រាក់។ បុគ្គលិកបើកកម្មវិធី → ប្រាក់ខែ → ស្កេន។ QR នីមួយៗប្រើបានតែផ្នែករបស់ខ្លួន នៅថ្ងៃបើកប្រាក់ខែ ហើយម្នាក់បានតែម្តង។")}</p>
           {p?.status === "scheduled" && <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 print:hidden">{L("The codes start working once payday is opened.", "QR នឹងដំណើរការ ពេលចុចបើកការបើកប្រាក់ខែ។")}</p>}
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -199,7 +202,8 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={q.img} alt={`QR ${q.name}`} className="mx-auto w-full max-w-[260px] p-4" />
                 <p className="flex items-center justify-center gap-1.5 pb-1 text-sm font-bold text-forest"><ScanLine size={15} /> {L("Scan in the staff app to collect", "ស្កេនក្នុងកម្មវិធីបុគ្គលិក ដើម្បីទទួលប្រាក់")}</p>
-                <p className="pb-4 text-xs text-ink/50">{q.done}/{q.count} {L("collected", "បានបើក")}</p>
+                <p className="pb-3 text-xs text-ink/50">{q.done}/{q.count} {L("collected", "បានបើក")}</p>
+                <div className="px-4 pb-4"><QrDownload km={km} month={monthName} qrs={[{ d: q.d, img: q.img, name: q.name, color: q.color }]} one /></div>
               </div>
             ))}
           </div>

@@ -17,10 +17,10 @@ export function CopyLink({ url, km }: { url: string; km: boolean }) {
   );
 }
 
-type Job = { id: string; slug: string; title: string; title_km: string | null; department: string | null; description: string | null; description_km: string | null; requirements: string | null; requirements_km: string | null; salary: string | null; job_type: string; open: boolean };
+type Job = { id: string; slug: string; title: string; title_km: string | null; department: string | null; description: string | null; description_km: string | null; requirements: string | null; requirements_km: string | null; salary: string | null; job_type: string; open: boolean; openings?: number | null; filled_at?: string | null };
 
 /** Add / change a job (open or closed). */
-export function JobEditor({ km, job }: { km: boolean; job?: Job }) {
+export function JobEditor({ km, job, picked = 0 }: { km: boolean; job?: Job; picked?: number }) {
   const router = useRouter();
   const [open, setOpen] = useState(!job ? false : false);
   const [msg, setMsg] = useState("");
@@ -32,8 +32,13 @@ export function JobEditor({ km, job }: { km: boolean; job?: Job }) {
         <span className={cn("h-2.5 w-2.5 rounded-full", !job ? "bg-primary" : job.open ? "bg-emerald-500" : "bg-slate-300")} />
         <span className="min-w-0 flex-1">
           <span className="block font-bold text-forest">{job ? (km && job.title_km) || job.title : L("＋ Add a job", "＋ បន្ថែមការងារ")}</span>
-          {job && <span className="block text-xs text-ink/50">/careers/{job.slug} · {job.open ? L("open", "កំពុងទទួល") : L("closed", "បិទ")}</span>}
+          {job && <span className="block text-xs text-ink/50">/careers/{job.slug} · {job.open ? L("open", "កំពុងទទួល") : job.filled_at ? L("filled · closed by itself", "រើសគ្រប់ · បិទដោយស្វ័យប្រវត្តិ") : L("closed", "បិទ")}</span>}
         </span>
+        {job && (
+          <span className={cn("flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold", job.openings && picked >= job.openings ? "bg-emerald-100 text-emerald-800" : "bg-cream text-forest")}>
+            {job.openings ? `${picked}/${job.openings}` : picked} {L("picked", "នាក់")}
+          </span>
+        )}
         <ChevronDown size={18} className={cn("text-ink/40 transition", open && "rotate-180")} />
       </button>
       {open && (
@@ -41,7 +46,7 @@ export function JobEditor({ km, job }: { km: boolean; job?: Job }) {
           action={(fd) =>
             start(async () => {
               const r = await saveJob(fd);
-              setMsg(r.error ? (r.error === "slug" ? L("That link name is used by another job", "ឈ្មោះ link នេះប្រើរួចហើយ") : r.error) : L("Saved ✓", "បានរក្សាទុក ✓"));
+              setMsg(r.error ? (r.error === "slug" ? L("That link name is used by another job", "ឈ្មោះ link នេះប្រើរួចហើយ") : r.error) : "closed" in r && r.closed ? L("Saved ✓ · already filled, so it closed", "បានរក្សាទុក ✓ · រើសគ្រប់ចំនួនហើយ ដូច្នេះបានបិទ") : L("Saved ✓", "បានរក្សាទុក ✓"));
               if (!r.error) router.refresh();
             })
           }
@@ -52,6 +57,11 @@ export function JobEditor({ km, job }: { km: boolean; job?: Job }) {
           <input name="title_km" defaultValue={job?.title_km ?? ""} placeholder={L("Title (Khmer)", "ចំណងជើង (ខ្មែរ)")} className={field} />
           <input name="department" defaultValue={job?.department ?? ""} placeholder={L("Department", "ផ្នែក")} className={field} />
           <input name="salary" defaultValue={job?.salary ?? ""} placeholder={L("Salary, e.g. $250 – $350", "ប្រាក់ខែ ឧ. $250 – $350")} className={field} />
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-bold text-ink/55">{L("How many people to hire", "ត្រូវជ្រើសរើសប៉ុន្មាននាក់")}</span>
+            <input name="openings" type="number" min="1" max="999" defaultValue={job?.openings ?? ""} placeholder={L("no limit", "មិនកំណត់")} className={field} />
+            <span className="mt-1 block text-[11px] text-ink/45">{L("When this many have passed, the job closes by itself and leaves the careers page. Raise the number (and tick 'taking applications') to hire more.", "ពេលរើសជាប់គ្រប់ចំនួននេះ ការងារបិទដោយស្វ័យប្រវត្តិ ហើយលែងបង្ហាញក្នុងទំព័រដាក់ពាក្យ។ ចង់រើសបន្ថែម សូមដំឡើងចំនួន ហើយធីក «កំពុងទទួលពាក្យ»។")}</span>
+          </label>
           <select name="job_type" defaultValue={job?.job_type ?? "full-time"} className={field}>
             <option value="full-time">{L("Full time", "ពេញម៉ោង")}</option>
             <option value="part-time">{L("Part time", "ក្រៅម៉ោង")}</option>

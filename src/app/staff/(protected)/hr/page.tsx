@@ -3,7 +3,7 @@ import { Search, Send, MessageCircle, Briefcase, Users, ShieldAlert, ExternalLin
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
-import { canHr, HR_STATUS, hrSettings, site, type HrStatus } from "@/lib/server/hr";
+import { canHr, HR_STATUS, hrSettings, pickedByJob, site, type HrStatus } from "@/lib/server/hr";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
 import { JobEditor, CopyLink } from "@/components/hr/HrBits";
@@ -79,7 +79,10 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
       {tab === "salary" ? null : tab === "jobs" ? (
         <section className="space-y-3">
           <JobEditor km={km} />
-          {(jobs ?? []).map((j: any) => <JobEditor key={j.id} km={km} job={j} />)}
+          {await (async () => {
+            const picked = await pickedByJob();
+            return (jobs ?? []).map((j: any) => <JobEditor key={j.id} km={km} job={j} picked={picked.get(j.id) ?? 0} />);
+          })()}
         </section>
       ) : (
         <>

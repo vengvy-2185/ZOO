@@ -12,7 +12,7 @@ export type AuditAction =
   | "leave.decide" | "cash.review" | "report.export" | "settings.staff" | "settings.payment" | "settings.telegram" | "settings.tts" | "settings.site" | "settings.scratch"
   | "settings.turn" | "settings.hr"
   | "salary.set" | "salary.delete"
-  | "payday.create" | "payday.update" | "payday.open" | "payday.reissue" | "payday.close" | "payday.received" | "payday.received_undo";
+  | "payday.create" | "payday.update" | "payday.open" | "payday.reissue" | "payday.close" | "payday.received" | "payday.received_undo" | "payday.delete";
 
 export async function audit(action: AuditAction, table: string, id?: string | null, meta?: Record<string, unknown>, actorId?: string) {
   try {

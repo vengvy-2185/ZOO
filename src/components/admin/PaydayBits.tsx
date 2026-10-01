@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarCheck2, Loader2, Save, PlayCircle, Lock, RefreshCw, Check, X, Undo2, HandCoins, Printer, Landmark, UserRoundCheck } from "lucide-react";
-import { savePayday, openPayday, closePayday, reissuePayslips, markReceived, undoReceived, decidePayRequest } from "@/app/admin/(dashboard)/payday/actions";
+import { AlertTriangle, Trash2, Download, CalendarCheck2, Loader2, Save, PlayCircle, Lock, RefreshCw, Check, X, Undo2, HandCoins, Printer, Landmark, UserRoundCheck } from "lucide-react";
+import { savePayday, openPayday, closePayday, reissuePayslips, markReceived, undoReceived, decidePayRequest, deletePayday } from "@/app/admin/(dashboard)/payday/actions";
 import { cn } from "@/lib/utils/cn";
 
 const field = "w-full rounded-2xl border border-black/10 bg-cream/40 px-4 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white";
@@ -15,6 +15,11 @@ export function PaydayForm({ km, month, monthName, p }: { km: boolean; month: st
   const [msg, setMsg] = useState("");
   const L = (en: string, k: string) => (km ? k : en);
   const locked = p?.status === "closed";
+  // a new payday: the 5th of the following month (the month's work is done by then)
+  const [y, m] = month.split("-").map(Number);
+  const nextFirst = new Date(Date.UTC(y, m, 5)).toISOString().slice(0, 10);
+  const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  const [date, setDate] = useState(p?.pay_date ?? nextFirst);
   return (
     <form
       className="card space-y-3 p-5"
@@ -34,7 +39,7 @@ export function PaydayForm({ km, month, monthName, p }: { km: boolean; month: st
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block sm:col-span-1">
           <span className="mb-1 block text-xs font-bold text-ink/55">{L("Hand-out date", "ថ្ងៃបើកប្រាក់")} *</span>
-          <input type="date" name="pay_date" required defaultValue={p?.pay_date ?? ""} disabled={locked} className={field} />
+          <input type="date" name="pay_date" required value={date} onChange={(e) => setDate(e.target.value)} disabled={locked} className={field} />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-bold text-ink/55">{L("From", "ចាប់ពីម៉ោង")}</span>
@@ -45,6 +50,12 @@ export function PaydayForm({ km, month, monthName, p }: { km: boolean; month: st
           <input type="time" name="end_time" defaultValue={p?.end_time?.slice(0, 5) ?? "11:00"} disabled={locked} className={field} />
         </label>
       </div>
+      {date && date < monthEnd && (
+        <p className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+          <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-amber-600" />
+          <span>{L(`This pays ${monthName} before the month is over: monthly staff get the full month, but staff paid per day or hour only get the days worked so far (it can be $0). Usually the pay of a month is handed out early the next month.`, `នេះបើកប្រាក់ខែ${monthName} មុនខែនោះចប់៖ បុគ្គលិកប្រាក់ខែប្រចាំខែបានពេញខែ ប៉ុន្តែបុគ្គលិកគិតតាមថ្ងៃ ឬម៉ោង បានតែថ្ងៃដែលបានធ្វើរហូតដល់ពេលនោះ (អាច $0)។ ជាធម្មតា ប្រាក់ខែនៃខែមួយបើកនៅដើមខែបន្ទាប់។`)}</span>
+        </p>
+      )}
       <input name="place" defaultValue={p?.place ?? ""} disabled={locked} placeholder={L("Where (e.g. HR office)", "ទីកន្លែង (ឧ. ការិយាល័យ HR)")} className={field} />
       <input name="note" defaultValue={p?.note ?? ""} disabled={locked} placeholder={L("Note for staff (optional)", "សារទៅបុគ្គលិក (ជម្រើស)")} className={field} />
       <p className="rounded-2xl bg-sky-50 px-3 py-2 text-xs text-sky-900">{L("Set it once: the following months are set up by themselves (same day of the month, same hours and place), and payday opens by itself on the day. Pay and attendance start counting again each new month.", "កំណត់តែម្តងគត់៖ ខែបន្ទាប់ៗនឹងកំណត់ដោយស្វ័យប្រវត្តិ (ថ្ងៃទីដូចគ្នា ម៉ោង និងទីកន្លែងដដែល) ហើយបើកដោយខ្លួនឯងនៅថ្ងៃនោះ។ ប្រាក់ខែ និងវត្តមានចាប់ផ្តើមរាប់ថ្មីរៀងរាល់ខែ។")}</p>
@@ -86,6 +97,11 @@ export function PaydayControls({ km, id, status }: { km: boolean; id: string; st
         </>
       )}
       <button onClick={() => window.print()} className="btn-outline bg-white print:hidden"><Printer size={15} /> {L("Print", "បោះពុម្ព")}</button>
+      {status !== "closed" && (
+        <button disabled={pending} onClick={() => go(async () => { const r = await deletePayday(id); if (r.error === "collected") alert(L("Someone already collected: it can't be deleted. Close it instead.", "មានអ្នកបានទទួលប្រាក់រួចហើយ មិនអាចលុបបានទេ។ សូមចុចបិទជំនួសវិញ។")); }, L("Delete this payday? (only when nobody has collected yet)", "លុបថ្ងៃបើកប្រាក់ខែនេះ? (បានតែពេលមិនទាន់មានអ្នកទទួល)"))} className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-bold text-red-700 ring-1 ring-red-100 print:hidden">
+          <Trash2 size={15} /> {L("Delete", "លុប")}
+        </button>
+      )}
     </div>
   );
 }
@@ -152,3 +168,73 @@ export function AutoRefresh({ seconds = 8 }: { seconds?: number }) {
   return null;
 }
 
+
+/** One department's QR as a print-ready picture (A5-like card, 1240×1754 px). */
+async function qrCardPng(q: { img: string; name: string; color: string }, month: string, km: boolean) {
+  const W = 1240, H = 1754;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d")!;
+  const font = getComputedStyle(document.body).fontFamily;
+  await document.fonts?.ready;
+  const load = (src: string) => new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+  // page and coloured band
+  x.fillStyle = "#ffffff";
+  x.fillRect(0, 0, W, H);
+  x.fillStyle = q.color;
+  x.fillRect(0, 0, W, 360);
+  x.textAlign = "center";
+  x.fillStyle = "rgba(255,255,255,.85)";
+  x.font = `700 44px ${font}`;
+  x.fillText(`${km ? "ថ្ងៃបើកប្រាក់ខែ" : "Payday"} · ${month}`, W / 2, 130);
+  x.fillStyle = "#ffffff";
+  x.font = `800 96px ${font}`;
+  x.fillText(q.name, W / 2, 270, W - 120);
+  // the code
+  const qr = await load(q.img);
+  const size = 900;
+  x.drawImage(qr, (W - size) / 2, 440, size, size);
+  // logo in a white circle in the middle of the code
+  try {
+    const logo = await load("/logo-sm.png");
+    x.fillStyle = "#ffffff";
+    x.beginPath();
+    x.arc(W / 2, 440 + size / 2, 95, 0, Math.PI * 2);
+    x.fill();
+    x.drawImage(logo, W / 2 - 80, 440 + size / 2 - 80, 160, 160);
+  } catch {}
+  x.fillStyle = "#0E3F24";
+  x.font = `800 56px ${font}`;
+  x.fillText(km ? "ស្កេនក្នុងកម្មវិធីបុគ្គលិក ដើម្បីទទួលប្រាក់" : "Scan in the staff app to collect", W / 2, 1460, W - 100);
+  x.fillStyle = "rgba(14,63,36,.6)";
+  x.font = `600 40px ${font}`;
+  x.fillText(km ? "កម្មវិធី → ប្រាក់ខែ → ស្កេន QR · បញ្ចូលលេខកូដសម្ងាត់" : "App → Pay → Scan QR · enter your secret code", W / 2, 1540, W - 100);
+  x.fillText("Green Wild Zoo", W / 2, 1660);
+  return c.toDataURL("image/png");
+}
+
+/** Download the department QR codes as pictures for printing. */
+export function QrDownload({ km, month, qrs, one }: { km: boolean; month: string; qrs: { d: string; img: string; name: string; color: string }[]; one?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const L = (en: string, k: string) => (km ? k : en);
+  const save = async () => {
+    setBusy(true);
+    try {
+      for (const q of qrs) {
+        const a = document.createElement("a");
+        a.href = await qrCardPng(q, month, km);
+        a.download = `payday-QR-${month.replace(/\s+/g, "-")}-${q.name.replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")}.png`;
+        a.click();
+        await new Promise((r) => setTimeout(r, 350)); // browsers allow one download at a time
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button type="button" disabled={busy} onClick={save} className={cn("inline-flex items-center justify-center gap-1.5 font-bold print:hidden", one ? "w-full rounded-xl bg-cream py-2 text-xs text-forest hover:bg-light-green" : "rounded-full bg-primary px-4 py-2 text-sm text-white shadow-soft")}>
+      {busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {one ? L("Download PNG", "ទាញយក PNG") : L(`Download all (${qrs.length})`, `ទាញយកទាំងអស់ (${qrs.length})`)}
+    </button>
+  );
+}

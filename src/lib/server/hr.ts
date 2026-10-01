@@ -264,3 +264,28 @@ export async function notifyHr(html: string) {
   const r = await bot("sendMessage", { chat_id: s.hr_chat_id, text: html.slice(0, 4000), parse_mode: "HTML", disable_web_page_preview: true }, s.bot_token);
   return Boolean(r?.ok);
 }
+
+/** People picked for each job so far (passed or hired). */
+export async function pickedByJob(): Promise<Map<string, number>> {
+  const { data } = await createServiceRoleClient().from("hr_applicants").select("job_id").in("status", ["offer", "hired"]);
+  const out = new Map<string, number>();
+  for (const r of data ?? []) if (r.job_id) out.set(r.job_id, (out.get(r.job_id) ?? 0) + 1);
+  return out;
+}
+
+/** When a job has all the people it needs, it closes by itself (and HR is told). */
+export async function closeJobIfFull(jobId: string | null | undefined) {
+  if (!jobId) return false;
+  const db = createServiceRoleClient();
+  const { data: job } = await db.from("hr_jobs").select("id, title, title_km, openings, open").eq("id", jobId).maybeSingle();
+  if (!job?.openings || !job.open) return false;
+  const { count } = await db.from("hr_applicants").select("id", { count: "exact", head: true }).eq("job_id", jobId).in("status", ["offer", "hired"]);
+  if ((count ?? 0) < job.openings) return false;
+  const { data: closed } = await db.from("hr_jobs").update({ open: false, filled_at: new Date().toISOString() }).eq("id", jobId).eq("open", true).select("id");
+  if (!closed?.length) return false;
+  const name = job.title_km || job.title;
+  const { sendPush } = await import("@/lib/server/push");
+  await sendPush(await hrTeam(), { title: `✅ រើសគ្រប់ចំនួនហើយ · ${name}`, body: `បានរើស ${count}/${job.openings} នាក់ · ការងារនេះបិទដោយស្វ័យប្រវត្តិ`, url: "/staff/hr?tab=jobs", tag: `job-full-${jobId}` }).catch(() => {});
+  await notifyHr(`✅ <b>រើសគ្រប់ចំនួនហើយ</b>\n💼 ${esc(name)} · ${count}/${job.openings} នាក់\nការងារនេះបិទ ហើយលែងបង្ហាញក្នុងទំព័រដាក់ពាក្យ។`);
+  return true;
+}

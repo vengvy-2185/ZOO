@@ -126,6 +126,9 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                       <div className="text-right">
                         <p className="font-display text-lg font-extrabold text-forest">{usd(l.gross)}</p>
                         <p className="text-[11px] text-ink/50">{L.month} · {units(l)}</p>
+                        {l.gross === 0 && l.staff.position && l.staff.position.pay_type !== "monthly" && (
+                          <p className="mt-0.5 max-w-[9rem] text-[10px] font-semibold leading-tight text-amber-700">{km ? `គិតតាម${l.staff.position.pay_type === "daily" ? "ថ្ងៃ" : "ម៉ោង"}ធ្វើការ · មិនទាន់មានវត្តមានខែនេះ` : `Paid per ${l.staff.position.pay_type === "daily" ? "day" : "hour"} worked · no attendance yet this month`}</p>
+                        )}
                       </div>
                     </div>
                     <details className="border-t border-black/5 bg-cream/60">

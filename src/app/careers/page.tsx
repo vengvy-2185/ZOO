@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/visitor/PageHeader";
 import { SiteFooter } from "@/components/visitor/SiteFooter";
 import { getI18n } from "@/lib/i18n/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { hrSettings } from "@/lib/server/hr";
+import { hrSettings, pickedByJob } from "@/lib/server/hr";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Jobs at the zoo", description: "Work with animals and people at Green Wild Zoo. See open jobs and apply online with your CV." };
@@ -20,6 +20,7 @@ export default async function Careers() {
   const km = locale === "km";
   const s = await hrSettings();
   const { data: jobs } = await createServiceRoleClient().from("hr_jobs").select("*").eq("open", true).order("sort").order("created_at", { ascending: false });
+  const picked = await pickedByJob();
   return (
     <div className="pb-20 md:pb-0">
       <Navbar />
@@ -47,6 +48,7 @@ export default async function Careers() {
                     {j.department && <span className="inline-flex items-center gap-1"><MapPin size={14} /> {j.department}</span>}
                     <span className="inline-flex items-center gap-1"><Clock size={14} /> {TYPE[j.job_type]?.[km ? 1 : 0] ?? j.job_type}</span>
                     {j.salary && <span className="font-bold text-primary">{j.salary}</span>}
+                    {j.openings && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-extrabold text-amber-800">{km ? `ត្រូវការ ${Math.max(1, j.openings - (picked.get(j.id) ?? 0))} នាក់ទៀត` : `${Math.max(1, j.openings - (picked.get(j.id) ?? 0))} more needed`}</span>}
                   </p>
                   <p className="mt-2 line-clamp-2 text-sm text-ink/70">{(km && j.description_km) || j.description}</p>
                 </div>

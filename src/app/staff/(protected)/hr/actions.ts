@@ -5,7 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess } from "@/lib/server/staff";
 import { createStaffAccount } from "@/lib/server/staff-account";
-import { announce, canHr, logEvent, mapPoint, tellApplicant, esc, type HrStatus } from "@/lib/server/hr";
+import { announce, canHr, closeJobIfFull, logEvent, mapPoint, tellApplicant, esc, type HrStatus } from "@/lib/server/hr";
 
 // The HR team's work on applications. Every step is written in the
 // application's timeline and, when the applicant linked Telegram, they are
@@ -81,8 +81,10 @@ export async function setResult(applicantId: string, pass: boolean, note: string
     .update({ status: pass ? "offer" : "rejected", result_note: note.trim().slice(0, 1000) || null, updated_at: new Date().toISOString() })
     .eq("id", applicantId)
     .in("status", OPEN)
-    .select("id");
+    .select("id, job_id");
   if (!data?.length) return LOCKED;
+  // the job has all the people it needs → it closes by itself
+  if (pass) await closeJobIfFull(data[0].job_id);
   await logEvent(applicantId, pass ? "passed" : "not-selected", note || null, id);
   await announce(applicantId, pass ? "offer" : "rejected");
   touch(applicantId);
@@ -136,6 +138,7 @@ export async function hireApplicant(applicantId: string, positionId: string, pay
   if (!r.ok) return { error: r.error };
   await db.from("hr_applicants").update({ status: "hired", staff_user_id: r.userId, updated_at: new Date().toISOString() }).eq("id", applicantId);
   await logEvent(applicantId, "hired", r.staffNo, id);
+  await closeJobIfFull(a.job_id);
   // the starting pay (and a raise after the probation months), when HR set one
   const ok = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 100000;
   if (pay && ok(pay.start)) {
@@ -191,11 +194,16 @@ export async function saveJob(fd: FormData) {
     salary: s("salary", 60),
     job_type: ["full-time", "part-time", "intern", "volunteer"].includes(String(fd.get("job_type"))) ? String(fd.get("job_type")) : "full-time",
     open: fd.get("open") === "on",
+    openings: /^\d{1,3}$/.test(String(fd.get("openings") ?? "")) && Number(fd.get("openings")) > 0 ? Number(fd.get("openings")) : null,
+    ...(fd.get("open") === "on" ? { filled_at: null } : {}),
   };
   const db = createServiceRoleClient();
   const id = String(fd.get("id") ?? "");
-  const { error } = id ? await db.from("hr_jobs").update(row).eq("id", id) : await db.from("hr_jobs").insert(row);
+  const { data: saved, error } = id ? await db.from("hr_jobs").update(row).eq("id", id).select("id").single() : await db.from("hr_jobs").insert(row).select("id").single();
   if (error) return { error: error.code === "23505" ? "slug" : error.message };
+  // e.g. the number was lowered to what is already picked
+  const closed = await closeJobIfFull(saved?.id);
+  if (closed) return { ok: true, closed: true };
   revalidatePath("/staff/hr");
   revalidatePath("/careers");
   return { ok: true };
