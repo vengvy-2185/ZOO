@@ -57,17 +57,6 @@ export default function CreditsPage() {
             </div>
           ))}
         </div>
-        {/* Starter Photo Booth stickers (Admin → Booth Stickers) */}
-        <p className="card mt-3 p-4 text-sm text-ink/70">
-          Photo booth stickers (giraffe, zebra, bear, tortoise):{" "}
-          <a href="https://commons.wikimedia.org/wiki/File:Animals_png_set_by_mossi889-d4uye4q.png" target="_blank" rel="noreferrer" className="font-bold text-forest hover:text-primary">
-            “Animals png set”
-          </a>{" "}
-          by mossi889, licence{" "}
-          <a href="https://creativecommons.org/licenses/by/3.0" target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary hover:underline">
-            CC BY 3.0
-          </a>
-        </p>
       </main>
       <SiteFooter />
       <BottomNav />

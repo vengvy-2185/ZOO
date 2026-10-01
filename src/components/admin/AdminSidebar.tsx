@@ -29,9 +29,7 @@ const GROUPS: { title: GroupKey; items: { key: ItemKey; href: string; icon: Luci
       { key: "categories", href: "/admin/categories", icon: Tags },
       { key: "species", href: "/admin/manage/species", icon: Dna },
       { key: "news", href: "/admin/manage/news", icon: Newspaper },
-      { key: "birthdays", href: "/admin/birthdays", icon: Cake },
       { key: "qr", href: "/admin/qr", icon: QrCode },
-      { key: "stickers", href: "/admin/manage/stickers", icon: Sticker },
     ],
   },
   {

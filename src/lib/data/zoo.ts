@@ -150,18 +150,6 @@ export const getAudio = unstable_cache(
   opts
 );
 
-/** Transparent animal cut-outs for the Photo Booth. */
-export const getBoothStickers = unstable_cache(
-  async () => {
-    const { data } = await must(
-      createPublicClient().from("booth_stickers").select("id, name, khmer_name, image_url").eq("is_active", true).order("sort_order").order("name")
-    );
-    return (data ?? []) as { id: string; name: string; khmer_name: string | null; image_url: string }[];
-  },
-  ["booth-stickers"],
-  opts
-);
-
 export type Review = { id: string; name: string; avatar_url: string | null; rating: number; comment: string; created_at: string };
 
 /** Visible visitor reviews, newest first, plus the rating summary. */

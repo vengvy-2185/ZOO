@@ -25,17 +25,12 @@ const GROUPS: Group[] = [
       { href: "/animals", Icon: PawPrint, en: "All animals", km: "សត្វទាំងអស់" },
       { href: "/map", Icon: Map, en: "Zoo map", km: "ផែនទីសួនសត្វ" },
       { href: "/favorites", Icon: Heart, en: "My favourites", km: "សត្វដែលខ្ញុំចូលចិត្ត" },
-      { href: "/facts", Icon: Lightbulb, en: "Animal facts", km: "ចំណេះដឹងពីសត្វ" },
-      { href: "/birthdays", Icon: Cake, en: "Birthdays", km: "ខួបកំណើតសត្វ" },
-      { href: "/stats", Icon: BarChart3, en: "Zoo in numbers", km: "សួនសត្វជាលេខ" },
       { href: "/conservation", Icon: ShieldAlert, en: "Protect wildlife", km: "ការពារសត្វ" },
     ],
   },
   {
     en: "Make and share", km: "បង្កើត និងចែករំលែក", enSub: "Photos and cards", kmSub: "រូបថត និងកាត", color: "#0284C7", soft: "#E0F2FE",
     items: [
-      { href: "/photo-booth", Icon: Camera, en: "Photo booth", km: "ថតរូបជាមួយសត្វ" },
-      { href: "/postcard", Icon: Mail, en: "Postcard", km: "កាតប៉ុស្តាល់" },
     ],
   },
   {

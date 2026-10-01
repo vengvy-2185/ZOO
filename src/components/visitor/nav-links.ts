@@ -1,4 +1,4 @@
-import { Briefcase, Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, HeartHandshake, Star, Newspaper, Route, CircleHelp, Camera, Mail, Lightbulb, MessageCircle, Cake, ShieldAlert, BarChart3, type LucideIcon } from "lucide-react";
+import { Briefcase, Home, PawPrint, Map, Ticket, Trophy, CalendarDays, CalendarClock, HeartHandshake, Star, Newspaper, Route, CircleHelp, MessageCircle, ShieldAlert, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Single source of truth for the visitor site's menu — the desktop header,
@@ -20,16 +20,6 @@ type NavLink = { href: string; key: keyof Dictionary["nav"]; icon: LucideIcon };
 
 // Kept short on purpose: every game lives inside the one "Games" page.
 export const MORE_GROUPS: { key: keyof Dictionary["nav"]; links: NavLink[] }[] = [
-  {
-    key: "groupPlay",
-    links: [
-      { href: "/photo-booth", key: "booth", icon: Camera },
-      { href: "/postcard", key: "postcard", icon: Mail },
-      { href: "/facts", key: "facts", icon: Lightbulb },
-      { href: "/birthdays", key: "birthdays", icon: Cake },
-      { href: "/stats", key: "stats", icon: BarChart3 },
-    ],
-  },
   {
     key: "groupCreate",
     links: [

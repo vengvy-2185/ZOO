@@ -108,13 +108,13 @@ export function ZooAssistant() {
             setHint(false);
           }}
           aria-label={a.open}
-          className="group fixed bottom-24 right-1 z-40 h-[6.5rem] w-[5rem] transition-transform duration-300 hover:-translate-y-1 active:scale-95 md:bottom-5 md:right-4 md:h-[8.5rem] md:w-[6.5rem]"
+          className="group fixed bottom-24 right-1.5 z-40 h-[4.75rem] w-[3.75rem] transition-transform duration-300 hover:-translate-y-1 active:scale-95 md:bottom-5 md:right-4 md:h-[6rem] md:w-[4.75rem]"
         >
           <span className="absolute inset-x-3 bottom-1 h-3 rounded-[50%] bg-forest/25 blur-[4px] transition group-hover:scale-90" />
           <LottiePlayer src="/assistant/chatbot.json" className="relative h-full w-full drop-shadow-[0_8px_14px_rgba(14,63,36,.25)]" />
-          <span className="absolute -top-1 right-1 flex h-3.5 w-3.5">
+          <span className="absolute right-0 top-0 flex h-3 w-3">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-leaf opacity-60" />
-            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-leaf ring-2 ring-white" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-leaf ring-2 ring-white" />
           </span>
         </button>
       )}
@@ -124,7 +124,7 @@ export function ZooAssistant() {
             setOpen(true);
             setHint(false);
           }}
-          className="fixed bottom-[11rem] right-[4.5rem] z-40 max-w-[14rem] rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-left text-sm font-semibold text-forest shadow-lift ring-1 ring-black/5 animate-[gwzDrop_.4s_ease] md:bottom-[8.5rem] md:right-[7rem]"
+          className="fixed bottom-[9rem] right-[4rem] z-40 max-w-[14rem] rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-left text-sm font-semibold text-forest shadow-lift ring-1 ring-black/5 animate-[gwzDrop_.4s_ease] md:bottom-[6.5rem] md:right-[5.5rem]"
         >
           {a.hint}
         </button>
@@ -141,7 +141,7 @@ export function ZooAssistant() {
           />
           <style>{`@keyframes gwzRobotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes gwzRobotHop{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-18px) scale(1.03)}100%{transform:translateY(0) scale(1)}}@keyframes gwzRobotThink{0%,100%{transform:rotate(-2deg) translateY(0)}50%{transform:rotate(2deg) translateY(-4px)}}`}</style>
           <div
-            className="fixed inset-x-2 bottom-24 top-20 z-50 flex flex-col overflow-hidden rounded-3xl bg-white shadow-lift ring-1 ring-black/5 animate-[gwzSlideIn_.3s_ease] sm:inset-x-auto sm:right-4 sm:top-auto sm:h-[36rem] sm:max-h-[80vh] sm:w-[25rem] md:bottom-6 md:right-6"
+            className="fixed inset-x-2 bottom-24 top-20 z-50 flex flex-col overflow-hidden rounded-3xl bg-white shadow-lift ring-1 ring-black/5 animate-[gwzSlideIn_.3s_ease] sm:inset-x-auto sm:right-4 sm:top-auto sm:h-[33rem] sm:max-h-[80vh] sm:w-[23rem] md:bottom-6 md:right-6"
             role="dialog"
             aria-label={a.title}
           >
@@ -174,9 +174,9 @@ export function ZooAssistant() {
             >
               {msgs.length === 0 && (
                 <div className="relative mx-auto flex flex-col items-center pt-1">
-                  <span className="absolute top-6 h-36 w-36 rounded-full bg-gradient-to-b from-light-green to-transparent" />
+                  <span className="absolute top-5 h-28 w-28 rounded-full bg-gradient-to-b from-light-green to-transparent" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/assistant/robot.webp" alt="" className="relative h-44 w-auto drop-shadow-[0_14px_18px_rgba(14,63,36,.28)] motion-safe:animate-[gwzRobotFloat_3.2s_ease-in-out_infinite]" />
+                  <img src="/assistant/robot.webp" alt="" className="relative h-36 w-auto drop-shadow-[0_14px_18px_rgba(14,63,36,.28)] motion-safe:animate-[gwzRobotFloat_3.2s_ease-in-out_infinite]" />
                   <span className="-mt-1 h-3 w-24 rounded-[50%] bg-forest/15 blur-[4px]" />
                 </div>
               )}

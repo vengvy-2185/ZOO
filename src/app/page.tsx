@@ -15,7 +15,6 @@ import { HeroWildlife, Butterflies } from "@/components/visitor/JungleAmbience";
 import { TodayAtZoo } from "@/components/visitor/EventsSchedule";
 import { TodayConditions } from "@/components/visitor/TodayConditions";
 import { AnimalOfTheDay } from "@/components/visitor/AnimalOfTheDay";
-import { DiscoverMore } from "@/components/visitor/DiscoverMore";
 import { OpenStatus } from "@/components/visitor/OpenStatus";
 import { CountUp } from "@/components/visitor/CountUp";
 import { FactsCarousel, type Fact } from "@/components/visitor/FactsCarousel";
@@ -98,7 +97,6 @@ const experiences = (t: Dictionary) => [
   { icon: MapIcon, label: t.home.expMap, desc: t.home.expMapText, href: "/map" },
   { icon: Trophy, label: t.home.expQuest, desc: t.home.expQuestText, href: "/quest" },
   { icon: Route, label: t.nav.planner, desc: t.planner.eyebrow, href: "/planner" },
-  { icon: Camera, label: t.nav.booth, desc: t.booth.eyebrow, href: "/photo-booth" },
 ];
 
 const SITE_URL = CANONICAL_URL;
@@ -253,7 +251,6 @@ export default async function HomePage() {
         <TodayAtZoo />
         <TodayConditions />
         <AnimalOfTheDay />
-        <DiscoverMore />
 
         {/* ───────────── POPULAR ANIMALS ───────────── */}
         <section>
@@ -368,29 +365,6 @@ export default async function HomePage() {
             </div>
           </section>
         )}
-
-        {/* ───────────── PHOTO BOOTH ───────────── */}
-        <Link
-          href="/photo-booth"
-          data-reveal="zoom"
-          className="group relative flex items-center gap-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#9D174D] via-[#E11D48] to-[#FB923C] p-6 text-white shadow-lift md:p-8"
-        >
-          <div className="pointer-events-none absolute -right-6 -top-6 select-none text-[7rem] opacity-20 transition-transform duration-700 group-hover:rotate-12 md:text-[9rem]" aria-hidden>
-            📸
-          </div>
-          <div className="relative flex h-24 w-20 flex-shrink-0 rotate-[-6deg] flex-col rounded-xl bg-white p-1.5 shadow-lift transition-transform duration-500 group-hover:rotate-0 md:h-32 md:w-28">
-            <span className="flex flex-1 items-center justify-center rounded-lg bg-gradient-to-br from-forest to-primary text-3xl md:text-4xl">🦁</span>
-            <span className="mt-1 text-center text-[8px] font-extrabold text-forest">Green Wild Zoo</span>
-          </div>
-          <div className="relative">
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider">{t.booth.eyebrow}</span>
-            <h2 className="mt-2 font-display text-2xl font-extrabold md:text-3xl">{t.booth.title}</h2>
-            <p className="mt-1 max-w-md text-sm text-white/85">{t.booth.subtitle}</p>
-            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-extrabold text-[#E11D48] transition group-hover:gap-3">
-              {t.booth.startCamera} <ArrowRight size={16} />
-            </span>
-          </div>
-        </Link>
 
         {/* ───────────── ADVENTURE BANNER ───────────── */}
         <section data-reveal="zoom" className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary via-secondary to-primary p-6 text-white shadow-lift md:p-10">

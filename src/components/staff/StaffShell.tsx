@@ -8,7 +8,6 @@ import { getI18n } from "@/lib/i18n/server";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
-import { VoiceToggle } from "@/components/GlobalVoice";
 import { StaffNav, type StaffNavItem } from "./StaffNav";
 import { StaffBottomNav } from "./StaffBottomNav";
 import { SosDock } from "./SosDock";
@@ -88,7 +87,6 @@ export async function StaffShell({ title, subtitle, hero, children, bare = false
               <span className="absolute inset-0 animate-ping rounded-full bg-red-400/40 [animation-duration:2.4s]" />
               <Siren size={16} className="relative" /> <span className="relative">SOS</span>
             </Link>
-            <VoiceToggle km={km} className="bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/20" />
             <LanguageSwitcher tone="blue" className="[&>svg]:hidden sm:[&>svg]:block" />
             {access.admin && (
               <Link href="/admin" className="hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-xs font-bold hover:bg-white/25 sm:inline-flex">

@@ -47,7 +47,6 @@ const WORDS = {
   message: ["send a message", "complain", "complaint", "lost something", "lost item", "lost and found", "email you", "ទាក់ទង", "ផ្ញើសារ", "បាត់របស់", "តវ៉ា"],
   facts: ["fact", "facts", "did you know", "fun fact", "ចំណេះដឹង", "ការពិត"],
   rewards: ["points", "point", "reward", "rewards", "redeem", "invite", "referral", "refer a friend", "ពិន្ទុ", "រង្វាន់", "អញ្ជើញមិត្ត", "ណែនាំមិត្ត", "ប្តូរពិន្ទុ"],
-  booth: ["postcard", "post card", "កាតប៉ុស្តាល់", "photo booth", "selfie", "take a photo", "take photo", "picture with", "ថតរូប", "សែលហ្វី", "រូបថតជាមួយ"],
   food: ["food", "eat", "restaurant", "cafe", "coffee", "hungry", "drink", "snack", "អាហារ", "ញ៉ាំ", "ឃ្លាន", "ហាងកាហ្វេ", "ភេសជ្ជៈ", "ភោជនីយដ្ឋាន"],
   toilet: ["toilet", "restroom", "bathroom", "wc", "washroom", "បង្គន់", "បន្ទប់ទឹក"],
   parking: ["parking", "park my", "car park", "motorbike", "ចំណត", "ចតរថយន្ត", "ចតម៉ូតូ"],
@@ -255,7 +254,7 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
     return { text: L("You can send us a message on the Contact Us page (questions, lost items, ideas). Leave your phone or email and we will reply.", "អ្នកអាចផ្ញើសារមកយើងនៅទំព័រទាក់ទងយើង (សំណួរ បាត់របស់ ឬគំនិត)។ ទុកលេខទូរស័ព្ទ ឬអ៊ីមែល ហើយយើងនឹងឆ្លើយតប។"), links: [{ label: L("Contact us", "ទាក់ទងយើង"), href: "/contact" }] };
   }
   if (has(q, WORDS.facts)) {
-    return { text: L("Our Animal Facts cards are full of surprises about the animals who live here. How many can you learn?", "កាតចំណេះដឹងពីសត្វ មានរឿងគួរឱ្យភ្ញាក់ផ្អើលច្រើនអំពីសត្វដែលរស់នៅទីនេះ។ តើអ្នករៀនបានប៉ុន្មាន?"), links: [{ label: L("Animal facts", "ចំណេះដឹងពីសត្វ"), href: "/facts" }] };
+    return { text: L("Every animal's page tells its story, what it eats and surprising facts about it.", "ទំព័រសត្វនីមួយៗ មានរឿងរ៉ាវ អាហារ និងចំណេះដឹងគួរឱ្យភ្ញាក់ផ្អើលអំពីវា។"), links: [{ label: L("Our animals", "សត្វរបស់យើង"), href: "/animals" }] };
   }
   if (has(q, WORDS.rewards)) {
     return {
@@ -265,9 +264,6 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
       ),
       links: [{ label: L("Points & Rewards", "ពិន្ទុ និងរង្វាន់"), href: "/rewards" }, { label: L("Animal Quest", "បេសកកម្មសត្វ"), href: "/quest" }],
     };
-  }
-  if (has(q, WORDS.booth)) {
-    return { text: L("Try our Photo Booth! Take a selfie, add real animal stickers and a jungle frame, then save or share it.", "សាកផ្ទាំងថតរូបរបស់យើង! ថតសែលហ្វី បន្ថែមស្ទីគ័រសត្វពិតៗ និងស៊ុមព្រៃ រួចរក្សាទុក ឬចែករំលែក។"), links: [{ label: L("Photo booth", "ថតរូបជាមួយសត្វ"), href: "/photo-booth" }, { label: L("Animal postcard", "កាតប៉ុស្តាល់សត្វ"), href: "/postcard" }] };
   }
   if (has(q, WORDS.food) || has(q, WORDS.toilet) || has(q, WORDS.parking)) {
     const { facilities } = await getZonesAndFacilities().catch(() => ({ facilities: [] as any[] }));

@@ -7,7 +7,7 @@
    Pages from the signed-in areas (/staff, /admin, /account…) are kept apart
    and removed on sign-out or when someone else signs in on the device. */
 
-const VERSION = "v6"; // a new version removes the pages saved by the old one
+const VERSION = "v7"; // a new version removes the pages saved by the old one
 const STATIC = `gwz-static-${VERSION}`;
 const PAGES = `gwz-pages-${VERSION}`;
 const PRIVATE = `gwz-private-${VERSION}`;
@@ -234,7 +234,7 @@ function splash(url) {
   const html = `<!doctype html><html lang="km"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="${c.a}"><title>${name}</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden}
-body{display:grid;place-items:center;background:linear-gradient(160deg,${c.a},${c.b} 55%,${c.c});font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;width:100vw;background:linear-gradient(160deg,${c.a},${c.b} 55%,${c.c});font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff}
 .w{display:flex;flex-direction:column;align-items:center;gap:18px;animation:in .5s ease-out both}
 .logo{position:relative;width:128px;height:128px}
 .ring{position:absolute;inset:-14px;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#9BD13B;animation:spin 1.1s linear infinite}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { TodayBoard } from "@/components/admin/TodayBoard";
 import { getI18n } from "@/lib/i18n/server";
 import { num, formatFullDate } from "@/lib/utils/age";
-import { PawPrint, Dna, Users, Ticket, Wallet, Map as MapIcon, Plus, TrendingUp, PieChart, Cake, CheckCircle2 } from "lucide-react";
+import { PawPrint, Dna, Users, Ticket, Wallet, Map as MapIcon, Plus, TrendingUp, PieChart, CheckCircle2 } from "lucide-react";
 
 import { AppSetup } from "@/components/staff/AppSetup";
 async function getStats() {
@@ -18,7 +18,6 @@ async function getStats() {
     { count: activeZones },
     { data: todaysBookings },
     { data: weekBookings },
-    { data: birthdays },
     { data: recentCheckins },
     { data: ticketTypeSales },
   ] = await Promise.all([
@@ -31,7 +30,6 @@ async function getStats() {
       .select("visit_date, total_usd, booking_items(quantity)")
       .gte("visit_date", sevenDaysAgo)
       .order("visit_date"),
-    supabase.rpc("get_upcoming_birthdays", { p_days: 0 }),
     supabase
       .from("visitor_checkins")
       .select("*, bookings(booking_code, visit_date)")
@@ -77,7 +75,6 @@ async function getStats() {
     todaysVisitors,
     todaysTickets,
     todaysRevenue,
-    birthdays: birthdays ?? [],
     recentCheckins: recentCheckins ?? [],
     visitorsTrend,
     revenueTrend,
@@ -163,33 +160,7 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="card p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest">
-              <Cake size={18} className="text-primary" /> {d.birthdays}
-            </h2>
-            <Link href="/admin/birthdays" className="text-xs font-bold text-primary">
-              {t.common.viewAll}
-            </Link>
-          </div>
-          {stats.birthdays.length === 0 ? (
-            <p className="rounded-2xl bg-cream p-4 text-sm text-ink/50">{d.noBirthdays}</p>
-          ) : (
-            <ul className="divide-y divide-black/5 text-sm">
-              {stats.birthdays.map((b: any) => (
-                <li key={b.animal_id} className="flex items-center gap-3 py-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/30 text-forest">
-                    <Cake size={16} />
-                  </span>
-                  <span className="flex-1 font-semibold text-forest">{b.name}</span>
-                  <span className="text-xs text-ink/50">{b.animal_code}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
+      <div className="mt-6">
         <div className="card p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest">

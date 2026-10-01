@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, ExternalLink, LogOut } from "lucide-react";
 import { LanguageSwitcher } from "@/components/visitor/LanguageSwitcher";
-import { VoiceToggle } from "@/components/GlobalVoice";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
 import { useI18n } from "@/lib/i18n/client";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
@@ -51,7 +50,6 @@ export function AdminTopBar({ name, email, avatarUrl }: { name: string; email: s
       </nav>
 
       <div className="flex flex-shrink-0 items-center gap-3">
-        <VoiceToggle km={locale === "km"} className="text-forest hover:bg-light-green" />
         <LanguageSwitcher />
         <Link href="/" target="_blank" className="btn border border-black/10 px-4 py-2 text-xs text-forest hover:border-primary hover:text-primary">
           <ExternalLink size={14} /> {t.admin.viewWebsite}
