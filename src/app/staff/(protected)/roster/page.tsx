@@ -66,7 +66,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
   const rules = await getRosterRules();
   const db = createServiceRoleClient();
   const [{ data: staffRows }, s] = await Promise.all([
-    db.from("staff_members").select("user_id, full_name, staff_no, position:staff_positions(name, name_km, permissions)").eq("status", "active").order("full_name"),
+    db.from("staff_members").select("user_id, full_name, staff_no, position_id, position:staff_positions(name, name_km, permissions)").eq("status", "active").order("full_name"),
     getAttendanceSettings(),
   ]);
   // each person's main team (managers go last), so "everyone" is grouped by team
@@ -76,8 +76,12 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
     if (perms.includes("reports")) return "reports";
     return ORDER.find((k) => perms.includes(k)) ?? "reports";
   };
+  // staff (not managers / planners) see only themselves and their own team:
+  // people in their section, or in the same position
+  const myPos = access.staff?.position_id ?? null;
+  const myTeam = (p: any) => p.user_id === userId || (myPos && p.position_id === myPos) || (p.position?.permissions ?? []).some((x: string) => (mySections as string[]).includes(x));
   const team = (staffRows ?? [])
-    .filter((p: any) => !section || (p.position?.permissions ?? []).includes(section))
+    .filter((p: any) => (seesAll ? !section || (p.position?.permissions ?? []).includes(section) : section ? (p.position?.permissions ?? []).includes(section) : myTeam(p)))
     .sort((a: any, b: any) => ORDER.indexOf(primaryOf(a) as any) - ORDER.indexOf(primaryOf(b) as any) || String(a.full_name).localeCompare(String(b.full_name)));
   if (!seesAll && access.staff && !team.some((p: any) => p.user_id === userId)) team.unshift(access.staff as any);
   const ids = team.map((p: any) => p.user_id);
@@ -106,7 +110,7 @@ export default async function RosterPage({ searchParams }: { searchParams: { w?:
 
   // requests: what I can do about them
   const reqs = (requests ?? []) as any[];
-  const colleaguesOfMe = new Set((staffRows ?? []).filter((p: any) => (p.position?.permissions ?? []).some((x: string) => mySections.includes(x as any))).map((p: any) => p.user_id));
+  const colleaguesOfMe = new Set((staffRows ?? []).filter((p: any) => (p.position?.permissions ?? []).some((x: string) => mySections.includes(x as any)) || (myPos && p.position_id === myPos)).map((p: any) => p.user_id));
   // only people on the staff list can take a cover (an admin account has no shifts or pay)
   const forMe = reqs.filter((r) => Boolean(access.staff) && (r.status === "open" || r.taken_by === userId) && r.from_user !== userId && ((r.kind === "cover" && colleaguesOfMe.has(r.from_user)) || ((r.kind === "swap" || r.kind === "dayoff") && r.swap?.user_id === userId)));
   const mine = reqs.filter((r) => r.from_user === userId);

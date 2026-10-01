@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Lock, UserRound, type LucideIcon } from "lucide-react";
+import { ChevronLeft, Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Lock, UserRound, UserPlus, type LucideIcon } from "lucide-react";
 import { dmPeer, inDm } from "@/lib/chat-dm";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -12,6 +12,7 @@ import { msgText } from "@/lib/chat-text";
 import { CallButtons, CallPerson } from "@/components/staff/CallButtons";
 import { ChatList } from "@/components/staff/ChatList";
 import { staffIds, managerIds } from "@/lib/server/push";
+import { hrTeam } from "@/lib/server/hr";
 import { cn } from "@/lib/utils/cn";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ const CHANNELS: { key: string; Icon: LucideIcon; en: string; km: string; color: 
   { key: "animals", Icon: PawPrint, en: "Animal care", km: "ថែសត្វ", color: "#B45309" },
   { key: "cleaning", Icon: Sparkles, en: "Cleaning", km: "សម្អាត", color: "#0F766E" },
   { key: "guide", Icon: MapIcon, en: "Guides", km: "មគ្គុទ្ទេសក៍", color: "#7C3AED" },
+  { key: "hr", Icon: UserPlus, en: "HR team", km: "ក្រុម HR", color: "#9333EA" },
 ];
 const ONLINE_MS = 45_000;
 
@@ -94,7 +96,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     callIds.length ? db.from("staff_calls").select("id, video, created_at, alive_at, ended_at").in("id", callIds) : Promise.resolve({ data: [] as any[] }),
     replyIds.length ? db.from("staff_messages").select("id, user_id, body, kind, files, audio_url, meta").in("id", replyIds) : Promise.resolve({ data: [] as any[] }),
     db.from("staff_calls").select("id, video, started_by").eq("channel", ch.key).is("to_user", null).is("ended_at", null).gte("alive_at", aliveSince).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    ch.peer ? Promise.resolve([userId, ch.peer]) : ch.key === "all" ? Promise.all([staffIds(), managerIds()]).then((x) => x.flat()) : ch.key === "managers" ? managerIds() : Promise.all([staffIds(ch.key), managerIds()]).then((x) => x.flat()),
+    ch.peer ? Promise.resolve([userId, ch.peer]) : ch.key === "hr" ? hrTeam() : ch.key === "all" ? Promise.all([staffIds(), managerIds()]).then((x) => x.flat()) : ch.key === "managers" ? managerIds() : Promise.all([staffIds(ch.key), managerIds()]).then((x) => x.flat()),
   ]);
   const reactions: Record<string, { user_id: string; emoji: string }[]> = {};
   for (const r of reactRows ?? []) (reactions[r.message_id] ??= []).push({ user_id: r.user_id, emoji: r.emoji });

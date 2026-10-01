@@ -9,7 +9,7 @@ import { inDm } from "@/lib/chat-dm";
 // latest messages still exist, reactions, who read up to where, and the
 // last message + unread count of each room for the list.
 export const dynamic = "force-dynamic";
-const ROOMS = ["all", "managers", "tickets", "animals", "cleaning", "guide"];
+const ROOMS = ["all", "managers", "tickets", "animals", "cleaning", "guide", "hr"];
 
 export async function GET(req: Request) {
   const me = await getSessionUser();

@@ -539,7 +539,7 @@ export async function startCall(channel: string, video: boolean, toUser?: string
   const { data: call, error } = await db.from("staff_calls").insert({ channel, started_by: id, video }).select("id").single();
   if (error || !call) return { error: error?.message ?? "call" };
   await db.from("staff_messages").insert({ channel, user_id: id, kind: "call", meta: { call_id: call.id, video } });
-  const ROOM: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
+  const ROOM: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត", hr: "ក្រុម HR" };
   await sendPush((await chatMembers(channel)).filter((u) => u !== id), {
     title: `${video ? "📹" : "📞"} ${who(access)} កំពុងហៅ`,
     body: `${video ? "ហៅជាវីដេអូ" : "ហៅជាសំឡេង"} · ${isDm(channel) ? "សារផ្ទាល់" : ROOM[channel] ?? channel} — ចុចដើម្បីចូលរួម`,
@@ -564,6 +564,8 @@ export async function endCall(callId: string) {
 /** Everyone who can read a room. */
 async function chatMembers(channel: string) {
   if (isDm(channel)) return channel.split(":").slice(1);
+  // the HR room: HR staff and admins
+  if (channel === "hr") return (await import("@/lib/server/hr")).hrTeam();
   return channel === "all" ? [...(await staffIds()), ...(await managerIds())] : channel === "managers" ? await managerIds() : [...(await staffIds(channel)), ...(await managerIds())];
 }
 export async function deleteChat(messageId: string) {
@@ -855,7 +857,7 @@ export async function addDayOff(formData: FormData) {
 export async function setStaffAccount(userId: string, status: "active" | "suspended" | "left") {
   const { id, access } = await me();
   await audit("staff.account", "staff_members", userId, { status });
-  if ((!isManager(access) && !access.perms.has("hr")) || userId === id || !["active", "suspended", "left"].includes(status)) throw new Error("Not allowed.");
+  if (!isManager(access) || userId === id || !["active", "suspended", "left"].includes(status)) throw new Error("Not allowed.");
   const { data: target } = await createServiceRoleClient().from("staff_members").select("position:staff_positions(permissions)").eq("user_id", userId).maybeSingle();
   if (!target) throw new Error("Not a staff member.");
   // a manager can't switch off another manager (only the admin can)
@@ -869,7 +871,7 @@ export async function setStaffAccount(userId: string, status: "active" | "suspen
 /** A new chat message reaches the phones of everyone who can read that chat (not the sender). */
 async function pushChat(channel: string, senderId: string, access: Awaited<ReturnType<typeof staffAccess>>, text: string) {
   const ids = await chatMembers(channel);
-  const room: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
+  const room: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត", hr: "ក្រុម HR" };
   await sendPush(
     ids.filter((u) => u !== senderId),
     { title: isDm(channel) ? `💬 ${who(access)} · សារផ្ទាល់` : `💬 ${who(access)} · ${room[channel] ?? channel}`, body: text.slice(0, 140), url: `/staff/chat?c=${channel}`, tag: `chat-${channel}` }

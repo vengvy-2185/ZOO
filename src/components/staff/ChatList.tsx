@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Lock, type LucideIcon } from "lucide-react";
+import { Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Lock, UserPlus, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { msgText, chatTime, chatDayKey } from "@/lib/chat-text";
 import { cn } from "@/lib/utils/cn";
 
-const ICONS: Record<string, LucideIcon> = { all: Users, managers: ShieldCheck, tickets: Ticket, animals: PawPrint, cleaning: Sparkles, guide: MapIcon };
+const ICONS: Record<string, LucideIcon> = { all: Users, managers: ShieldCheck, tickets: Ticket, animals: PawPrint, cleaning: Sparkles, guide: MapIcon, hr: UserPlus };
 type Room = { key: string; label: string; color: string; avatar?: string | null; dm?: boolean; online?: boolean };
 type Last = { user_id: string | null; created_at: string; body: string | null; kind?: string | null; files?: any; audio_url?: string | null; meta?: any } | null;
 

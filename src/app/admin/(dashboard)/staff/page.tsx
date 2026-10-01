@@ -28,7 +28,7 @@ const input = "w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-
 export default async function AdminStaffPage({ searchParams }: { searchParams: { tab?: string; month?: string; at?: string; sess?: string; q?: string } }) {
   const { locale } = getI18n();
   const km = locale === "km";
-  // HR staff use this page too, without positions (rates, rights) and settings
+  // (the admin layout lets only admins in)
   const isAdmin = (await getCachedRole(getVerifiedUserId()!)).role === "admin";
   const tabs = TABS.filter((k) => isAdmin || (k !== "positions" && k !== "settings"));
   const tab = (tabs as readonly string[]).includes(searchParams.tab ?? "") ? searchParams.tab! : "people";

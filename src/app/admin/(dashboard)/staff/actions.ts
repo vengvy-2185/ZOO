@@ -11,15 +11,10 @@ import { makePassword, staffEmail, monthRange, payroll, isStaffNo, type Permissi
 import { createStaffAccount } from "@/lib/server/staff-account";
 
 import { audit } from "@/lib/server/audit";
-import { hrMayManage, requireAdminOrHr } from "@/lib/server/staff-guard";
 // Staff accounts are made here, and only here: an admin fills in the form,
 // the server creates the sign-in account (Staff ID + password), the staff
 // record, the "staff" role and the ID card in one go.
 
-/** Admin or HR: returns the person's id. */
-async function staffManager() {
-  return (await requireAdminOrHr()).id;
-}
 async function requireAdmin() {
   const id = getVerifiedUserId();
   if (!id || (await getCachedRole(id)).role !== "admin") throw new Error("Admins only.");
@@ -38,9 +33,7 @@ const done = () => {
 export type CreateStaffState = { ok: false; error?: string } | { ok: true; staffNo: string; password: string; name: string; userId: string };
 
 export async function createStaff(_prev: CreateStaffState, formData: FormData): Promise<CreateStaffState> {
-  const actor = await requireAdminOrHr();
-  const adminId = actor.id;
-  if (!(await hrMayManage(actor, null, String(formData.get("position_id") ?? "")))) return { ok: false, error: "Only the admin can give this position (it has HR / manager rights)." };
+  const adminId = await requireAdmin();
   await audit("staff.create", "staff_members", null, { name: String(formData.get("full_name") ?? ""), position: String(formData.get("position_id") ?? "") });
   const name = str(formData, "full_name");
   const positionId = str(formData, "position_id");
@@ -72,8 +65,7 @@ export async function createStaff(_prev: CreateStaffState, formData: FormData): 
 }
 
 export async function updateStaff(userId: string, formData: FormData) {
-  const actor = await requireAdminOrHr();
-  if (!(await hrMayManage(actor, userId, String(formData.get("position_id") ?? "") || null))) throw new Error("Only the admin can change this person or give this position.");
+  await requireAdmin();
   await audit("staff.update", "staff_members", userId, { name: String(formData.get("full_name") ?? ""), status: String(formData.get("status") ?? ""), position: String(formData.get("position_id") ?? "") });
   const db = createServiceRoleClient();
   const status = str(formData, "status");
@@ -102,8 +94,7 @@ export async function updateStaff(userId: string, formData: FormData) {
 
 export type ResetState = { password?: string; error?: string };
 export async function resetStaffPassword(userId: string, _prev: ResetState): Promise<ResetState> {
-  const actor = await requireAdminOrHr();
-  if (!(await hrMayManage(actor, userId))) return { error: "Only the admin can reset this person's password." };
+  await requireAdmin();
   await audit("staff.password", "staff_members", userId);
   const password = makePassword();
   const { error } = await createServiceRoleClient().auth.admin.updateUserById(userId, { password });
@@ -145,7 +136,7 @@ export async function deletePosition(id: string) {
 
 // ── Payroll ───────────────────────────────────────────────────────────
 export async function addAdjustment(userId: string, month: string, formData: FormData) {
-  const adminId = await staffManager();
+  const adminId = await requireAdmin();
   await audit("pay.adjust", "staff_pay_adjustments", userId, { month, amount: String(formData.get("amount") ?? ""), note: String(formData.get("note") ?? "") });
   const amount = money(formData, "amount") * (str(formData, "sign") === "-" ? -1 : 1);
   const note = str(formData, "note");
@@ -154,14 +145,14 @@ export async function addAdjustment(userId: string, month: string, formData: For
   done();
 }
 export async function removeAdjustment(id: string) {
-  await staffManager();
+  await requireAdmin();
   await audit("pay.adjust.remove", "staff_pay_adjustments", id);
   await createServiceRoleClient().from("staff_pay_adjustments").delete().eq("id", id);
   done();
 }
 /** Freezes this month's figures into a payslip, marked paid now. */
 export async function markPaid(userId: string, month: string) {
-  const adminId = await staffManager();
+  const adminId = await requireAdmin();
   await audit("pay.paid", "staff_payslips", userId, { month });
   const [line] = await payroll(month, userId);
   if (!line) return;
@@ -184,7 +175,7 @@ export async function markPaid(userId: string, month: string) {
   done();
 }
 export async function unmarkPaid(userId: string, month: string) {
-  await staffManager();
+  await requireAdmin();
   await audit("pay.unpaid", "staff_payslips", userId, { month });
   await createServiceRoleClient().from("staff_payslips").delete().eq("user_id", userId).eq("month", monthRange(month).first);
   done();
@@ -192,7 +183,7 @@ export async function unmarkPaid(userId: string, month: string) {
 
 // ── Leave requests ────────────────────────────────────────────────────
 export async function decideLeave(id: string, formData: FormData) {
-  const adminId = await staffManager();
+  const adminId = await requireAdmin();
   await audit("leave.decide", "staff_leave_requests", id, { decision: String(formData.get("decision") ?? ""), note: String(formData.get("admin_note") ?? "") });
   const status = str(formData, "decision");
   if (!["approved", "rejected"].includes(status)) return;
@@ -212,7 +203,7 @@ export async function decideLeave(id: string, formData: FormData) {
 
 // ── Notices ───────────────────────────────────────────────────────────
 export async function postNotice(formData: FormData) {
-  const adminId = await staffManager();
+  const adminId = await requireAdmin();
   const title = str(formData, "title").slice(0, 120);
   const body = str(formData, "body").slice(0, 2000);
   if (!title || !body) return;
@@ -220,12 +211,12 @@ export async function postNotice(formData: FormData) {
   done();
 }
 export async function deleteNotice(id: string) {
-  await staffManager();
+  await requireAdmin();
   await createServiceRoleClient().from("staff_announcements").delete().eq("id", id);
   done();
 }
 export async function togglePin(id: string, pinned: boolean) {
-  await staffManager();
+  await requireAdmin();
   await createServiceRoleClient().from("staff_announcements").update({ pinned }).eq("id", id);
   done();
 }

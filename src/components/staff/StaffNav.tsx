@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, Package, ListChecks, Archive, NotebookPen, MessagesSquare, CalendarRange, CalendarDays, Banknote, ChevronDown, Briefcase, Users, UserPlus, UsersRound, HandCoins } from "lucide-react";
+import { Home, QrCode, ClipboardCheck, Wrench, ScanLine, UserRoundPlus, Ticket, PawPrint, Map, Sparkles, BarChart3, Clock, CalendarOff, Wallet, UserRound, Package, ListChecks, Archive, NotebookPen, MessagesSquare, CalendarRange, CalendarDays, Banknote, ChevronDown, Briefcase, Users, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-export const STAFF_ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, tasks: ListChecks, lost: Archive, handover: NotebookPen, chat: MessagesSquare, roster: CalendarRange, calendar: CalendarDays, cash: Banknote, hr: UserPlus, staffAdmin: UsersRound, payday: HandCoins };
+export const STAFF_ICONS = { home: Home, checkin: QrCode, team: ClipboardCheck, issues: Wrench, scanner: ScanLine, gate: UserRoundPlus, bookings: Ticket, animals: PawPrint, schedule: Map, cleaning: Sparkles, reports: BarChart3, attendance: Clock, leave: CalendarOff, pay: Wallet, profile: UserRound, supplies: Package, tasks: ListChecks, lost: Archive, handover: NotebookPen, chat: MessagesSquare, roster: CalendarRange, calendar: CalendarDays, cash: Banknote, hr: UserPlus };
 const ICONS = STAFF_ICONS;
 export type StaffNavItem = { key: keyof typeof ICONS; href: string; label: string; group: "main" | "tools" | "team" | "me" };
 const GROUP_ICONS = { tools: Briefcase, team: Users, me: UserRound };

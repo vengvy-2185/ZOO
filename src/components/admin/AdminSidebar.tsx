@@ -83,10 +83,7 @@ function isActive(pathname: string, href: string) {
   return href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** HR staff see only these (and a way back to the staff app). */
-const HR_KEYS = ["staff", "payday", "hr", "chat", "roster", "calendar"];
-
-export function AdminSidebar({ hrOnly = false }: { hrOnly?: boolean }) {
+export function AdminSidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -103,7 +100,7 @@ export function AdminSidebar({ hrOnly = false }: { hrOnly?: boolean }) {
   const nav = (
     <>
       <nav className="no-scrollbar flex-1 space-y-3.5 overflow-y-auto px-3 pb-4">
-        {GROUPS.map((g) => (hrOnly ? { ...g, items: g.items.filter((i) => HR_KEYS.includes(i.key)) } : g)).filter((g) => g.items.length).map((group) => (
+        {GROUPS.map((group) => (
           <div key={group.title}>
             <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">{t.admin.groups[group.title]}</p>
             <div className="space-y-0.5">
@@ -130,15 +127,9 @@ export function AdminSidebar({ hrOnly = false }: { hrOnly?: boolean }) {
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        {hrOnly ? (
-          <Link href="/staff" className="flex items-center gap-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.12] hover:text-white">
-            <ScanLine size={17} className="text-leaf" /> {t.admin.items.staff} · App
-          </Link>
-        ) : (
-          <Link href="/staff/scanner" className="flex items-center gap-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.12] hover:text-white">
-            <ScanLine size={17} className="text-leaf" /> {t.admin.ticketScanner}
-          </Link>
-        )}
+        <Link href="/staff/scanner" className="flex items-center gap-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.12] hover:text-white">
+          <ScanLine size={17} className="text-leaf" /> {t.admin.ticketScanner}
+        </Link>
         {/* Phones have no top bar — show its controls here instead. */}
         <div className="mt-2 space-y-1 md:hidden">
           <Link href="/" className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/[0.07] hover:text-white">
