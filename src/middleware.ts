@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
   const forwarded = new Headers(request.headers);
   forwarded.delete(VERIFIED_USER_HEADER);
   if (user) forwarded.set(VERIFIED_USER_HEADER, user.id);
+  forwarded.set("x-gwz-path", request.nextUrl.pathname);
 
   const next = NextResponse.next({ request: { headers: forwarded } });
   // Keep any refreshed auth cookies that updateSession() set.

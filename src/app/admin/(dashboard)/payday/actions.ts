@@ -8,14 +8,14 @@ import { monthRange } from "@/lib/server/staff";
 import { issuePayslips, monthLabel, paydayById, paydayFor } from "@/lib/server/payday";
 import { sendPush, staffIds } from "@/lib/server/push";
 import { audit } from "@/lib/server/audit";
+import { requireAdminOrHr } from "@/lib/server/staff-guard";
 
 // Payday for the admin: set the day, open it (payslips are frozen and the
 // QR codes start working), answer requests, mark late collections, close.
 
+// the admin, or HR staff
 async function requireAdmin() {
-  const id = getVerifiedUserId();
-  if (!id || (await getCachedRole(id)).role !== "admin") throw new Error("Admins only.");
-  return id;
+  return (await requireAdminOrHr()).id;
 }
 const db = () => createServiceRoleClient();
 const done = () => {

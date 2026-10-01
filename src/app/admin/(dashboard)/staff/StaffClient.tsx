@@ -86,7 +86,7 @@ function PhotoPicker({ km }: { km: boolean }) {
 }
 
 /** Admin: add a staff member. Shows the Staff ID + password once, right after. */
-export function AddStaffForm({ positions, km, today }: { positions: Pos[]; km: boolean; today: string }) {
+export function AddStaffForm({ positions, km, today, canPositions = true }: { positions: Pos[]; km: boolean; today: string; canPositions?: boolean }) {
   const [state, action] = useFormState<CreateStaffState, FormData>(createStaff, { ok: false });
   const [key, setKey] = useState(0);
   const L = km
@@ -147,7 +147,7 @@ export function AddStaffForm({ positions, km, today }: { positions: Pos[]; km: b
           <label className="block">
             <span className="mb-1 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink/50">
               <span>{L.pos} *</span>
-              <Link href="/admin/staff?tab=positions" className="normal-case tracking-normal text-primary underline">{km ? "＋ តួនាទីថ្មី (ឧ. HR)" : "＋ New position (e.g. HR)"}</Link>
+              {canPositions && <Link href="/admin/staff?tab=positions" className="normal-case tracking-normal text-primary underline">{km ? "＋ តួនាទីថ្មី (ឧ. HR)" : "＋ New position (e.g. HR)"}</Link>}
             </span>
             <select name="position_id" required className={field} defaultValue={positions[1]?.id ?? positions[0]?.id}>
               {positions.map((p) => (

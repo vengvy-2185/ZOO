@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, type LucideIcon } from "lucide-react";
+import { Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Lock, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { msgText, chatTime, chatDayKey } from "@/lib/chat-text";
 import { cn } from "@/lib/utils/cn";
 
 const ICONS: Record<string, LucideIcon> = { all: Users, managers: ShieldCheck, tickets: Ticket, animals: PawPrint, cleaning: Sparkles, guide: MapIcon };
-type Room = { key: string; label: string; color: string };
+type Room = { key: string; label: string; color: string; avatar?: string | null; dm?: boolean; online?: boolean };
 type Last = { user_id: string | null; created_at: string; body: string | null; kind?: string | null; files?: any; audio_url?: string | null; meta?: any } | null;
 
 /** The list of rooms: last message and unread count, kept up to date live. */
@@ -51,16 +51,28 @@ export function ChatList({ rooms, current, last, unread, me, names, km }: { room
 
   return (
     <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
-      {rooms.map((c) => {
+      {rooms.map((c, i) => {
         const Icon = ICONS[c.key] ?? Users;
         const on = c.key === current;
         const n = on ? 0 : counts[c.key] ?? 0;
         const l = lastOf[c.key];
         return (
-          <Link key={c.key} href={`/staff/chat?c=${c.key}`} className={cn("flex items-center gap-3 rounded-2xl p-2.5 transition", on ? "md:bg-[#EEF2FF]" : "hover:bg-slate-50", "active:bg-[#EEF2FF]")}>
-            <span className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm" style={{ background: c.color }}>
-              <Icon size={21} />
-            </span>
+          <div key={c.key}>
+          {c.dm && !rooms[i - 1]?.dm && <p className="mb-1 mt-3 flex items-center gap-1.5 px-2.5 text-[11px] font-extrabold uppercase tracking-wider text-ink/40"><Lock size={11} /> {km ? "សារផ្ទាល់" : "Private"}</p>}
+          <Link href={`/staff/chat?c=${c.key}`} className={cn("flex items-center gap-3 rounded-2xl p-2.5 transition", on ? "md:bg-[#EEF2FF]" : "hover:bg-slate-50", "active:bg-[#EEF2FF]")}>
+            {c.dm ? (
+              <span className="relative h-12 w-12 flex-shrink-0">
+                <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[#CFFAFE] text-base font-extrabold text-[#0E7490] shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {c.avatar ? <img src={c.avatar} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : [...c.label][0]?.toUpperCase()}
+                </span>
+                {c.online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />}
+              </span>
+            ) : (
+              <span className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm" style={{ background: c.color }}>
+                <Icon size={21} />
+              </span>
+            )}
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2">
                 <span className={cn("min-w-0 flex-1 truncate text-[15px]", n ? "font-extrabold text-forest" : "font-bold text-forest")}>{c.label}</span>
@@ -72,6 +84,7 @@ export function ChatList({ rooms, current, last, unread, me, names, km }: { room
               </span>
             </span>
           </Link>
+          </div>
         );
       })}
     </div>

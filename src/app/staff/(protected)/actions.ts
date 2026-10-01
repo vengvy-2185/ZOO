@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { chatDir, dmKey, inDm, isDm } from "@/lib/chat-dm";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -384,7 +385,9 @@ export async function resolveSos(alertId: string) {
 }
 
 // ── Team chat (admins and staff) ──────────────────────────────────────
-function canUseChannel(access: Awaited<ReturnType<typeof staffAccess>>, ch: string) {
+function canUseChannel(access: Awaited<ReturnType<typeof staffAccess>>, ch: string, userId: string) {
+  // a private chat: only its two people (not even the admin)
+  if (isDm(ch)) return inDm(ch, userId);
   if (access.admin || ch === "all") return true;
   if (ch === "managers") return access.perms.has("reports");
   return access.perms.has(ch as any);
@@ -396,7 +399,7 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
   const body = String(formData.get("body") ?? "").trim().slice(0, 1000);
   const audio = formData.get("audio");
   const hasAudio = audio instanceof File && audio.size > 0;
-  if (!canUseChannel(access, channel)) return { error: "invalid" };
+  if (!canUseChannel(access, channel, id)) return { error: "invalid" };
   const db = createServiceRoleClient();
   let audio_url: string | null = null;
   let audio_secs: number | null = null;
@@ -406,7 +409,7 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
     const type = (file.type || "audio/webm").split(";")[0];
     if (!/^audio\/(webm|ogg|mp4|mpeg|aac|wav|x-m4a)$/.test(type)) return { error: "type" };
     const ext = type === "audio/mp4" || type === "audio/x-m4a" || type === "audio/aac" ? "m4a" : type === "audio/ogg" ? "ogg" : type === "audio/mpeg" ? "mp3" : type === "audio/wav" ? "wav" : "webm";
-    const path = `${channel}/${id}/${Date.now()}.${ext}`;
+    const path = `${chatDir(channel)}/${id}/${Date.now()}.${ext}`;
     const { error: upErr } = await db.storage.from("staff-voice").upload(path, file, { contentType: type, upsert: false });
     if (upErr) return { error: upErr.message };
     audio_url = db.storage.from("staff-voice").getPublicUrl(path).data.publicUrl;
@@ -419,7 +422,7 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
     if (Array.isArray(raw) && raw.length) {
       files = raw.slice(0, 10).map((f: any) => {
         const path = String(f.path ?? "");
-        if (!path.startsWith(`${channel}/${id}/`) || path.includes("..")) throw new Error("path");
+        if (!path.startsWith(`${chatDir(channel)}/${id}/`) || path.includes("..")) throw new Error("path");
         return {
           url: db.storage.from("staff-files").getPublicUrl(path).data.publicUrl,
           name: String(f.name ?? "file").slice(0, 120),
@@ -461,7 +464,7 @@ export async function sendChat(_prev: ChatState, formData: FormData): Promise<Ch
 /** I read this room up to here ("seen" for the others). Only moves forward. */
 export async function markChatRead(channel: string, upTo: string) {
   const { id, access } = await me();
-  if (!canUseChannel(access, channel) || !Number.isFinite(Date.parse(upTo))) return;
+  if (!canUseChannel(access, channel, id) || !Number.isFinite(Date.parse(upTo))) return;
   const db = createServiceRoleClient();
   const { data: cur } = await db.from("staff_chat_reads").select("last_read_at").eq("user_id", id).eq("channel", channel).maybeSingle();
   if (cur && Date.parse(cur.last_read_at) >= Date.parse(upTo)) return;
@@ -470,8 +473,8 @@ export async function markChatRead(channel: string, upTo: string) {
 
 /** Older messages of a room (scrolling up), with their reactions and the messages they answer. */
 export async function olderChat(channel: string, before: string) {
-  const { access } = await me();
-  if (!canUseChannel(access, channel) || !Number.isFinite(Date.parse(before))) return { msgs: [], reactions: {}, replies: {} };
+  const { id, access } = await me();
+  if (!canUseChannel(access, channel, id) || !Number.isFinite(Date.parse(before))) return { msgs: [], reactions: {}, replies: {} };
   const db = createServiceRoleClient();
   const { data: rows } = await db.from("staff_messages").select("*").eq("channel", channel).lt("created_at", before).order("created_at", { ascending: false }).limit(50);
   const msgs = (rows ?? []).reverse();
@@ -493,10 +496,10 @@ const MAX_FILE = 25 * 1024 * 1024;
 /** A one-time upload slot so a photo / file goes straight from the phone to storage (not through this server). */
 export async function chatUploadSlot(channel: string, name: string, size: number): Promise<{ path?: string; token?: string; error?: string }> {
   const { id, access } = await me();
-  if (!canUseChannel(access, channel)) return { error: "invalid" };
+  if (!canUseChannel(access, channel, id)) return { error: "invalid" };
   if (!(size > 0) || size > MAX_FILE) return { error: "too-big" };
   const safe = (name.normalize("NFKD").replace(/[^\w.\-]+/g, "_").replace(/_+/g, "_").slice(-80) || "file").replace(/^\.+/, "");
-  const path = `${channel}/${id}/${crypto.randomUUID()}/${safe}`;
+  const path = `${chatDir(channel)}/${id}/${crypto.randomUUID()}/${safe}`;
   const { data, error } = await createServiceRoleClient().storage.from("staff-files").createSignedUploadUrl(path);
   if (error || !data) return { error: error?.message ?? "upload" };
   return { path, token: data.token };
@@ -509,7 +512,7 @@ export async function reactChat(messageId: string, emoji: string) {
   if (!REACTIONS.includes(emoji)) return;
   const db = createServiceRoleClient();
   const { data: m } = await db.from("staff_messages").select("channel").eq("id", messageId).maybeSingle();
-  if (!m || !canUseChannel(access, m.channel)) return;
+  if (!m || !canUseChannel(access, m.channel, id)) return;
   const { data: cur } = await db.from("staff_message_reactions").select("emoji").eq("message_id", messageId).eq("user_id", id).maybeSingle();
   if (cur?.emoji === emoji) await db.from("staff_message_reactions").delete().eq("message_id", messageId).eq("user_id", id);
   else await db.from("staff_message_reactions").upsert({ message_id: messageId, user_id: id, emoji, created_at: new Date().toISOString() });
@@ -525,10 +528,12 @@ export async function startCall(channel: string, video: boolean, toUser?: string
     if (toUser === id || !(await staffAccess(toUser)).ok) return { error: "invalid" };
     const { data: call, error } = await db.from("staff_calls").insert({ channel: "all", started_by: id, video, to_user: toUser }).select("id").single();
     if (error || !call) return { error: error?.message ?? "call" };
+    // the call shows in your private chat with them (and makes it, the first time)
+    await db.from("staff_messages").insert({ channel: dmKey(id, toUser), user_id: id, kind: "call", meta: { call_id: call.id, video } });
     await sendPush([toUser], { title: `${video ? "📹" : "📞"} ${who(access)} កំពុងហៅអ្នក`, body: video ? "ហៅជាវីដេអូ — ចុចដើម្បីឆ្លើយ" : "ហៅជាសំឡេង — ចុចដើម្បីឆ្លើយ", url: `/staff/call/${call.id}`, tag: `call-${call.id}`, urgent: true });
     return { id: call.id };
   }
-  if (!canUseChannel(access, channel)) return { error: "invalid" };
+  if (!canUseChannel(access, channel, id)) return { error: "invalid" };
   const { data: open } = await db.from("staff_calls").select("id").eq("channel", channel).is("to_user", null).is("ended_at", null).gte("alive_at", new Date(Date.now() - 60e3).toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (open) return { id: open.id };
   const { data: call, error } = await db.from("staff_calls").insert({ channel, started_by: id, video }).select("id").single();
@@ -537,7 +542,7 @@ export async function startCall(channel: string, video: boolean, toUser?: string
   const ROOM: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
   await sendPush((await chatMembers(channel)).filter((u) => u !== id), {
     title: `${video ? "📹" : "📞"} ${who(access)} កំពុងហៅ`,
-    body: `${video ? "ហៅជាវីដេអូ" : "ហៅជាសំឡេង"} · ${ROOM[channel] ?? channel} — ចុចដើម្បីចូលរួម`,
+    body: `${video ? "ហៅជាវីដេអូ" : "ហៅជាសំឡេង"} · ${isDm(channel) ? "សារផ្ទាល់" : ROOM[channel] ?? channel} — ចុចដើម្បីចូលរួម`,
     url: `/staff/call/${call.id}`,
     tag: `call-${call.id}`,
     urgent: true,
@@ -551,20 +556,22 @@ export async function endCall(callId: string) {
   const db = createServiceRoleClient();
   const { data: c } = await db.from("staff_calls").select("channel, to_user, started_by").eq("id", callId).maybeSingle();
   const { id } = await me();
-  if (!c || (c.to_user ? ![c.to_user, c.started_by].includes(id) : !canUseChannel(access, c.channel))) return;
+  if (!c || (c.to_user ? ![c.to_user, c.started_by].includes(id) : !canUseChannel(access, c.channel, id))) return;
   await db.from("staff_calls").update({ ended_at: new Date().toISOString() }).eq("id", callId).is("ended_at", null);
   revalidatePath("/staff/chat");
 }
 
 /** Everyone who can read a room. */
 async function chatMembers(channel: string) {
+  if (isDm(channel)) return channel.split(":").slice(1);
   return channel === "all" ? [...(await staffIds()), ...(await managerIds())] : channel === "managers" ? await managerIds() : [...(await staffIds(channel)), ...(await managerIds())];
 }
 export async function deleteChat(messageId: string) {
   const { id, access } = await me();
   const db = createServiceRoleClient();
   let q = db.from("staff_messages").delete().eq("id", messageId);
-  if (!access.admin && !access.perms.has("reports")) q = q.eq("user_id", id);
+  const { data: m } = await db.from("staff_messages").select("channel").eq("id", messageId).maybeSingle();
+  if ((m && isDm(m.channel)) || (!access.admin && !access.perms.has("reports"))) q = q.eq("user_id", id);
   await q;
 }
 
@@ -848,11 +855,11 @@ export async function addDayOff(formData: FormData) {
 export async function setStaffAccount(userId: string, status: "active" | "suspended" | "left") {
   const { id, access } = await me();
   await audit("staff.account", "staff_members", userId, { status });
-  if (!isManager(access) || userId === id || !["active", "suspended", "left"].includes(status)) throw new Error("Not allowed.");
+  if ((!isManager(access) && !access.perms.has("hr")) || userId === id || !["active", "suspended", "left"].includes(status)) throw new Error("Not allowed.");
   const { data: target } = await createServiceRoleClient().from("staff_members").select("position:staff_positions(permissions)").eq("user_id", userId).maybeSingle();
   if (!target) throw new Error("Not a staff member.");
   // a manager can't switch off another manager (only the admin can)
-  if (!access.admin && ((target as any).position?.permissions ?? []).includes("reports")) throw new Error("Only the admin can change a manager's account.");
+  if (!access.admin && ((target as any).position?.permissions ?? []).some((p: string) => ["reports", "hr", "roster"].includes(p))) throw new Error("Only the admin can change a manager's or HR's account.");
   const { setStaffStatus } = await import("@/lib/server/staff-account");
   await setStaffStatus(userId, status);
   revalidatePath("/staff", "layout");
@@ -865,7 +872,7 @@ async function pushChat(channel: string, senderId: string, access: Awaited<Retur
   const room: Record<string, string> = { all: "ទាំងអស់គ្នា", managers: "អ្នកគ្រប់គ្រង", tickets: "សំបុត្រ", animals: "ថែសត្វ", guide: "មគ្គុទ្ទេសក៍", cleaning: "សម្អាត" };
   await sendPush(
     ids.filter((u) => u !== senderId),
-    { title: `💬 ${who(access)} · ${room[channel] ?? channel}`, body: text.slice(0, 140), url: `/staff/chat?c=${channel}`, tag: `chat-${channel}` }
+    { title: isDm(channel) ? `💬 ${who(access)} · សារផ្ទាល់` : `💬 ${who(access)} · ${room[channel] ?? channel}`, body: text.slice(0, 140), url: `/staff/chat?c=${channel}`, tag: `chat-${channel}` }
   );
 }
 

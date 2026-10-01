@@ -2,8 +2,10 @@ import Link from "next/link";
 import { BadgeCheck, Briefcase, Wallet, Users, Printer, Clock, Trash2, CheckCircle2, Undo2, Plus, CalendarOff, Megaphone, Pin, PinOff, XCircle, Settings2 } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/ui";
-import { SubmitButton } from "@/components/admin/ui-client";
+import { ConfirmDeleteButton, SubmitButton } from "@/components/admin/ui-client";
 import { getI18n } from "@/lib/i18n/server";
+import { getVerifiedUserId } from "@/lib/auth/session";
+import { getCachedRole } from "@/lib/auth/role";
 import { getPositions, payroll, thisMonth, PERMISSIONS, PAY_TYPE, type PayLine, type Position } from "@/lib/server/staff";
 import { salarySteps } from "@/lib/server/salary";
 import { SalaryPanel } from "@/components/staff/SalaryPanel";
@@ -14,7 +16,7 @@ import { AddStaffForm, ResetPassword } from "./StaffClient";
 import { leaveUsage } from "@/lib/server/staff";
 import { getStaffSettings } from "@/lib/server/staff-settings";
 import { StaffSettingsPanel } from "@/components/admin/StaffSettingsPanel";
-import { updateStaff, savePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
+import { updateStaff, savePosition, deletePosition, addAdjustment, removeAdjustment, markPaid, unmarkPaid, decideLeave, postNotice, deleteNotice, togglePin } from "./actions";
 
 import { AccountButtons } from "@/components/staff/StaffAccounts";
 export const dynamic = "force-dynamic";
@@ -26,7 +28,10 @@ const input = "w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-
 export default async function AdminStaffPage({ searchParams }: { searchParams: { tab?: string; month?: string; at?: string; sess?: string; q?: string } }) {
   const { locale } = getI18n();
   const km = locale === "km";
-  const tab = (TABS as readonly string[]).includes(searchParams.tab ?? "") ? searchParams.tab! : "people";
+  // HR staff use this page too, without positions (rates, rights) and settings
+  const isAdmin = (await getCachedRole(getVerifiedUserId()!)).role === "admin";
+  const tabs = TABS.filter((k) => isAdmin || (k !== "positions" && k !== "settings"));
+  const tab = (tabs as readonly string[]).includes(searchParams.tab ?? "") ? searchParams.tab! : "people";
   const month = /^\d{4}-\d{2}$/.test(searchParams.month ?? "") ? searchParams.month! : thisMonth();
   const db = createServiceRoleClient();
   const [positions, lines, { data: leaves }, { data: notices }] = await Promise.all([
@@ -84,7 +89,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
       </div>
 
       <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
-        {TABS.map((k) => (
+        {tabs.map((k) => (
           <Link key={k} href={`/admin/staff?tab=${k}&month=${month}`} className={cn("flex-shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold", tab === k ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-black/10 hover:bg-light-green")}>
             {k === "people" ? <Users size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "payroll" ? <Wallet size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "attendance" ? <ClipboardCheck size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "leave" ? <CalendarOff size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "notices" ? <Megaphone size={15} className="-mt-0.5 mr-1.5 inline" /> : k === "settings" ? <Settings2 size={15} className="-mt-0.5 mr-1.5 inline" /> : <Briefcase size={15} className="-mt-0.5 mr-1.5 inline" />}
             {L.tabs[k]}
@@ -95,13 +100,15 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
 
       {tab === "people" && (
         <div className="space-y-5">
-          <AddStaffForm positions={positions} km={km} today={today} />
+          <AddStaffForm positions={isAdmin ? positions : positions.filter((x) => !x.permissions.some((k) => ["hr", "reports", "roster"].includes(k)))} km={km} today={today} canPositions={isAdmin} />
           {lines.length === 0 ? (
             <p className="card p-8 text-center text-ink/55">{L.none}</p>
           ) : (
             <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
               {lines.map((l) => {
                 const s = l.staff;
+                // HR can't change a manager / HR (only the admin can)
+                const locked = !isAdmin && (s.position?.permissions ?? []).some((k) => ["hr", "reports", "roster"].includes(k));
                 const p = s.position;
                 return (
                   <div key={s.user_id} className={cn("card overflow-hidden", s.status !== "active" && "opacity-70")}>
@@ -131,6 +138,9 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                         )}
                       </div>
                     </div>
+                    {locked ? (
+                      <p className="border-t border-black/5 bg-cream/60 px-4 py-2.5 text-xs text-ink/50">{km ? "មានតែ Admin ទេដែលអាចកែប្រែបុគ្គលិកនេះ (អ្នកគ្រប់គ្រង / HR)។" : "Only the admin can change this person (manager / HR)."}</p>
+                    ) : (
                     <details className="border-t border-black/5 bg-cream/60">
                       <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-sm font-bold text-primary">
                         <span>{L.edit}</span>
@@ -145,7 +155,7 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                         <input name="full_name" defaultValue={s.full_name} className={input} />
                         <input name="full_name_km" defaultValue={s.full_name_km ?? ""} placeholder="ឈ្មោះជាខ្មែរ" className={input} />
                         <select name="position_id" defaultValue={s.position_id ?? ""} className={input}>
-                          {positions.map((x) => (
+                          {(isAdmin ? positions : positions.filter((x) => !x.permissions.some((k) => ["hr", "reports", "roster"].includes(k)))).map((x) => (
                             <option key={x.id} value={x.id}>{pn(x)}</option>
                           ))}
                         </select>
@@ -168,9 +178,10 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                         </div>
                       </form>
                       <div className="px-4 pb-4">
-                        <SalaryPanel km={km} userId={s.user_id} positionRate={Number(s.position?.rate ?? 0)} unit={s.position ? (km ? PAY_TYPE[s.position.pay_type].km : PAY_TYPE[s.position.pay_type].en) : ""} steps={(steps.get(s.user_id) ?? []).map((x: any) => ({ id: x.id, effective_from: x.effective_from, amount: x.amount, note: x.note }))} today={todayStr} canResetPin />
+                        <SalaryPanel km={km} userId={s.user_id} positionRate={Number(s.position?.rate ?? 0)} unit={s.position ? (km ? PAY_TYPE[s.position.pay_type].km : PAY_TYPE[s.position.pay_type].en) : ""} steps={(steps.get(s.user_id) ?? []).map((x: any) => ({ id: x.id, effective_from: x.effective_from, amount: x.amount, note: x.note }))} today={todayStr} canResetPin={isAdmin} />
                       </div>
                     </details>
+                    )}
                   </div>
                 );
               })}
@@ -428,6 +439,16 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
                 </fieldset>
                 <SubmitButton label={p ? L.save : L.add} pendingLabel={L.saving} className="w-full py-2.5 text-sm" />
               </form>
+              {p && (() => {
+                const holders = lines.filter((l) => l.staff.position_id === p.id).length;
+                return holders ? (
+                  <p className="border-t border-black/5 bg-cream/50 px-4 pb-4 text-[11px] text-ink/45">{km ? `មានបុគ្គលិក ${holders} នាក់ក្នុងតួនាទីនេះ — ផ្លាស់ពួកគេទៅតួនាទីផ្សេងសិន ទើបលុបបាន។` : `${holders} staff hold this position — move them first to delete it.`}</p>
+                ) : (
+                  <form action={deletePosition.bind(null, p.id)} className="border-t border-black/5 bg-cream/50 px-4 pb-4">
+                    <ConfirmDeleteButton label={km ? "លុបតួនាទីនេះ" : "Delete this position"} confirmLabel={km ? "ចុចម្តងទៀត ដើម្បីលុប" : "Tap again to delete"} />
+                  </form>
+                );
+              })()}
             </details>
           ))}
         </div>

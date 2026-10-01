@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { staffAccess } from "@/lib/server/staff";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { inDm } from "@/lib/chat-dm";
 
 // The open chat asks every few seconds what changed (a safety net under the
 // live connection, which can be slow or drop): new messages, which of the
@@ -19,9 +20,12 @@ export async function GET(req: Request) {
   const c = u.searchParams.get("c") ?? "all";
   const after = u.searchParams.get("after");
   const can = (ch: string) => access.admin || ch === "all" || (ch === "managers" ? access.perms.has("reports") : access.perms.has(ch as any));
-  if (!ROOMS.includes(c) || !can(c)) return NextResponse.json({ error: "invalid" }, { status: 400 });
-  const mine = ROOMS.filter(can);
+  if (!(ROOMS.includes(c) && can(c)) && !inDm(c, me.id)) return NextResponse.json({ error: "invalid" }, { status: 400 });
   const db = createServiceRoleClient();
+  // my private chats (rooms named after both people)
+  const { data: dmRows } = await db.from("staff_messages").select("channel").like("channel", `dm:%${me.id}%`).order("created_at", { ascending: false }).limit(400);
+  const myDms = [...new Set([...((dmRows ?? []) as any[]).map((r) => r.channel as string), ...(inDm(c, me.id) ? [c] : [])])].filter((x) => inDm(x, me.id));
+  const mine = [...ROOMS.filter(can), ...myDms];
   const since = after && Number.isFinite(Date.parse(after)) ? after : new Date(Date.now() - 60e3).toISOString();
   const [{ data: fresh }, { data: latest }, { data: reads }, { data: myReads }, { data: recent }] = await Promise.all([
     db.from("staff_messages").select("*").eq("channel", c).gt("created_at", since).order("created_at").limit(100),

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronLeft, Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, type LucideIcon } from "lucide-react";
+import { ChevronLeft, Users, ShieldCheck, Ticket, PawPrint, Sparkles, Map as MapIcon, Lock, UserRound, type LucideIcon } from "lucide-react";
+import { dmPeer, inDm } from "@/lib/chat-dm";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, staffTitle } from "@/lib/server/staff";
@@ -47,19 +48,29 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
   const { locale } = getI18n();
   const km = locale === "km";
   const mine = CHANNELS.filter((c) => access.admin || c.key === "all" || (c.key === "managers" ? access.perms.has("reports") : access.perms.has(c.key as any)));
-  const ch = mine.find((c) => c.key === searchParams.c) ?? mine[0];
   const db = createServiceRoleClient();
+  // my private chats: every room named after me and one other person
+  const { data: dmRows } = await db.from("staff_messages").select("channel").like("channel", `dm:%${userId}%`).order("created_at", { ascending: false }).limit(500);
+  const wanted = searchParams.c && inDm(searchParams.c, userId) ? [searchParams.c] : [];
+  const dmKeys = [...new Set([...wanted, ...((dmRows ?? []) as any[]).map((r) => r.channel as string)])].filter((k) => inDm(k, userId));
+  const dmPeople = await peopleFor(dmKeys.map((k) => dmPeer(k, userId)!), km);
+  const dms = dmKeys.map((k) => {
+    const p = dmPeople.get(dmPeer(k, userId)!);
+    return { key: k, Icon: UserRound as LucideIcon, en: p?.name ?? "?", km: p?.name ?? "?", color: "#0E7490", peer: dmPeer(k, userId)!, avatar: p?.avatar ?? null };
+  });
+  const rooms = [...mine.map((c) => ({ ...c, peer: null as string | null, avatar: null as string | null })), ...dms];
+  const ch = rooms.find((c) => c.key === searchParams.c) ?? rooms[0];
   const now = new Date().toISOString();
 
   const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
   const [{ data: rows }, { data: recent }, { data: presence }, { data: reads }] = await Promise.all([
     db.from("staff_messages").select("*").eq("channel", ch.key).order("created_at", { ascending: false }).limit(80),
-    db.from("staff_messages").select("channel, created_at, user_id").in("channel", mine.map((c) => c.key)).neq("user_id", userId).gte("created_at", weekAgo),
+    db.from("staff_messages").select("channel, created_at, user_id").in("channel", rooms.map((c) => c.key)).neq("user_id", userId).gte("created_at", weekAgo),
     db.from("staff_presence").select("user_id, last_seen").gte("last_seen", new Date(Date.now() - ONLINE_MS).toISOString()),
     db.from("staff_chat_reads").select("channel, last_read_at").eq("user_id", userId),
   ]);
   // newest message per channel, for the list previews
-  const { data: lastRows } = await db.from("staff_messages").select("channel, body, audio_url, files, kind, meta, user_id, created_at").in("channel", mine.map((c) => c.key)).order("created_at", { ascending: false }).limit(300);
+  const { data: lastRows } = await db.from("staff_messages").select("channel, body, audio_url, files, kind, meta, user_id, created_at").in("channel", rooms.map((c) => c.key)).order("created_at", { ascending: false }).limit(400);
   const lastOf = new Map<string, any>();
   for (const r of lastRows ?? []) if (!lastOf.has(r.channel)) lastOf.set(r.channel, r);
   // opening a room marks it read up to its newest message. Only when that is
@@ -83,7 +94,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
     callIds.length ? db.from("staff_calls").select("id, video, created_at, alive_at, ended_at").in("id", callIds) : Promise.resolve({ data: [] as any[] }),
     replyIds.length ? db.from("staff_messages").select("id, user_id, body, kind, files, audio_url, meta").in("id", replyIds) : Promise.resolve({ data: [] as any[] }),
     db.from("staff_calls").select("id, video, started_by").eq("channel", ch.key).is("to_user", null).is("ended_at", null).gte("alive_at", aliveSince).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    ch.key === "all" ? Promise.all([staffIds(), managerIds()]).then((x) => x.flat()) : ch.key === "managers" ? managerIds() : Promise.all([staffIds(ch.key), managerIds()]).then((x) => x.flat()),
+    ch.peer ? Promise.resolve([userId, ch.peer]) : ch.key === "all" ? Promise.all([staffIds(), managerIds()]).then((x) => x.flat()) : ch.key === "managers" ? managerIds() : Promise.all([staffIds(ch.key), managerIds()]).then((x) => x.flat()),
   ]);
   const reactions: Record<string, { user_id: string; emoji: string }[]> = {};
   for (const r of reactRows ?? []) (reactions[r.message_id] ??= []).push({ user_id: r.user_id, emoji: r.emoji });
@@ -126,23 +137,28 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
           <div className="px-4 pb-2 pt-4">
             <div className="flex items-center justify-between gap-2">
               <h1 className="font-display text-2xl font-extrabold text-forest">{km ? "ជជែកក្រុម" : "Chats"}</h1>
-              <CallPerson km={km} people={team.filter((u) => people.has(u)).map((u) => ({ id: u, name: people.get(u)!.name, avatar: people.get(u)!.avatar, role: people.get(u)!.role, online: onlineIds.has(u) }))} />
+              <CallPerson km={km} me={userId} people={team.filter((u) => people.has(u)).map((u) => ({ id: u, name: people.get(u)!.name, avatar: people.get(u)!.avatar, role: people.get(u)!.role, online: onlineIds.has(u) }))} />
             </div>
           </div>
           {/* online people */}
           <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-3">
             {online.map(({ id, p }) => (
-              <span key={id} className="flex w-14 flex-shrink-0 flex-col items-center gap-1 text-center" title={p!.role}>
+              <Link key={id} href={id === userId ? "/staff/chat" : `/staff/chat?c=dm:${[userId, id].sort().join(":")}`} className="flex w-14 flex-shrink-0 flex-col items-center gap-1 text-center" title={id === userId ? p!.role : km ? `សារផ្ទាល់ទៅ ${p!.name}` : `Message ${p!.name}`}>
                 <Avatar p={p} size={48} online />
                 <span className="w-full truncate text-[11px] font-semibold text-ink/65">{id === userId ? (km ? "អ្នក" : "You") : p!.name.split(" ")[0]}</span>
-              </span>
+              </Link>
             ))}
           </div>
           <ChatList
-            rooms={mine.map((c) => ({ key: c.key, label: km ? c.km : c.en, color: c.color }))}
+            rooms={[
+              ...mine.map((c) => ({ key: c.key, label: km ? c.km : c.en, color: c.color })),
+              ...[...dms]
+                .sort((a, b) => (lastOf.get(b.key)?.created_at ?? "").localeCompare(lastOf.get(a.key)?.created_at ?? ""))
+                .map((c) => ({ key: c.key, label: c.en, color: c.color, avatar: people.get(c.peer)?.avatar ?? c.avatar, dm: true, online: onlineIds.has(c.peer) })),
+            ]}
             current={ch.key}
-            last={Object.fromEntries(mine.map((c) => [c.key, lastOf.get(c.key) ?? null]))}
-            unread={Object.fromEntries(mine.map((c) => [c.key, unread.get(c.key) ?? 0]))}
+            last={Object.fromEntries(rooms.map((c) => [c.key, lastOf.get(c.key) ?? null]))}
+            unread={Object.fromEntries(rooms.map((c) => [c.key, unread.get(c.key) ?? 0]))}
             me={userId}
             names={Object.fromEntries([...people].map(([id, p]) => [id, p.name]))}
             km={km}
@@ -155,14 +171,22 @@ export default async function ChatPage({ searchParams }: { searchParams: { c?: s
             <Link href="/staff/chat" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-[#1D4ED8] hover:bg-[#EEF2FF] md:hidden" aria-label="back">
               <ChevronLeft size={24} />
             </Link>
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-white" style={{ background: ch.color }}>
-              <ch.Icon size={19} />
-            </span>
+            {ch.peer ? (
+              <Avatar p={people.get(ch.peer)} size={40} online={onlineIds.has(ch.peer)} />
+            ) : (
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-white" style={{ background: ch.color }}>
+                <ch.Icon size={19} />
+              </span>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-base font-extrabold text-forest">{km ? ch.km : ch.en}</p>
-              <p className="flex items-center gap-1.5 text-xs text-ink/50"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {online.length} online</p>
+              <p className="truncate font-display text-base font-extrabold text-forest">{ch.peer ? people.get(ch.peer)?.name ?? ch.en : km ? ch.km : ch.en}</p>
+              {ch.peer ? (
+                <p className="flex items-center gap-1.5 text-xs text-ink/50"><Lock size={11} /> {km ? "សារផ្ទាល់ · មានតែអ្នកទាំងពីរប៉ុណ្ណោះឃើញ" : "Private · only you two can see it"}{onlineIds.has(ch.peer) ? (km ? " · កំពុងប្រើ" : " · online") : ""}</p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-xs text-ink/50"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {online.length} online</p>
+              )}
             </div>
-            <div className="hidden -space-x-2 lg:flex">
+            <div className={cn("hidden -space-x-2", !ch.peer && "lg:flex")}>
               {online.slice(0, 5).map(({ id, p }) => <Avatar key={id} p={p} size={28} />)}
             </div>
             <CallButtons channel={ch.key} km={km} />

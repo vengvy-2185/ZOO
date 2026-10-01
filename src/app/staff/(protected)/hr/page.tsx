@@ -71,7 +71,11 @@ export default async function HrPage({ searchParams }: { searchParams: { tab?: s
             {people.map((x) => (
               <div key={x.user_id} className="card space-y-2 p-3">
                 <p className="px-1 font-bold text-forest">{(km && x.full_name_km) || x.full_name} <span className="text-xs font-semibold text-ink/45">· {x.staff_no} · {x.position ? (km && x.position.name_km) || x.position.name : "—"}</span></p>
+                {!access.admin && (x.user_id === userId || (x.position?.permissions ?? []).some((k) => ["hr", "reports", "roster"].includes(k))) ? (
+                  <p className="rounded-2xl bg-cream/70 px-3 py-2.5 text-xs text-ink/55">{km ? "ប្រាក់ខែរបស់អ្នកគ្រប់គ្រង / HR (រួមទាំងខ្លួនឯង) កំណត់ដោយ Admin ប៉ុណ្ណោះ។" : "Managers' and HR's salaries (yours too) are set by the admin."}</p>
+                ) : (
                 <SalaryPanel km={km} userId={x.user_id} positionRate={Number(x.position?.rate ?? 0)} unit={x.position ? (km ? PAY_TYPE[x.position.pay_type].km : PAY_TYPE[x.position.pay_type].en) : ""} steps={(st.get(x.user_id) ?? []).map((v) => ({ id: v.id, effective_from: v.effective_from, amount: v.amount, note: v.note }))} today={todayStr} canResetPin={access.admin} />
+                )}
               </div>
             ))}
           </section>

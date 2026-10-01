@@ -85,7 +85,7 @@ async function manager() {
   const id = getVerifiedUserId();
   if (!id) throw new Error("Please sign in.");
   const access = await staffAccess(id);
-  if (!access.admin && !access.perms.has("reports")) throw new Error("Only admins and managers.");
+  if (!access.admin && !access.perms.has("reports") && !access.perms.has("hr")) throw new Error("Only admins, managers and HR.");
   return id;
 }
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();

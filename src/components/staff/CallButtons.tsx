@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Phone, Video, Loader2 } from "lucide-react";
+import { Phone, Video, Loader2 , MessageCircle } from "lucide-react";
 import { startCall } from "@/app/staff/(protected)/actions";
 
 /** Voice / video call buttons at the top of a chat room (like Messenger). */
@@ -34,7 +34,7 @@ export function CallButtons({ channel, km }: { channel: string; km: boolean }) {
 type Mate = { id: string; name: string; avatar: string | null; role: string; online: boolean };
 
 /** "Call someone": the whole team, online people first, with voice / video buttons. */
-export function CallPerson({ people, km }: { people: Mate[]; km: boolean }) {
+export function CallPerson({ people, km, me }: { people: Mate[]; km: boolean; me?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -49,12 +49,13 @@ export function CallPerson({ people, km }: { people: Mate[]; km: boolean }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF2FF] px-3 py-2 text-xs font-extrabold text-[#1D4ED8] transition hover:bg-[#DBEAFE] active:scale-95">
-        <Phone size={14} /> {km ? "ហៅម្នាក់" : "Call someone"}
+        <Phone size={14} /> {km ? "ហៅ / ផ្ញើសារ" : "Call / message"}
       </button>
       {open && (
         <div className="fixed inset-0 z-[95] flex items-end justify-center bg-black/40 md:items-center" onClick={() => setOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} className="flex max-h-[80vh] w-full max-w-md flex-col rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lift md:rounded-3xl">
-            <h3 className="font-display text-lg font-extrabold text-forest">{km ? "ហៅទៅនរណា?" : "Who do you want to call?"}</h3>
+            <h3 className="font-display text-lg font-extrabold text-forest">{km ? "ហៅ ឬផ្ញើសារផ្ទាល់ទៅនរណា?" : "Call or message someone"}</h3>
+            <p className="mt-0.5 text-xs text-ink/50">{km ? "សារផ្ទាល់ · មានតែអ្នកទាំងពីរប៉ុណ្ណោះឃើញ" : "Private messages · only you two can see them"}</p>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={km ? "ស្វែងរកឈ្មោះ…" : "Search a name…"} className="mt-3 w-full rounded-2xl border border-black/10 bg-[#F8FAFF] px-4 py-2.5 text-base outline-none focus:border-[#2563EB]" />
             <ul className="no-scrollbar mt-2 min-h-0 flex-1 overflow-y-auto">
               {list.map((p) => (
@@ -70,6 +71,11 @@ export function CallPerson({ people, km }: { people: Mate[]; km: boolean }) {
                     <span className="block truncate text-sm font-bold text-forest">{p.name}</span>
                     <span className="block truncate text-xs text-ink/45">{p.online ? (km ? "កំពុងប្រើ" : "online") : p.role}</span>
                   </span>
+                  {me && (
+                    <button type="button" onClick={() => { setOpen(false); router.push(`/staff/chat?c=dm:${[me, p.id].sort().join(":")}`); }} aria-label={km ? `ផ្ញើសារទៅ ${p.name}` : `Message ${p.name}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100">
+                      <MessageCircle size={18} />
+                    </button>
+                  )}
                   <button type="button" disabled={!!busy} onClick={() => call(p.id, false)} aria-label={km ? `ហៅ ${p.name}` : `Call ${p.name}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50">
                     {busy === p.id + "false" ? <Loader2 size={18} className="animate-spin" /> : <Phone size={18} />}
                   </button>

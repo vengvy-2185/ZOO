@@ -7,15 +7,18 @@ import { staffAccess } from "@/lib/server/staff";
 import { canHr } from "@/lib/server/hr";
 import { sendPush } from "@/lib/server/push";
 import { audit } from "@/lib/server/audit";
+import { hrMayManage } from "@/lib/server/staff-guard";
 
 // A person's own salary: the starting pay and raises from a date.
 // Only an admin or HR may set it; the staff member only sees their own.
 
-async function guard() {
+async function guard(targetUserId?: string) {
   const id = getVerifiedUserId();
   if (!id) throw new Error("Please sign in.");
   const access = await staffAccess(id);
   if (!access.admin && !canHr(access)) throw new Error("Admin or HR only.");
+  // HR can't set their own salary, nor a manager's / another HR's (only the admin can)
+  if (targetUserId && !(await hrMayManage({ id, admin: access.admin }, targetUserId))) throw new Error("Only the admin can set this person's salary.");
   return id;
 }
 const db = () => createServiceRoleClient();
@@ -54,7 +57,7 @@ export type SalaryState = { error?: string; ok?: boolean };
 
 /** One step: this amount from this day (e.g. starting pay, or a raise). */
 export async function setSalaryStep(userId: string, fd: FormData): Promise<SalaryState> {
-  const by = await guard();
+  const by = await guard(userId);
   const amount = money(fd.get("amount"));
   const from = String(fd.get("from") ?? "");
   const note = String(fd.get("note") ?? "").trim().slice(0, 120) || null;
@@ -71,7 +74,7 @@ export async function setSalaryStep(userId: string, fd: FormData): Promise<Salar
 
 /** Probation: a starting pay now, and a raise after N months, in one go. */
 export async function setProbation(userId: string, fd: FormData): Promise<SalaryState> {
-  const by = await guard();
+  const by = await guard(userId);
   const start = money(fd.get("start"));
   const after = money(fd.get("after"));
   const months = Number(fd.get("months"));
@@ -96,7 +99,9 @@ export async function setProbation(userId: string, fd: FormData): Promise<Salary
 }
 
 export async function deleteSalaryStep(id: string) {
-  await guard();
+  const { data: step } = await db().from("staff_salary_steps").select("user_id").eq("id", id).maybeSingle();
+  if (!step) return;
+  await guard(step.user_id);
   const { data } = await db().from("staff_salary_steps").delete().eq("id", id).select("user_id, amount, effective_from").maybeSingle();
   if (data) await audit("salary.delete", "staff_salary_steps", data.user_id, { amount: data.amount, from: data.effective_from });
   done();
