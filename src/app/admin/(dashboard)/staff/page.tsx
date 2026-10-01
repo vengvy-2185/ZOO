@@ -182,6 +182,11 @@ export default async function AdminStaffPage({ searchParams }: { searchParams: {
 
       {tab === "payroll" && (
         <div className="space-y-4">
+          <Link href={`/admin/payday?month=${month}`} className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-forest to-primary p-4 text-white shadow-soft">
+            <Wallet size={22} />
+            <span className="flex-1"><b className="block">{km ? "ថ្ងៃបើកប្រាក់ខែ · QR តាមផ្នែក" : "Payday · QR per department"}</b><span className="text-sm text-white/80">{km ? "កំណត់ថ្ងៃបើក ស្កេនទទួលប្រាក់ តារាងអ្នកបើក/មិនទាន់បើក" : "Set the day, staff scan to collect, see who has and hasn't"}</span></span>
+            <span aria-hidden>→</span>
+          </Link>
           <div className="flex items-center justify-center gap-2 sm:justify-start">
             <Link href={`/admin/staff?tab=payroll&month=${shift(-1)}`} aria-label="previous month" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-forest ring-1 ring-black/10 hover:bg-light-green">←</Link>
             <span className="min-w-[10rem] rounded-full bg-forest px-5 py-2 text-center font-display font-extrabold text-white">{monthLabel}</span>

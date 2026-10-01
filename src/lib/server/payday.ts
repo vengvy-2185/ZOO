@@ -1,0 +1,216 @@
+import "server-only";
+import { createHmac, timingSafeEqual } from "crypto";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/server/site-url";
+import { monthRange, payroll, type PayLine } from "@/lib/server/staff";
+
+// Payday: the day the pay of one month is handed out. The admin "opens" it,
+// which freezes everyone's payslip; each department then scans its own QR
+// code in the staff app to collect. The QR codes are signed with a secret
+// kept on the server, so they can't be made up.
+
+export type Payday = {
+  id: string;
+  month: string;
+  pay_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  place: string | null;
+  note: string | null;
+  status: "scheduled" | "open" | "closed";
+  secret: string;
+  opened_at: string | null;
+  closed_at: string | null;
+};
+export type PayRequest = {
+  id: string;
+  payday_id: string;
+  user_id: string;
+  kind: "absent" | "leave";
+  method: "later" | "proxy" | "transfer";
+  pickup_date: string | null;
+  proxy_name: string | null;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  admin_note: string | null;
+  created_at: string;
+};
+export type SlipDetail = {
+  position: string | null;
+  position_km: string | null;
+  pay_type: string;
+  rate: number;
+  units: number;
+  days: number;
+  hours: number;
+  base: number;
+  allowance: number;
+  adjustments: { note: string; amount: number }[];
+  attendance: { late: number; absent: number; deduction: number };
+  leave_days: number;
+};
+
+/** How many days before payday a "can't come / on leave" request must be sent. */
+export const REQUEST_DAYS_BEFORE = 4;
+
+export const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Phnom_Penh" }).format(new Date());
+export const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+/** The last day a request can still be sent for this payday. */
+export const requestDeadline = (p: Pick<Payday, "pay_date">) => addDays(p.pay_date, -REQUEST_DAYS_BEFORE);
+
+const db = () => createServiceRoleClient();
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+export async function paydayFor(month: string) {
+  const { data } = await db().from("staff_paydays").select("*").eq("month", monthRange(month).first).maybeSingle();
+  return (data as Payday | null) ?? null;
+}
+export async function paydayById(id: string) {
+  if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+  const { data } = await db().from("staff_paydays").select("*").eq("id", id).maybeSingle();
+  return (data as Payday | null) ?? null;
+}
+/** What a staff member should see: the payday that is open or coming, else the last one. */
+export async function currentPayday() {
+  const { data: next } = await db().from("staff_paydays").select("*").neq("status", "closed").order("pay_date").limit(1).maybeSingle();
+  if (next) return next as Payday;
+  const { data: last } = await db().from("staff_paydays").select("*").order("pay_date", { ascending: false }).limit(1).maybeSingle();
+  return (last as Payday | null) ?? null;
+}
+
+// ── the department QR codes ──────────────────────────────────────────
+/** "all" = one code for everyone (staff without a department). */
+export function qrSig(p: Pick<Payday, "id" | "secret">, dept: string) {
+  return createHmac("sha256", p.secret).update(`${p.id}:${dept}`).digest("base64url").slice(0, 22);
+}
+export function qrUrl(p: Pick<Payday, "id" | "secret">, dept: string) {
+  return `${getSiteUrl()}/staff/payday/claim?p=${p.id}&d=${encodeURIComponent(dept)}&s=${qrSig(p, dept)}`;
+}
+export function qrValid(p: Pick<Payday, "id" | "secret">, dept: string, sig: string) {
+  const want = Buffer.from(qrSig(p, dept));
+  const got = Buffer.from(String(sig));
+  return want.length === got.length && timingSafeEqual(want, got);
+}
+
+/** Approved leave days that fall inside the month (shown on the payslip). */
+async function leaveDays(month: string, ids: string[]) {
+  const { first } = monthRange(month);
+  const last = addDays(`${month.slice(0, 7)}-01`, 40).slice(0, 7) + "-01";
+  const lastDay = addDays(last.slice(0, 7) + "-01", -1);
+  const { data } = ids.length ? await db().from("staff_leave_requests").select("user_id, start_date, end_date").in("user_id", ids).eq("status", "approved").lte("start_date", lastDay).gte("end_date", first) : { data: [] as any[] };
+  const out = new Map<string, number>();
+  for (const r of data ?? []) {
+    const from = r.start_date < first ? first : r.start_date;
+    const to = r.end_date > lastDay ? lastDay : r.end_date;
+    out.set(r.user_id, (out.get(r.user_id) ?? 0) + Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1);
+  }
+  return out;
+}
+
+function detailOf(l: PayLine, leave: number): SlipDetail {
+  const p = l.staff.position;
+  return {
+    position: p?.name ?? null,
+    position_km: p?.name_km ?? null,
+    pay_type: p?.pay_type ?? "monthly",
+    rate: Number(p?.rate ?? 0),
+    units: l.units,
+    days: l.days,
+    hours: l.hours,
+    base: l.base,
+    allowance: l.allowance,
+    adjustments: l.adjustments.map((a) => ({ note: a.note, amount: a.amount })),
+    attendance: l.attendance,
+    leave_days: leave,
+  };
+}
+
+/**
+ * Freezes the payslips of everyone active for this payday's month (anyone who
+ * already collected keeps theirs untouched). Returns how many were written.
+ */
+export async function issuePayslips(p: Payday, adminId: string) {
+  const month = p.month.slice(0, 7);
+  const lines = (await payroll(month)).filter((l) => l.staff.status === "active");
+  const { data: got } = await db().from("staff_payslips").select("user_id").eq("month", monthRange(month).first).not("received_at", "is", null);
+  const done = new Set((got ?? []).map((r: any) => r.user_id));
+  const leave = await leaveDays(month, lines.map((l) => l.staff.user_id));
+  const rows = lines
+    .filter((l) => !done.has(l.staff.user_id))
+    .map((l) => ({
+      user_id: l.staff.user_id,
+      month: monthRange(month).first,
+      payday_id: p.id,
+      pay_type: l.staff.position?.pay_type ?? "monthly",
+      rate: l.staff.position?.rate ?? 0,
+      units: l.units,
+      base: l.base,
+      allowance: l.allowance,
+      adjustments: r2(l.adjTotal - l.attendance.deduction),
+      gross: l.gross,
+      detail: detailOf(l, leave.get(l.staff.user_id) ?? 0),
+      paid_by: adminId,
+      paid_at: new Date().toISOString(),
+    }));
+  if (rows.length) await db().from("staff_payslips").upsert(rows, { onConflict: "user_id,month" });
+  return rows.length;
+}
+
+export type PaydayRow = {
+  user_id: string;
+  staff_no: string;
+  name: string;
+  name_km: string | null;
+  dept: string;
+  dept_name: string;
+  dept_name_km: string | null;
+  color: string;
+  amount: number;
+  issued: boolean;
+  received_at: string | null;
+  received_via: string | null;
+  request: PayRequest | null;
+};
+
+/** The payday table: who collected, who hasn't, and the money. */
+export async function paydayTable(p: Payday) {
+  const month = p.month.slice(0, 7);
+  const [lines, { data: slips }, { data: reqs }] = await Promise.all([
+    payroll(month),
+    db().from("staff_payslips").select("user_id, gross, received_at, received_via, payday_id").eq("month", p.month),
+    db().from("staff_payday_requests").select("*").eq("payday_id", p.id),
+  ]);
+  const rows: PaydayRow[] = lines
+    .filter((l) => l.staff.status === "active" || (slips ?? []).some((s: any) => s.user_id === l.staff.user_id))
+    .map((l) => {
+      const slip = (slips ?? []).find((s: any) => s.user_id === l.staff.user_id);
+      const pos = l.staff.position;
+      return {
+        user_id: l.staff.user_id,
+        staff_no: l.staff.staff_no,
+        name: l.staff.full_name,
+        name_km: l.staff.full_name_km,
+        dept: pos?.id ?? "all",
+        dept_name: pos?.name ?? "—",
+        dept_name_km: pos?.name_km ?? null,
+        color: pos?.color ?? "#64748B",
+        amount: slip ? Number(slip.gross) : l.gross,
+        issued: Boolean(slip),
+        // an old payslip (marked paid before paydays existed) counts as collected
+        received_at: slip ? (slip.received_at ?? (slip.payday_id ? null : "before")) : null,
+        received_via: slip?.received_via ?? null,
+        request: ((reqs ?? []) as PayRequest[]).find((r) => r.user_id === l.staff.user_id) ?? null,
+      };
+    });
+  const total = r2(rows.reduce((t, r) => t + r.amount, 0));
+  const paid = r2(rows.filter((r) => r.received_at).reduce((t, r) => t + r.amount, 0));
+  return {
+    rows,
+    total,
+    paid,
+    owed: r2(total - paid),
+    count: rows.length,
+    collected: rows.filter((r) => r.received_at).length,
+    requests: ((reqs ?? []) as PayRequest[]).sort((a, b) => a.created_at.localeCompare(b.created_at)),
+  };
+}

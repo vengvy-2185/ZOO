@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart3, PawPrint, Tags, Dna, BookOpen, Headphones, Cake, QrCode, Map, MapPinned, Trees, Fence, Ticket, ClipboardList, Users, Settings, Menu, X, ExternalLink, ScanLine, Store, HeartHandshake, UserRoundPlus, PlugZap, Sticker, Star, Newspaper, TicketPercent, type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote, FileSpreadsheet, History, ShieldCheck  , UserPlus } from "lucide-react";
+import { LayoutDashboard, BarChart3, PawPrint, Tags, Dna, BookOpen, Headphones, Cake, QrCode, Map, MapPinned, Trees, Fence, Ticket, ClipboardList, Users, Settings, Menu, X, ExternalLink, ScanLine, Store, HeartHandshake, UserRoundPlus, PlugZap, Sticker, Star, Newspaper, TicketPercent, type LucideIcon, MessageCircle, IdCard, BadgeCheck, MessagesSquare, CalendarRange, CalendarDays, Banknote, FileSpreadsheet, History, ShieldCheck, UserPlus, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { LogoMark } from "@/components/visitor/Logo";
 import { SignOutButton } from "@/components/visitor/SignOutButton";
@@ -53,6 +53,7 @@ const GROUPS: { title: GroupKey; items: { key: ItemKey; href: string; icon: Luci
       { key: "visitors", href: "/admin/visitors", icon: Users },
       { key: "members", href: "/admin/members", icon: IdCard },
       { key: "staff", href: "/admin/staff", icon: BadgeCheck },
+      { key: "payday", href: "/admin/payday", icon: HandCoins },
       { key: "roster", href: "/staff/roster", icon: CalendarRange },
       { key: "calendar", href: "/staff/calendar", icon: CalendarDays },
       { key: "cash", href: "/staff/cash", icon: Banknote },
