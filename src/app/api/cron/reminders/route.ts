@@ -3,6 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { serviceClient } from "@/lib/server/private-settings";
 import { getAttendanceSettings } from "@/lib/server/attendance";
 import { sendPush } from "@/lib/server/push";
+import { ensurePaydays } from "@/lib/server/payday";
 
 // Shift reminders on the phone, called every 10 minutes by the database's
 // scheduler (pg_cron). Only a caller with the secret key may run it.
@@ -83,5 +84,7 @@ export async function GET(req: Request) {
 
   // tidy old log rows now and then
   if (Math.random() < 0.05) await db.from("reminder_log").delete().lt("day", localDay(-14));
-  return NextResponse.json({ ok: true, sent, at: `${today} ${Math.floor(now / 60)}:${String(now % 60).padStart(2, "0")}` });
+  // payday: opens by itself on the day, and next month's is set up
+  const payday = await ensurePaydays().catch(() => null);
+  return NextResponse.json({ ok: true, sent, payday, at: `${today} ${Math.floor(now / 60)}:${String(now % 60).padStart(2, "0")}` });
 }

@@ -4,7 +4,7 @@ import { HandCoins, Wallet, CheckCircle2, Clock3, Users, QrCode, CalendarClock, 
 import { AdminPageHeader } from "@/components/admin/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { getPositions, thisMonth } from "@/lib/server/staff";
-import { paydayFor, paydayTable, qrUrl, requestDeadline, today, type PaydayRow } from "@/lib/server/payday";
+import { ensurePaydays, monthLabel, nextMonth, paydayFor, paydayTable, qrUrl, requestDeadline, sameDayNextMonth, today, type PaydayRow } from "@/lib/server/payday";
 import { PaydayForm, PaydayControls, RowActions, RequestActions, AutoRefresh } from "@/components/admin/PaydayBits";
 import { cn } from "@/lib/utils/cn";
 
@@ -23,8 +23,9 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
     const d = new Date(Date.UTC(y, m - 1 + n, 1));
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   };
-  const monthName = new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T00:00:00Z`));
+  const monthName = monthLabel(month, km);
   const dateName = (d: string) => new Intl.DateTimeFormat(km ? "km-KH" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
+  await ensurePaydays();
   const p = await paydayFor(month);
   const t = p ? await paydayTable(p) : null;
   const positions = await getPositions();
@@ -86,7 +87,7 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
       <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
         <Link href={`/admin/payday?month=${shift(-1)}`} aria-label="previous month" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-forest ring-1 ring-black/10 hover:bg-light-green">←</Link>
         <div className="text-center">
-          <p className="font-display text-xl font-extrabold text-forest">{L("Pay for", "ប្រាក់ខែ")} {monthName}</p>
+          <p className="font-display text-xl font-extrabold text-forest">{L("Pay for", "ប្រាក់ខែ")} {monthLabel(month, km)}</p>
           <span className={cn("mt-1 inline-block rounded-full px-3 py-1 text-xs font-extrabold", STATUS[status][2])}>{STATUS[status][km ? 1 : 0]}</span>
         </div>
         <Link href={`/admin/payday?month=${shift(1)}`} aria-label="next month" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-forest ring-1 ring-black/10 hover:bg-light-green">→</Link>
@@ -94,14 +95,15 @@ export default async function PaydayPage({ searchParams }: { searchParams: { mon
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="space-y-5 print:hidden">
-          <PaydayForm km={km} month={month} p={p} />
+          <PaydayForm km={km} month={month} monthName={monthLabel(month, km)} p={p} />
           {p && (
             <div className="card space-y-3 p-5">
               <p className="flex items-center gap-2 text-sm text-ink/70"><CalendarClock size={16} className="text-primary" /> <b className="text-forest">{dateName(p.pay_date)}</b>{p.start_time ? ` · ${p.start_time.slice(0, 5)}–${p.end_time?.slice(0, 5) ?? ""}` : ""}</p>
               {p.place && <p className="flex items-center gap-2 text-sm text-ink/70"><MapPin size={16} className="text-primary" /> {p.place}</p>}
               <p className="text-xs text-ink/50">{L("Requests (can't come / on leave) close on", "សំណើ (មកមិនបាន / ច្បាប់) បិទនៅ")} <b>{dateName(requestDeadline(p))}</b> ({L("4 days before", "៤ ថ្ងៃមុន")}){today() > requestDeadline(p) ? ` · ${L("closed", "បានបិទ")}` : ""}</p>
               <PaydayControls km={km} id={p.id} status={p.status} />
-              {p.status === "scheduled" && <p className="rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{L("Open payday on the day (or a little before): the payslips are worked out and the QR codes start working on the pay date.", "សូមចុច «បើកការបើកប្រាក់ខែ» នៅថ្ងៃនោះ (ឬមុនបន្តិច)៖ វិក្កយបត្រនឹងត្រូវគិត ហើយ QR ដំណើរការនៅថ្ងៃបើកប្រាក់ខែ។")}</p>}
+              {p.status === "scheduled" && <p className="rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{L("It opens by itself on the pay date (payslips are worked out, the QR codes work). You can also open it earlier.", "វានឹងបើកដោយខ្លួនឯងនៅថ្ងៃបើកប្រាក់ខែ (វិក្កយបត្រត្រូវគិត ហើយ QR ដំណើរការ)។ អាចចុចបើកមុនក៏បាន។")}</p>}
+              <p className="text-xs text-ink/50">{L("Next:", "ខែបន្ទាប់៖")} <b>{L("pay for", "ប្រាក់ខែ")} {monthLabel(nextMonth(month), km)}</b> · {dateName(sameDayNextMonth(p.pay_date))} ({L("set up by itself", "កំណត់ដោយស្វ័យប្រវត្តិ")})</p>
             </div>
           )}
         </div>

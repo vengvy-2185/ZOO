@@ -5,7 +5,7 @@ import { getVerifiedUserId } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { monthRange } from "@/lib/server/staff";
-import { issuePayslips, paydayById, paydayFor } from "@/lib/server/payday";
+import { issuePayslips, monthLabel, paydayById, paydayFor } from "@/lib/server/payday";
 import { sendPush, staffIds } from "@/lib/server/push";
 import { audit } from "@/lib/server/audit";
 
@@ -31,10 +31,15 @@ export async function savePayday(fd: FormData): Promise<{ error?: string; ok?: b
   const month = String(fd.get("month") ?? "");
   const payDate = String(fd.get("pay_date") ?? "");
   if (!/^\d{4}-\d{2}$/.test(month) || !DATE.test(payDate)) return { error: "date" };
+  // the pay of a month can't be handed out before that month starts
+  if (payDate < `${month}-01`) return { error: "before" };
+  // the pay of a month can't be handed out before that month starts
+  if (payDate < `${month}-01`) return { error: "before" };
   const t = (k: string) => {
     const v = String(fd.get(k) ?? "");
     return TIME.test(v) ? v : null;
   };
+  if (t("start_time") && t("end_time") && t("end_time")! <= t("start_time")!) return { error: "time" };
   const row = {
     month: monthRange(month).first,
     pay_date: payDate,
@@ -51,8 +56,8 @@ export async function savePayday(fd: FormData): Promise<{ error?: string; ok?: b
   // everyone hears about the day (and again if it moves)
   if (!cur || cur.pay_date !== payDate)
     await sendPush(await staffIds(), {
-      title: "💵 ថ្ងៃបើកប្រាក់ខែ",
-      body: `ប្រាក់ខែ ${month} នឹងបើកនៅថ្ងៃ ${dmy(payDate)}${row.start_time ? ` ម៉ោង ${row.start_time}` : ""}${row.place ? ` · ${row.place}` : ""}`,
+      title: `💵 ប្រាក់ខែ ${monthLabel(month, true)}`,
+      body: `នឹងបើកនៅថ្ងៃ ${dmy(payDate)}${row.start_time ? ` ម៉ោង ${row.start_time}` : ""}${row.place ? ` · ${row.place}` : ""}`,
       url: "/staff/pay",
       tag: `payday-${month}`,
     }).catch(() => {});
@@ -69,7 +74,7 @@ export async function openPayday(id: string) {
   await db().from("staff_paydays").update({ status: "open", opened_at: p.opened_at ?? new Date().toISOString() }).eq("id", id);
   await audit("payday.open", "staff_paydays", id, { payslips: n });
   if (p.status !== "open")
-    await sendPush(await staffIds(), { title: "💵 បើកប្រាក់ខែហើយ", body: "វិក្កយបត្រប្រាក់ខែរបស់អ្នករួចរាល់។ ស្កេន QR ផ្នែករបស់អ្នក ដើម្បីទទួលប្រាក់។", url: "/staff/pay", tag: `payday-open-${id}` }).catch(() => {});
+    await sendPush(await staffIds(), { title: `💵 បើកប្រាក់ខែ ${monthLabel(p.month, true)} ហើយ`, body: "វិក្កយបត្រប្រាក់ខែរបស់អ្នករួចរាល់។ ស្កេន QR ផ្នែករបស់អ្នក ដើម្បីទទួលប្រាក់។", url: "/staff/pay", tag: `payday-open-${id}` }).catch(() => {});
   done();
 }
 

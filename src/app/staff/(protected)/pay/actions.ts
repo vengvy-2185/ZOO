@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess } from "@/lib/server/staff";
-import { paydayById, qrValid, requestDeadline, today } from "@/lib/server/payday";
+import { ensurePaydays, monthLabel, paydayById, qrValid, requestDeadline, today } from "@/lib/server/payday";
 import { managerIds, sendPush } from "@/lib/server/push";
 
 // The staff side of payday: ask in advance when you can't come, and collect
@@ -45,7 +45,7 @@ export async function requestPayday(_prev: PayReqState, fd: FormData): Promise<P
   await db()
     .from("staff_payday_requests")
     .upsert({ payday_id: p.id, user_id: id, kind, method, reason, pickup_date: method === "later" ? pickup : null, proxy_name: method === "proxy" ? proxy : null, status: "pending", created_at: new Date().toISOString() }, { onConflict: "payday_id,user_id" });
-  await sendPush(await managerIds(), { title: "💵 សំណើបើកប្រាក់ខែ", body: `${staff.full_name_km || staff.full_name}: ${kind === "leave" ? "ឈប់សម្រាក" : "មិនអាចមកបាន"} · ${reason.slice(0, 80)}`, url: "/admin/payday", tag: `payreq-new-${id}` }).catch(() => {});
+  await sendPush(await managerIds(), { title: `💵 សំណើបើកប្រាក់ខែ ${monthLabel(p.month, true)}`, body: `${staff.full_name_km || staff.full_name}: ${kind === "leave" ? "ឈប់សម្រាក" : "មិនអាចមកបាន"} · ${reason.slice(0, 80)}`, url: "/admin/payday", tag: `payreq-new-${id}` }).catch(() => {});
   done();
   return { ok: true };
 }
@@ -61,6 +61,7 @@ export type ClaimResult = { ok?: boolean; amount?: number; error?: "invalid" | "
 /** Scanned the department QR: the pay is marked as collected (only once, only your own). */
 export async function claimPay(paydayId: string, dept: string, sig: string): Promise<ClaimResult> {
   const { id, staff } = await me();
+  await ensurePaydays(); // on the pay date it opens by itself
   const p = await paydayById(paydayId);
   if (!p || !qrValid(p, dept, sig)) return { error: "invalid" };
   if (p.status === "closed") return { error: "closed" };

@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/server/site-url";
 import { monthRange, payroll, type PayLine } from "@/lib/server/staff";
+import { MONTHS_EN, MONTHS_KM } from "@/lib/careers";
 
 // Payday: the day the pay of one month is handed out. The admin "opens" it,
 // which freezes everyone's payslip; each department then scans its own QR
@@ -58,6 +59,25 @@ export const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00
 /** The last day a request can still be sent for this payday. */
 export const requestDeadline = (p: Pick<Payday, "pay_date">) => addDays(p.pay_date, -REQUEST_DAYS_BEFORE);
 
+/** "ខែកញ្ញា 2026" / "September 2026": always say which month's pay it is. */
+export const monthLabel = (month: string, km: boolean) => {
+  const [y, m] = month.slice(0, 7).split("-").map(Number);
+  return km ? `ខែ${MONTHS_KM[m - 1]} ${y}` : `${MONTHS_EN[m - 1]} ${y}`;
+};
+/** The next month, "2026-09" → "2026-10". */
+export const nextMonth = (month: string) => {
+  const [y, m] = month.slice(0, 7).split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+};
+/** The same day one month later (31 Jan → 28/29 Feb). */
+export const sameDayNextMonth = (date: string) => {
+  const [y, m, d] = date.split("-").map(Number);
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+  return `${ny}-${String(nm).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+};
+
 const db = () => createServiceRoleClient();
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -70,10 +90,24 @@ export async function paydayById(id: string) {
   const { data } = await db().from("staff_paydays").select("*").eq("id", id).maybeSingle();
   return (data as Payday | null) ?? null;
 }
-/** What a staff member should see: the payday that is open or coming, else the last one. */
-export async function currentPayday() {
-  const { data: next } = await db().from("staff_paydays").select("*").neq("status", "closed").order("pay_date").limit(1).maybeSingle();
-  if (next) return next as Payday;
+/**
+ * What a staff member should see: a payday whose money they still have to
+ * collect, else the next one coming, else the last one.
+ */
+export async function currentPayday(userId?: string) {
+  const { data: live } = await db().from("staff_paydays").select("*").neq("status", "closed").order("pay_date");
+  const list = (live ?? []) as Payday[];
+  if (userId) {
+    const open = list.filter((p) => p.status === "open");
+    if (open.length) {
+      const { data: owed } = await db().from("staff_payslips").select("month").eq("user_id", userId).is("received_at", null).in("month", open.map((p) => p.month));
+      const mine = open.find((p) => (owed ?? []).some((o: any) => o.month === p.month));
+      if (mine) return mine;
+    }
+    const coming = list.find((p) => p.status === "scheduled");
+    if (coming) return coming;
+  }
+  if (list.length) return list[0];
   const { data: last } = await db().from("staff_paydays").select("*").order("pay_date", { ascending: false }).limit(1).maybeSingle();
   return (last as Payday | null) ?? null;
 }
@@ -129,7 +163,7 @@ function detailOf(l: PayLine, leave: number): SlipDetail {
  * Freezes the payslips of everyone active for this payday's month (anyone who
  * already collected keeps theirs untouched). Returns how many were written.
  */
-export async function issuePayslips(p: Payday, adminId: string) {
+export async function issuePayslips(p: Payday, adminId: string | null) {
   const month = p.month.slice(0, 7);
   const lines = (await payroll(month)).filter((l) => l.staff.status === "active");
   const { data: got } = await db().from("staff_payslips").select("user_id").eq("month", monthRange(month).first).not("received_at", "is", null);
@@ -213,4 +247,43 @@ export async function paydayTable(p: Payday) {
     collected: rows.filter((r) => r.received_at).length,
     requests: ((reqs ?? []) as PayRequest[]).sort((a, b) => a.created_at.localeCompare(b.created_at)),
   };
+}
+
+/**
+ * Runs by itself (every 10 minutes, and when payday pages open):
+ * 1. on the pay date a scheduled payday opens on its own (payslips frozen);
+ * 2. once a payday's date has passed (or it was closed), next month's payday
+ *    is set up automatically: same day of the month, same hours and place.
+ *    The admin only sets it once; each month can still be moved by hand.
+ */
+export async function ensurePaydays() {
+  const now = today();
+  let opened = 0;
+  let created = 0;
+  // (a payday more than a week late is left for the admin to open by hand)
+  const { data: due } = await db().from("staff_paydays").select("*").eq("status", "scheduled").lte("pay_date", now).gte("pay_date", addDays(now, -7));
+  for (const p of (due ?? []) as Payday[]) {
+    // only one caller wins the switch to "open"
+    const { data: won } = await db().from("staff_paydays").update({ status: "open", opened_at: new Date().toISOString() }).eq("id", p.id).eq("status", "scheduled").select("id");
+    if (!won?.length) continue;
+    await issuePayslips(p, null);
+    opened++;
+    const { sendPush, staffIds } = await import("@/lib/server/push");
+    await sendPush(await staffIds(), { title: `💵 បើកប្រាក់ខែ ${monthLabel(p.month, true)}`, body: "ថ្ងៃនេះជាថ្ងៃបើកប្រាក់ខែ។ ស្កេន QR នៃផ្នែករបស់អ្នក ដើម្បីទទួលប្រាក់។", url: "/staff/pay", tag: `payday-open-${p.id}` }).catch(() => {});
+  }
+  // keep the following month ready (catch up at most a year)
+  for (let i = 0; i < 12; i++) {
+    const { data: last } = await db().from("staff_paydays").select("*").order("month", { ascending: false }).limit(1).maybeSingle();
+    const l = last as Payday | null;
+    if (!l || (l.status !== "closed" && l.pay_date > now)) break;
+    // never build a chain of old months (e.g. an old month set up by hand)
+    const [y, m] = now.split("-").map(Number);
+    const twoBack = `${m <= 2 ? y - 1 : y}-${String(((m + 9) % 12) + 1).padStart(2, "0")}`;
+    if (l.month.slice(0, 7) < twoBack) break;
+    const month = nextMonth(l.month);
+    const { error } = await db().from("staff_paydays").insert({ month: `${month}-01`, pay_date: sameDayNextMonth(l.pay_date), start_time: l.start_time, end_time: l.end_time, place: l.place });
+    if (error) break; // someone else just made it
+    created++;
+  }
+  return { opened, created };
 }

@@ -93,7 +93,7 @@ const CLAIM_ERR: Record<string, [string, string]> = {
 };
 
 /** The confirm step after scanning (so a link preview can never collect for you). */
-export function ClaimPay({ km, p, d, s, month }: { km: boolean; p: string; d: string; s: string; month: string }) {
+export function ClaimPay({ km, p, d, s, month, monthName }: { km: boolean; p: string; d: string; s: string; month: string; monthName: string }) {
   const [pending, start] = useTransition();
   const [res, setRes] = useState<ClaimResult | null>(null);
   const L = (en: string, k: string) => (km ? k : en);
@@ -112,6 +112,7 @@ export function ClaimPay({ km, p, d, s, month }: { km: boolean; p: string; d: st
       <div className="text-center">
         <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><CheckCircle2 size={44} /></span>
         <p className="mt-4 font-display text-2xl font-extrabold text-forest">{res.ok ? L("Pay collected", "បានទទួលប្រាក់ខែ") : L("Already collected", "បានទទួលរួចហើយ")}</p>
+        <p className="font-bold text-primary">{L("Pay for", "ប្រាក់ខែ")} {monthName}</p>
         <p className="mt-1 font-display text-5xl font-extrabold text-emerald-600">{usd(res.amount)}</p>
         <p className="mt-2 text-sm text-ink/55">{L("Show this screen at the pay desk.", "សូមបង្ហាញអេក្រង់នេះនៅកន្លែងបើកប្រាក់។")} {res.at ? new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Phnom_Penh" }).format(new Date(res.at)) : ""}</p>
         <Link href={`/staff/pay/slip/${month}`} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 font-bold text-white"><FileText size={18} /> {L("See my payslip", "មើលវិក្កយបត្ររបស់ខ្ញុំ")}</Link>
@@ -121,6 +122,7 @@ export function ClaimPay({ km, p, d, s, month }: { km: boolean; p: string; d: st
     <div className="text-center">
       <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-light-green text-primary"><HandCoins size={40} /></span>
       <p className="mt-4 font-display text-2xl font-extrabold text-forest">{L("Collect your pay", "ទទួលប្រាក់ខែរបស់អ្នក")}</p>
+      <p className="mt-1 inline-block rounded-full bg-light-green px-3 py-1 text-sm font-extrabold text-primary">{L("Pay for", "ប្រាក់ខែ")} {monthName}</p>
       {res?.error && <p role="alert" className="mx-auto mt-3 max-w-sm rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{CLAIM_ERR[res.error][km ? 1 : 0]}</p>}
       <button disabled={pending} onClick={go} className="mt-5 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-lg font-extrabold text-white shadow-lift disabled:opacity-60">
         {pending ? <Loader2 size={20} className="animate-spin" /> : <HandCoins size={20} />} {L("Yes, I'm collecting it now", "បាទ/ចាស ខ្ញុំទទួលឥឡូវ")}

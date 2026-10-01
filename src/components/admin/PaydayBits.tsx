@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils/cn";
 const field = "w-full rounded-2xl border border-black/10 bg-cream/40 px-4 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white";
 
 /** Set (or move) the day pay is handed out. */
-export function PaydayForm({ km, month, p }: { km: boolean; month: string; p: { pay_date: string; start_time: string | null; end_time: string | null; place: string | null; note: string | null; status: string } | null }) {
+export function PaydayForm({ km, month, monthName, p }: { km: boolean; month: string; monthName: string; p: { pay_date: string; start_time: string | null; end_time: string | null; place: string | null; note: string | null; status: string } | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState("");
@@ -21,16 +21,19 @@ export function PaydayForm({ km, month, p }: { km: boolean; month: string; p: { 
       action={(fd) =>
         start(async () => {
           const r = await savePayday(fd);
-          setMsg(r.error ? (r.error === "closed" ? L("This payday is closed.", "ថ្ងៃបើកប្រាក់ខែនេះបានបិទហើយ។") : L("Please choose a date.", "សូមជ្រើសថ្ងៃ។")) : L("Saved ✓ · staff were told", "បានរក្សាទុក ✓ · បានជូនដំណឹងបុគ្គលិក"));
+          setMsg(r.error ? (r.error === "closed" ? L("This payday is closed.", "ថ្ងៃបើកប្រាក់ខែនេះបានបិទហើយ។") : r.error === "time" ? L("The end time must be after the start time.", "ម៉ោងបញ្ចប់ត្រូវនៅក្រោយម៉ោងចាប់ផ្តើម។") : r.error === "before" ? L(`The pay of ${monthName} can't be handed out before the month starts.`, `ប្រាក់ខែ${monthName} មិនអាចបើកមុនខែនោះចាប់ផ្តើមបានទេ។`) : L("Please choose a date.", "សូមជ្រើសថ្ងៃ។")) : L("Saved ✓ · staff were told", "បានរក្សាទុក ✓ · បានជូនដំណឹងបុគ្គលិក"));
           router.refresh();
         })
       }
     >
       <input type="hidden" name="month" value={month} />
-      <p className="flex items-center gap-2 font-display text-lg font-extrabold text-forest"><CalendarCheck2 size={19} className="text-primary" /> {L("Payday", "ថ្ងៃបើកប្រាក់ខែ")}</p>
+      <div>
+        <p className="flex items-center gap-2 font-display text-lg font-extrabold text-forest"><CalendarCheck2 size={19} className="text-primary" /> {L("Payday", "ថ្ងៃបើកប្រាក់ខែ")}</p>
+        <p className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-light-green px-3 py-2 text-sm font-extrabold text-primary">{L("Pay for the month of", "ប្រាក់ខែសម្រាប់")} {monthName}</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block sm:col-span-1">
-          <span className="mb-1 block text-xs font-bold text-ink/55">{L("Date", "ថ្ងៃ")} *</span>
+          <span className="mb-1 block text-xs font-bold text-ink/55">{L("Hand-out date", "ថ្ងៃបើកប្រាក់")} *</span>
           <input type="date" name="pay_date" required defaultValue={p?.pay_date ?? ""} disabled={locked} className={field} />
         </label>
         <label className="block">
@@ -44,6 +47,7 @@ export function PaydayForm({ km, month, p }: { km: boolean; month: string; p: { 
       </div>
       <input name="place" defaultValue={p?.place ?? ""} disabled={locked} placeholder={L("Where (e.g. HR office)", "ទីកន្លែង (ឧ. ការិយាល័យ HR)")} className={field} />
       <input name="note" defaultValue={p?.note ?? ""} disabled={locked} placeholder={L("Note for staff (optional)", "សារទៅបុគ្គលិក (ជម្រើស)")} className={field} />
+      <p className="rounded-2xl bg-sky-50 px-3 py-2 text-xs text-sky-900">{L("Set it once: the following months are set up by themselves (same day of the month, same hours and place), and payday opens by itself on the day. Pay and attendance start counting again each new month.", "កំណត់តែម្តងគត់៖ ខែបន្ទាប់ៗនឹងកំណត់ដោយស្វ័យប្រវត្តិ (ថ្ងៃទីដូចគ្នា ម៉ោង និងទីកន្លែងដដែល) ហើយបើកដោយខ្លួនឯងនៅថ្ងៃនោះ។ ប្រាក់ខែ និងវត្តមានចាប់ផ្តើមរាប់ថ្មីរៀងរាល់ខែ។")}</p>
       <div className="flex flex-wrap items-center justify-end gap-3">
         {msg && <span role="status" className="text-sm font-bold text-primary">{msg}</span>}
         <button disabled={pending || locked} className="btn-primary disabled:opacity-50">{pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {p ? L("Save", "រក្សាទុក") : L("Set payday", "កំណត់ថ្ងៃ")}</button>
@@ -67,8 +71,8 @@ export function PaydayControls({ km, id, status }: { km: boolean; id: string; st
   return (
     <div className="flex flex-wrap gap-2">
       {status === "scheduled" && (
-        <button disabled={pending} onClick={() => go(() => openPayday(id), L("Open payday now? Everyone's payslip is frozen and the QR codes start working.", "បើកថ្ងៃបើកប្រាក់ខែឥឡូវ? វិក្កយបត្ររបស់បុគ្គលិកនឹងត្រូវគិតរួច ហើយ QR ចាប់ផ្តើមដំណើរការ។"))} className="btn-primary">
-          {pending ? <Loader2 size={16} className="animate-spin" /> : <PlayCircle size={16} />} {L("Open payday", "បើកការបើកប្រាក់ខែ")}
+        <button disabled={pending} onClick={() => go(() => openPayday(id), L("Open payday now (instead of waiting for the day)? Everyone's payslip is frozen.", "បើកឥឡូវ (មិនរង់ចាំដល់ថ្ងៃ)? វិក្កយបត្ររបស់បុគ្គលិកនឹងត្រូវគិតរួច។"))} className="btn-primary">
+          {pending ? <Loader2 size={16} className="animate-spin" /> : <PlayCircle size={16} />} {L("Open now", "បើកឥឡូវ")}
         </button>
       )}
       {status === "open" && (

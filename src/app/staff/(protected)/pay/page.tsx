@@ -6,7 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { staffAccess, payroll, thisMonth, PAY_TYPE, staffTitle } from "@/lib/server/staff";
 import { getI18n } from "@/lib/i18n/server";
 import { StaffShell } from "@/components/staff/StaffShell";
-import { currentPayday, requestDeadline, today } from "@/lib/server/payday";
+import { currentPayday, ensurePaydays, monthLabel, paydayFor, requestDeadline, today } from "@/lib/server/payday";
 import { PayRequestForm, CancelRequest } from "@/components/staff/PaydayStaff";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ const usd = (n: number) => `$${n.toFixed(2)}`;
 /** This month's pay worked out line by line, and past payslips. */
 export const generateMetadata = () => staffTitle("Pay", "ប្រាក់ខែ");
 
-export default async function PayPage() {
+export default async function PayPage({ searchParams }: { searchParams: { month?: string } }) {
   const userId = getVerifiedUserId()!;
   const access = await staffAccess(userId);
   if (!access.staff) redirect("/staff");
@@ -27,7 +27,9 @@ export default async function PayPage() {
   ]);
   const p = access.staff.position;
   // payday: the open / coming one, my payslip for it and my request
-  const pd = await currentPayday();
+  await ensurePaydays();
+  // ?month=2026-10 opens that month's payday (links from notifications); otherwise the one that matters now
+  const pd = (/^\d{4}-\d{2}$/.test(searchParams?.month ?? "") ? await paydayFor(searchParams.month!) : null) ?? (await currentPayday(userId));
   const db = createServiceRoleClient();
   const [{ data: pdSlip }, { data: myReq }] = pd
     ? await Promise.all([
@@ -52,8 +54,9 @@ export default async function PayPage() {
         <section className="card overflow-hidden">
           <div className="relative overflow-hidden bg-gradient-to-br from-forest via-primary to-[#1D9A5B] p-5 text-white md:p-6">
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-            <p className="relative flex items-center gap-2 text-sm font-bold text-white/80"><HandCoins size={17} /> {km ? "ថ្ងៃបើកប្រាក់ខែ" : "Payday"} · {monthName(pd.month)}</p>
-            <p className="relative mt-1 font-display text-3xl font-extrabold">{longDate(pd.pay_date)}</p>
+            <p className="relative flex items-center gap-2 text-sm font-bold text-white/80"><HandCoins size={17} /> {km ? "ថ្ងៃបើកប្រាក់ខែ" : "Payday"}</p>
+            <p className="relative mt-1 font-display text-3xl font-extrabold">{km ? "ប្រាក់ខែ" : "Pay for"} {monthLabel(pd.month, km)}</p>
+            <p className="relative mt-1 text-lg font-bold text-white/90">{km ? "បើកនៅ" : "Handed out on"} {longDate(pd.pay_date)}</p>
             <p className="relative mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/85">
               {pd.start_time && <span className="inline-flex items-center gap-1"><CalendarClock size={14} /> {pd.start_time.slice(0, 5)}{pd.end_time ? `–${pd.end_time.slice(0, 5)}` : ""}</span>}
               {pd.place && <span className="inline-flex items-center gap-1"><MapPin size={14} /> {pd.place}</span>}
