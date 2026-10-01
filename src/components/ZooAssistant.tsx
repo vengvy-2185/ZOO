@@ -71,8 +71,6 @@ export function ZooAssistant() {
   }, [msgs, typing]);
 
   if (/^\/(admin|staff|auth)/.test(pathname)) return null;
-  const lastBot = [...msgs].reverse().find((m) => m.from === "bot");
-  const shown = lastBot?.animal?.image ? lastBot.animal : null;
 
   async function ask(q: string) {
     const text = q.trim();
@@ -141,39 +139,6 @@ export function ZooAssistant() {
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="pointer-events-none fixed bottom-6 right-[28rem] z-50 hidden w-[15rem] flex-col items-center md:flex" aria-hidden={!shown}>
-            {shown && (
-              <Link
-                key={shown.code}
-                href={`/animals/${shown.code}`}
-                className="pointer-events-auto mb-3 w-full overflow-hidden rounded-3xl bg-white shadow-lift ring-1 ring-black/5 animate-[gwzPop_.35s_ease] hover:ring-primary"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={shown.image!} alt="" className="aspect-[4/3] max-h-[24vh] w-full object-cover" />
-                <span className="block px-3.5 py-2.5">
-                  <span className="block truncate font-display font-extrabold text-forest">{shown.name}</span>
-                  <span className="flex items-center gap-1 truncate text-xs font-semibold text-primary">{shown.species} <ArrowRight size={12} /></span>
-                </span>
-              </Link>
-            )}
-            <div className="relative w-full">
-              {typing && (
-                <span className="absolute -top-2 left-1 z-10 flex gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-2 shadow-lift">
-                  {[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/70" style={{ animationDelay: `${i * 0.15}s` }} />)}
-                </span>
-              )}
-              {/* a little hop each time a new answer arrives */}
-              <span key={msgs.length} className="block motion-safe:animate-[gwzRobotHop_.5s_ease]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/assistant/robot.webp"
-                alt=""
-                className={cn("mx-auto h-auto max-h-[42vh] w-[13rem] object-contain drop-shadow-[0_18px_24px_rgba(14,63,36,.3)]", typing ? "motion-safe:animate-[gwzRobotThink_.7s_ease-in-out_infinite]" : "motion-safe:animate-[gwzRobotFloat_3.2s_ease-in-out_infinite]")}
-              />
-              </span>
-              <span className="mx-auto -mt-2 block h-4 w-32 rounded-[50%] bg-forest/20 blur-[5px]" />
-            </div>
-          </div>
           <style>{`@keyframes gwzRobotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes gwzRobotHop{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-18px) scale(1.03)}100%{transform:translateY(0) scale(1)}}@keyframes gwzRobotThink{0%,100%{transform:rotate(-2deg) translateY(0)}50%{transform:rotate(2deg) translateY(-4px)}}`}</style>
           <div
             className="fixed inset-x-2 bottom-24 top-20 z-50 flex flex-col overflow-hidden rounded-3xl bg-white shadow-lift ring-1 ring-black/5 animate-[gwzSlideIn_.3s_ease] sm:inset-x-auto sm:right-4 sm:top-auto sm:h-[36rem] sm:max-h-[80vh] sm:w-[25rem] md:bottom-6 md:right-6"
@@ -207,14 +172,22 @@ export function ZooAssistant() {
               ref={listRef}
               className="no-scrollbar flex-1 space-y-2.5 overflow-y-auto overscroll-contain bg-cream/50 p-3.5"
             >
+              {msgs.length === 0 && (
+                <div className="relative mx-auto flex flex-col items-center pt-1">
+                  <span className="absolute top-6 h-36 w-36 rounded-full bg-gradient-to-b from-light-green to-transparent" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/assistant/robot.webp" alt="" className="relative h-44 w-auto drop-shadow-[0_14px_18px_rgba(14,63,36,.28)] motion-safe:animate-[gwzRobotFloat_3.2s_ease-in-out_infinite]" />
+                  <span className="-mt-1 h-3 w-24 rounded-[50%] bg-forest/15 blur-[4px]" />
+                </div>
+              )}
               <Bubble from="bot" text={a.greeting} />
               {msgs.map((m, i) => (
                 <div key={i} className="space-y-2">
-                  <Bubble from={m.from} text={m.text} />
+                  <Bubble from={m.from} text={m.text} hop={m.from === "bot" && i === msgs.length - 1} />
                   {m.animal && (
                     <Link
                       href={`/animals/${m.animal.code}`}
-                      className="flex items-center gap-3 rounded-2xl bg-white p-2 shadow-soft ring-1 ring-black/5 hover:ring-primary"
+                      className="ml-9 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-soft ring-1 ring-black/5 hover:ring-primary"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -233,7 +206,7 @@ export function ZooAssistant() {
                     </Link>
                   )}
                   {m.links && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="ml-9 flex flex-wrap gap-1.5">
                       {m.links.map((l) => (
                         <Link
                           key={l.href}
@@ -248,6 +221,8 @@ export function ZooAssistant() {
                 </div>
               ))}
               {typing && (
+                <div className="flex items-end gap-2">
+                <RobotFace thinking />
                 <div
                   className="flex w-fit gap-1 rounded-2xl rounded-bl-sm bg-white px-4 py-3 shadow-soft"
                   aria-label={a.typing}
@@ -260,9 +235,10 @@ export function ZooAssistant() {
                     />
                   ))}
                 </div>
+                </div>
               )}
               {msgs.length === 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="flex flex-wrap justify-center gap-1.5 pt-1">
                   {a.suggestions.map((s) => (
                     <button
                       key={s}
@@ -316,12 +292,23 @@ export function ZooAssistant() {
   );
 }
 
-function Bubble({ from, text }: { from: "me" | "bot"; text: string }) {
+/** The robot's face (beside its answers; it rocks while thinking, hops on a new answer). */
+function RobotFace({ thinking = false, hop = false }: { thinking?: boolean; hop?: boolean }) {
   return (
-    <div className={cn("flex", from === "me" && "justify-end")}>
+    <span className={cn("h-7 w-7 flex-shrink-0 overflow-hidden rounded-full bg-white shadow-soft ring-1 ring-black/5", thinking && "motion-safe:animate-[gwzRobotThink_.7s_ease-in-out_infinite]", hop && "motion-safe:animate-[gwzRobotHop_.5s_ease]")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/assistant/robot-face.webp" alt="" className="h-full w-full object-cover" />
+    </span>
+  );
+}
+
+function Bubble({ from, text, hop = false }: { from: "me" | "bot"; text: string; hop?: boolean }) {
+  return (
+    <div className={cn("flex items-end gap-2", from === "me" && "justify-end")}>
+      {from === "bot" && <RobotFace hop={hop} />}
       <p
         className={cn(
-          "max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-[14.5px] leading-relaxed shadow-soft animate-[gwzPop_.25s_ease]",
+          "max-w-[80%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-[14.5px] leading-relaxed shadow-soft animate-[gwzPop_.25s_ease]",
           from === "me"
             ? "rounded-br-sm bg-primary text-white"
             : "rounded-bl-sm bg-white text-ink/80",

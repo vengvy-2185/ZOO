@@ -10,7 +10,6 @@ import { NAV_LINKS, MORE_LINKS, MORE_GROUPS, isActivePath } from "./nav-links";
 
 const BOTTOM_BAR = ["/", "/animals", "/map", "/tickets"];
 import { FavoritesNavButton } from "./FavoritesGrid";
-import { MonkeyOnVine } from "./JungleAmbience";
 import { MyTicketsButton } from "./MyTickets";
 
 export interface SearchAnimal {
@@ -96,8 +95,6 @@ export function NavbarClient({
 
   return (
     <>
-      {/* Climbing monkey on every page (it can be switched off with its X button). */}
-      <MonkeyOnVine />
       <header
         className={cn(
           "sticky top-0 z-40 border-b transition-all duration-300",
