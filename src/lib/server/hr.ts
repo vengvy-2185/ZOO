@@ -256,6 +256,11 @@ export async function logEvent(applicantId: string, kind: string, note?: string 
 export async function notifyHr(html: string) {
   const s = await hrSettings();
   if (!s.bot_token || !s.hr_chat_id) return false;
+  // HR news (other people's applications) only goes to the HR team's group,
+  // never into a private chat, and never into a chat an applicant uses
+  if (!String(s.hr_chat_id).startsWith("-")) return false;
+  const { count } = await createServiceRoleClient().from("hr_applicants").select("id", { count: "exact", head: true }).eq("tg_chat_id", s.hr_chat_id);
+  if (count) return false;
   const r = await bot("sendMessage", { chat_id: s.hr_chat_id, text: html.slice(0, 4000), parse_mode: "HTML", disable_web_page_preview: true }, s.bot_token);
   return Boolean(r?.ok);
 }

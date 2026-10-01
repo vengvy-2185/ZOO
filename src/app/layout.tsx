@@ -33,6 +33,11 @@ import "./globals.css";
 import { CANONICAL_URL } from "@/lib/site";
 const SITE = CANONICAL_URL;
 
+const SITE_LD = JSON.stringify([
+  { "@context": "https://schema.org", "@type": "WebSite", name: "Green Wild Zoo", alternateName: ["សួនសត្វ Green Wild Zoo", "GWZ"], url: `${SITE}/` },
+  { "@context": "https://schema.org", "@type": "Zoo", name: "Green Wild Zoo", url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png`, image: `${SITE}/og.png` },
+]);
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   // pages give their own name; search results then read "Our Animals · Green Wild Zoo"
@@ -64,6 +69,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Decides before the first paint whether to play the opening animation. */}
+        {/* tells Google the site's name and logo (otherwise it shows the host, "Vercel") */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: SITE_LD }} />
         <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: TEXT_SIZE_SCRIPT }} />
         {/* Chrome says "this can be installed" very early, often before the page is ready: keep it for the Install button */}

@@ -6,7 +6,7 @@ import { bakongUsage } from "@/lib/server/payments";
 import { hrSettings } from "@/lib/server/hr";
 import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings } from "@/lib/server/private-settings";
 import { getI18n } from "@/lib/i18n/server";
-import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveTurn, testTurn, saveHr, connectHrBot } from "./actions";
+import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveTurn, testTurn, saveHr, connectHrBot, newHrGroupCode } from "./actions";
 
 const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], [string, string]> = {
   sos: ["SOS / emergency (always recommended)", "SOS / អាសន្ន (ណែនាំឲ្យបើកជានិច្ច)"],
@@ -211,7 +211,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 {L("HR team chat:", "ក្រុម HR៖")} {hr.hr_chat_id ? <b>{L("linked ✓", "បានភ្ជាប់ ✓")}</b> : <b>{L("not linked", "មិនទាន់ភ្ជាប់")}</b>} — {L("new applications and applicants' questions go there (never to the staff group).", "ពាក្យសុំថ្មី និងសំណួរបេក្ខជនចូលទីនោះ (មិនចូលក្រុមបុគ្គលិកទេ)។")}
                 {hr.link_code && !hr.hr_chat_id && (
                   <>
-                    {" "}{L("To link it: add", "ដើម្បីភ្ជាប់៖ បន្ថែម")} @{hr.bot_username} {L("to your HR group and send", "ចូលក្រុម HR ហើយផ្ញើ")} <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold">/link@{hr.bot_username} {hr.link_code}</code>
+                    {" "}{L("To link it: add", "ដើម្បីភ្ជាប់៖ បន្ថែម")} @{hr.bot_username} {L("to your HR group (a Telegram group, not a private chat) and send", "ចូលក្រុម HR (ត្រូវជា Group មិនមែន chat ផ្ទាល់ខ្លួនទេ) ហើយផ្ញើ")} <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold">/link@{hr.bot_username} {hr.link_code}</code>
                   </>
                 )}
               </p>
@@ -219,9 +219,16 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             <div className="flex justify-end"><SubmitButton label={L("Save hiring settings", "រក្សាទុកការកំណត់ជ្រើសរើសបុគ្គលិក")} pendingLabel={L("Saving…", "កំពុងរក្សាទុក…")} /></div>
           </FormSection>
         </form>
-        <form action={connectHrBot} className="-mt-3 flex justify-end">
-          <button className="btn-outline bg-white px-4 py-2 text-xs" disabled={!hr.bot_token}>{L("Connect the bot", "ភ្ជាប់ Bot")}</button>
-        </form>
+        <div className="-mt-3 flex flex-wrap justify-end gap-2">
+          {hr.bot_username && (
+            <form action={newHrGroupCode}>
+              <button className="btn-outline bg-white px-4 py-2 text-xs">{hr.hr_chat_id ? L("Change HR group", "ប្តូរក្រុម HR") : L("New link code", "លេខកូដភ្ជាប់ថ្មី")}</button>
+            </form>
+          )}
+          <form action={connectHrBot}>
+            <button className="btn-outline bg-white px-4 py-2 text-xs" disabled={!hr.bot_token}>{L("Connect the bot", "ភ្ជាប់ Bot")}</button>
+          </form>
+        </div>
 
         {/* ── Calls & live video ─────────────────────────────── */}
         <form action={saveTurn} autoComplete="off" id="turn" className="scroll-mt-6">

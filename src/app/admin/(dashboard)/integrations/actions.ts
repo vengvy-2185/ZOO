@@ -160,6 +160,15 @@ export async function saveHr(formData: FormData) {
   redirect("/admin/integrations?msg=saved#hr");
 }
 
+/** A new one-time code to link (another) HR group; the old link stops getting HR news. */
+export async function newHrGroupCode() {
+  await requireAdmin();
+  const { hrSettings } = await import("@/lib/server/hr");
+  const cur = await hrSettings();
+  await save("hr", { ...cur, hr_chat_id: null, link_code: String(Math.floor(100000 + Math.random() * 900000)) });
+  redirect("/admin/integrations?msg=saved#hr");
+}
+
 /** Tells Telegram to send the bot's messages to this website (with a secret only we know). */
 export async function connectHrBot() {
   await requireAdmin();

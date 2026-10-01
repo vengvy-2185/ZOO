@@ -12,7 +12,7 @@ import { hrSettings } from "@/lib/server/hr";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Jobs at the zoo", description: "Work with animals and people at Green Wild Zoo. See open jobs and apply online with your CV." };
 
-const TYPE: Record<string, [string, string]> = { "full-time": ["Full time", "ពេញម៉ោង"], "part-time": ["Part time", "ក្រៅម៉ោង"], intern: ["Internship", "កម្មសិក្សា"], volunteer: ["Volunteer", "ស្ម័គ្រចិត្ត"] };
+import { JOB_TYPE as TYPE } from "@/lib/careers";
 
 /** Open jobs: anyone can apply online (no account needed). */
 export default async function Careers() {

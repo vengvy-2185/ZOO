@@ -36,6 +36,11 @@ const db = () => createServiceRoleClient();
 async function linkHrGroup(m: any) {
   const code = String(m.text ?? "").trim().match(/^\/link(?:@\w+)?\s+(\d{6})$/)?.[1];
   if (!code || !m.chat?.id) return false;
+  // only a group: each applicant's private chat shows only their own application
+  if (m.chat.type !== "group" && m.chat.type !== "supergroup") {
+    await send(m.chat.id, "⚠️ សូមផ្ញើ /link ក្នុង <b>ក្រុម HR</b> (Group) មិនមែនក្នុង chat ផ្ទាល់ខ្លួនទេ។ Chat ផ្ទាល់ខ្លួនសម្រាប់បេក្ខជន ឃើញតែពាក្យរបស់ខ្លួនប៉ុណ្ណោះ។\n\n⚠️ Send /link inside the <b>HR team's group</b>, not in a private chat. Private chats are for applicants and show only their own application.");
+    return true;
+  }
   const s = await hrSettings();
   if (!s.link_code || code !== s.link_code) {
     await send(m.chat.id, "❌ លេខកូដមិនត្រឹមត្រូវ · Wrong code");

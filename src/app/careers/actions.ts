@@ -57,8 +57,16 @@ export async function applyForJob(_prev: ApplyState, fd: FormData): Promise<Appl
   if (!(await allow("hr-apply", 5, 3600))) return { error: "limit" };
   const raw = Object.fromEntries([...fd.entries()].filter(([k, v]) => typeof v === "string" && v !== "" && k !== "website"));
   const parsed = Form.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.path[0] === "cv_path" ? "cv" : parsed.error.issues[0]?.path[0] === "consent" ? "consent" : "invalid" };
+  if (!parsed.success) {
+    // say which field is wrong, so the form can point at it
+    const f = String(parsed.error.issues[0]?.path[0] ?? "");
+    return { error: f === "cv_path" ? "cv" : f === "consent" ? "consent" : ["full_name", "phone", "email", "birth_date", "available_from", "job"].includes(f) ? `invalid:${f}` : "invalid" };
+  }
   const f = parsed.data;
+  for (const k of ["birth_date", "available_from"] as const) {
+    const v = f[k];
+    if (v && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) !== v) return { error: `invalid:${k}` };
+  }
   const s = await hrSettings();
   if (!s.accept) return { error: "closed" };
   const db = createServiceRoleClient();
