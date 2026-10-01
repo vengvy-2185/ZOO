@@ -33,6 +33,12 @@ export interface TurnSettings {
   credential?: string;
 }
 
+/** The website's AI assistant (Claude): the API key stays on the server. */
+export interface AiSettings {
+  api_key?: string;
+  enabled?: boolean;
+}
+
 export interface TtsSettings {
   azure_key?: string;
   azure_region?: string; // e.g. "southeastasia"
@@ -58,7 +64,7 @@ export function serviceClient() {
   });
 }
 
-export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram" | "turn" | "hr"): Promise<T> {
+export async function getPrivateSetting<T>(key: "payment" | "tts" | "telegram" | "turn" | "hr" | "ai"): Promise<T> {
   const { data } = await serviceClient().from("private_settings").select("value").eq("key", key).maybeSingle();
   return ((data?.value as T) ?? ({} as T)) as T;
 }

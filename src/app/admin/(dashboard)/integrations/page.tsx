@@ -1,12 +1,12 @@
-import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send, PhoneCall, Briefcase } from "lucide-react";
+import { PlugZap, QrCode, AudioLines, CheckCircle2, AlertTriangle, ExternalLink, KeyRound, Send, PhoneCall, Briefcase, Bot } from "lucide-react";
 import { AdminPageHeader, FormSection, Field, SelectField } from "@/components/admin/ui";
 import { SubmitButton, ImageUploadField } from "@/components/admin/ui-client";
 import { PaymentTest } from "@/components/admin/PaymentTest";
 import { bakongUsage } from "@/lib/server/payments";
 import { hrSettings } from "@/lib/server/hr";
-import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings } from "@/lib/server/private-settings";
+import { getPrivateSetting, mask, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings, type AiSettings } from "@/lib/server/private-settings";
 import { getI18n } from "@/lib/i18n/server";
-import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveTurn, testTurn, saveHr, connectHrBot, newHrGroupCode } from "./actions";
+import { savePayment, saveTts, testPayment, saveTelegram, testTelegram, findTelegramChats, saveTurn, testTurn, saveHr, connectHrBot, newHrGroupCode, saveAi, testAiKey } from "./actions";
 
 const TG_EVENTS: Record<(typeof TELEGRAM_EVENTS)[number], [string, string]> = {
   sos: ["SOS / emergency (always recommended)", "SOS / អាសន្ន (ណែនាំឲ្យបើកជានិច្ច)"],
@@ -23,13 +23,14 @@ export const dynamic = "force-dynamic";
 export default async function IntegrationsPage({ searchParams }: { searchParams: { msg?: string; test?: string; tg?: string; detail?: string } }) {
   const km = getI18n().locale === "km";
   const L = (en: string, kh: string) => (km ? kh : en);
-  const [pay, tts, tele, usage, turn, hr] = await Promise.all([
+  const [pay, tts, tele, usage, turn, hr, ai] = await Promise.all([
     getPrivateSetting<PaymentSettings>("payment"),
     getPrivateSetting<TtsSettings>("tts"),
     getPrivateSetting<TelegramSettings>("telegram"),
     bakongUsage(),
     getPrivateSetting<TurnSettings>("turn"),
     hrSettings(),
+    getPrivateSetting<AiSettings>("ai"),
   ]);
 
   return (
@@ -260,6 +261,34 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         </form>
         <form action={testTurn} className="-mt-3 flex justify-end">
           <button className="btn-outline bg-white px-4 py-2 text-xs">{L("Test TURN server", "សាកល្បង TURN server")}</button>
+        </form>
+
+        {/* ── AI assistant ─────────────────────────────── */}
+        <form action={saveAi} id="ai">
+          <FormSection icon={Bot} title={L("AI assistant (Claude)", "AI ជំនួយការ (Claude)")} hint={L("The robot on the website answers any question with Claude. About the zoo it only uses your own data (hours, tickets, shows, animals, places), so it doesn't make things up. Without a key, the simple built-in answers are used.", "robot លើ website ឆ្លើយគ្រប់សំណួរដោយប្រើ Claude។ សំណួរអំពីសួនសត្វ វាប្រើតែទិន្នន័យរបស់អ្នក (ម៉ោង សំបុត្រ កម្មវិធី សត្វ ទីកន្លែង) ដូច្នេះវាមិនបង្កើតព័ត៌មានខុសទេ។ បើគ្មាន key វាប្រើចម្លើយសាមញ្ញដែលមានស្រាប់។")}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field
+                label={`Claude API key ${ai.api_key ? `(${L("saved", "បានរក្សាទុក")} ${mask(ai.api_key)})` : ""}`}
+                name="api_key"
+                type="password"
+                autoComplete="off"
+                placeholder={ai.api_key ? L("Leave blank to keep · type - to remove", "ទុកទទេ = រក្សាទុក · វាយ - ដើម្បីលុប") : "sk-ant-..."}
+              />
+              <label className="flex items-center gap-3 self-end rounded-2xl bg-cream/60 px-4 py-3 text-sm font-bold text-forest">
+                <input type="checkbox" name="enabled" defaultChecked={ai.enabled !== false} className="h-5 w-5 accent-[#176B3A]" /> {L("Use the AI for the website assistant", "ប្រើ AI សម្រាប់ជំនួយការលើ website")}
+              </label>
+            </div>
+            <p className="text-xs text-ink/55">{L("Model: Claude Opus 5.5 · charged per use by Anthropic (a short answer costs well under one US cent). The key never reaches the visitor's browser.", "Model៖ Claude Opus 5.5 · Anthropic គិតថ្លៃតាមការប្រើ (ចម្លើយខ្លីមួយ តិចជាង ១ សេនដុល្លារ)។ key មិនទៅដល់ browser របស់ភ្ញៀវទេ។")}</p>
+            <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+              {L("Create an API key on the Claude Console", "បង្កើត API key នៅ Claude Console")} <ExternalLink size={12} />
+            </a>
+            <div className="flex justify-end">
+              <SubmitButton label={L("Save AI settings", "រក្សាទុកការកំណត់ AI")} pendingLabel={L("Saving…", "កំពុងរក្សាទុក…")} />
+            </div>
+          </FormSection>
+        </form>
+        <form action={testAiKey} className="-mt-3 flex justify-end">
+          <button className="btn-outline bg-white px-4 py-2 text-xs" disabled={!ai.api_key}>{L("Test the AI", "សាកល្បង AI")}</button>
         </form>
 
         {/* ── Text to speech ─────────────────────────────── */}

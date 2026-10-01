@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUserId } from "@/lib/auth/session";
 import { getCachedRole } from "@/lib/auth/role";
-import { getPrivateSetting, serviceClient, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings } from "@/lib/server/private-settings";
+import { getPrivateSetting, serviceClient, TELEGRAM_EVENTS, type PaymentSettings, type TelegramSettings, type TtsSettings, type TurnSettings, type AiSettings } from "@/lib/server/private-settings";
 import { iceServers, forgetIce } from "@/lib/server/ice";
 import { recentChats, sendTelegram } from "@/lib/server/telegram";
 import { checkAccount } from "@/lib/server/bakong";
@@ -23,7 +23,7 @@ async function requireAdmin() {
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
-async function save(key: "payment" | "tts" | "telegram" | "turn" | "hr", value: object) {
+async function save(key: "payment" | "tts" | "telegram" | "turn" | "hr" | "ai", value: object) {
   const { error } = await serviceClient().from("private_settings").upsert({ key, value, updated_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
 }
@@ -186,4 +186,24 @@ export async function connectHrBot() {
   const linkCode = String(Math.floor(100000 + Math.random() * 900000));
   await save("hr", { ...cur, bot_username: me.result.username, webhook_secret: secret, telegram_on: true, link_code: cur.hr_chat_id ? cur.link_code : linkCode });
   redirect(`/admin/integrations?test=ok&detail=${encodeURIComponent(T(`Connected ✓ @${me.result.username} now answers applicants.`, `បានភ្ជាប់ ✓ @${me.result.username} ឥឡូវឆ្លើយតបបេក្ខជនហើយ។`))}#hr`);
+}
+
+/** The AI assistant: the Claude API key (kept on the server) and on / off. */
+export async function saveAi(formData: FormData) {
+  await requireAdmin();
+  await audit("settings.ai", "private_settings");
+  const current = await getPrivateSetting<AiSettings>("ai");
+  const key = str(formData, "api_key");
+  if (key && key !== "-" && !/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent(T("That doesn't look like a Claude API key (it starts with sk-ant-).", "នេះមិនមែនជា Claude API key ទេ (ត្រូវចាប់ផ្តើមដោយ sk-ant-)។"))}#ai`);
+  await save("ai", { api_key: key === "-" ? undefined : key || current.api_key, enabled: formData.get("enabled") === "on" } satisfies AiSettings);
+  redirect("/admin/integrations?msg=saved#ai");
+}
+
+export async function testAiKey() {
+  await requireAdmin();
+  const s = await getPrivateSetting<AiSettings>("ai");
+  if (!s.api_key) redirect(`/admin/integrations?test=fail&detail=${encodeURIComponent(T("Save the API key first.", "សូមរក្សាទុក API key ជាមុនសិន។"))}#ai`);
+  const { testAi } = await import("@/lib/server/ai-assistant");
+  const r = await testAi(s.api_key!);
+  redirect(`/admin/integrations?test=${r.ok ? "ok" : "fail"}&detail=${encodeURIComponent(r.ok ? T(`The AI answered ✓ — "${r.answer}"`, `AI ឆ្លើយតបហើយ ✓ — «${r.answer}»`) : T(`The AI did not answer: ${r.error}`, `AI មិនបានឆ្លើយតប៖ ${r.error}`))}#ai`);
 }

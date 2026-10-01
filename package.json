@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@fontsource/baloo-2": "^5.3.0",
     "@fontsource/battambang": "^5.3.0",
     "@fontsource/inter": "^5.3.0",

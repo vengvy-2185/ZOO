@@ -146,6 +146,15 @@ export async function answer(question: string, lang: Lang): Promise<AssistantRep
     return { text: pick([L("I'm doing great, thank you! The animals are happy today too. How can I help with your visit?", "ខ្ញុំសុខសប្បាយណាស់ អរគុណ! សត្វៗក៏រីករាយដែរថ្ងៃនេះ។ តើខ្ញុំអាចជួយអ្វីសម្រាប់ការមកលេងរបស់អ្នក?"), L("Wonderful, thanks for asking! The giraffes say hello. What would you like to know?", "ល្អណាស់ អរគុណដែលបានសួរ! ហ្សីរ៉ាហ្វផ្ញើការជម្រាបសួរមក។ តើអ្នកចង់ដឹងអំពីអ្វី?")]) };
   }
 
+  // ── "How many animals?" (before prices: "ប៉ុន្មាន" is also asked about prices) ──
+  if (has(q, ["how many animal", "how many species", "number of animal", "total animal", "animals in total", "ចំនួនសត្វ", "សត្វសរុប", "សត្វប៉ុន្មាន", "សត្វមានប៉ុន្មាន", "ប៉ុន្មានក្បាល", "ប៉ុន្មានប្រភេទ"])) {
+    const species = new Set(animals.map((a) => a.species?.common_name).filter(Boolean)).size;
+    return {
+      text: L(`Green Wild Zoo is home to ${animals.length} animals from ${species} different species.`, `សួនសត្វ Green Wild Zoo មានសត្វសរុប ${animals.length} ក្បាល ពី ${species} ប្រភេទផ្សេងៗគ្នា។`),
+      links: [{ label: L("See all animals", "មើលសត្វទាំងអស់"), href: "/animals" }],
+    };
+  }
+
   // ── A specific animal (by name, Khmer name, species or everyday word) ──
   const byName = animals.find((a) =>
     [a.name, a.khmer_name, a.species?.common_name, String(a.species?.khmer_name ?? "").replace(/^សត្វ/, "")]

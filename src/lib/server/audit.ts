@@ -10,7 +10,7 @@ export type AuditAction =
   | "staff.create" | "staff.update" | "staff.password" | "staff.account"
   | "pay.adjust" | "pay.adjust.remove" | "pay.paid" | "pay.unpaid" | "position.save" | "position.delete"
   | "leave.decide" | "cash.review" | "report.export" | "settings.staff" | "settings.payment" | "settings.telegram" | "settings.tts" | "settings.site" | "settings.scratch"
-  | "settings.turn" | "settings.hr"
+  | "settings.turn" | "settings.hr" | "settings.ai"
   | "salary.set" | "salary.delete"
   | "payday.create" | "payday.update" | "payday.open" | "payday.reissue" | "payday.close" | "payday.received" | "payday.received_undo" | "payday.delete";
 

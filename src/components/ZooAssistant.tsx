@@ -83,7 +83,7 @@ export function ZooAssistant() {
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q: text, lang: locale === "km" ? "km" : "en" }),
+        body: JSON.stringify({ q: text, lang: locale === "km" ? "km" : "en", history: msgs.slice(-12).map((m) => ({ from: m.from, text: m.text.slice(0, 1500) })) }),
       });
       const reply = await res.json();
       // a short, natural "typing" pause

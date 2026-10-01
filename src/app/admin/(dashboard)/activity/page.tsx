@@ -23,6 +23,7 @@ const WHAT: Record<string, { km: string; en: string }> = {
   "pay.adjust": { km: "បន្ថែម/កាត់ប្រាក់ខែ", en: "Pay bonus/deduction" },
   "pay.adjust.remove": { km: "លុបការបន្ថែម/កាត់ប្រាក់", en: "Removed a pay adjustment" },
   "pay.paid": { km: "សម្គាល់ថាបានបើកប្រាក់ខែ", en: "Marked pay as paid" },
+  "settings.ai": { km: "កែការកំណត់ AI ជំនួយការ", en: "Changed the AI assistant settings" },
   "salary.set": { km: "កំណត់/ដំឡើងប្រាក់ខែបុគ្គលិក", en: "Set or raised a salary" },
   "salary.delete": { km: "លុបការកំណត់ប្រាក់ខែ", en: "Removed a salary step" },
   "payday.create": { km: "កំណត់ថ្ងៃបើកប្រាក់ខែ", en: "Set a payday" },
